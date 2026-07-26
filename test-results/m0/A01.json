@@ -1,0 +1,44 @@
+{
+  "taskId": "A01",
+  "milestone": "M0",
+  "candidateBaseCommit": "9813704",
+  "node": "24.14.0",
+  "pnpm": "9.15.4",
+  "cases": {
+    "TC-A01-01": "passed",
+    "TC-A01-02": "passed",
+    "TC-A01-03": "passed"
+  },
+  "redEvidence": {
+    "command": "node --test tests/workspace/quality-scripts.spec.ts tests/workspace/toolchain-guard.spec.ts",
+    "result": "5 tests failed before implementation because the root manifest, workspace runner and toolchain guard did not exist"
+  },
+  "greenEvidence": [
+    {
+      "command": "pnpm run quality",
+      "result": "passed: ESLint, TypeScript 6, Vitest and Turbo build across 9 workspaces"
+    },
+    {
+      "command": "pnpm run ci:smoke",
+      "result": "passed: 2 tests, frozen clean install, full quality run and unchanged source digest"
+    },
+    {
+      "command": "pnpm exec vitest run tests/workspace/quality-scripts.spec.mjs tests/workspace/toolchain-guard.spec.mjs",
+      "result": "passed: 5 tests including Node/pnpm mismatch and an injected TypeScript failure after a cached success"
+    }
+  ],
+  "stableChecks": [
+    "quality / lint",
+    "quality / typecheck",
+    "quality / unit",
+    "quality / build",
+    "quality / clean-install"
+  ],
+  "databaseMigration": "not applicable",
+  "contractImpact": "none",
+  "knownRisks": [
+    "GitHub-hosted CI has not run because the user requested local commits only.",
+    "Existing node:test Spike suites run through a real Vitest compatibility test and can be migrated to native Vitest APIs later.",
+    "The current A10 and A12 JavaScript sources are linted and built by TypeScript with checkJs disabled; strict semantic checking applies to TypeScript sources."
+  ]
+}

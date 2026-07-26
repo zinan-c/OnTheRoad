@@ -1,0 +1,30 @@
+{
+  "name": "on-the-road",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": "24.14.0",
+    "pnpm": "9.15.4"
+  },
+  "scripts": {
+    "preinstall": "node scripts/check-toolchain.mjs",
+    "toolchain:check": "node scripts/check-toolchain.mjs",
+    "lint": "eslint scripts tests eslint.config.mjs --max-warnings=0 && turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "unit": "turbo run unit && vitest run tests/workspace/quality-scripts.spec.mjs tests/workspace/toolchain-guard.spec.mjs",
+    "build": "turbo run build",
+    "quality": "pnpm run lint && pnpm run typecheck && pnpm run unit && pnpm run build",
+    "ci:smoke": "vitest run tests/workspace/clean-install.spec.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.0",
+    "@typescript/typescript6": "6.0.2",
+    "eslint": "10.8.0",
+    "fast-check": "4.9.0",
+    "turbo": "2.10.7",
+    "vitest": "4.1.10"
+  }
+}

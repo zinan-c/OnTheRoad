@@ -1,0 +1,11 @@
+{
+  "name": "@on-the-road/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc6 -p tsconfig.json",
+    "unit": "vitest run",
+    "build": "tsc6 -p tsconfig.build.json"
+  }
+}
