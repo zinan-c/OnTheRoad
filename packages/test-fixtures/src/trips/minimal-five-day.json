@@ -1,0 +1,305 @@
+{
+  "fixtureVersion": "minimal-five-day@1",
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-26T00:00:00.000Z",
+  "trip": {
+    "id": "trip-minimal-shanghai-zhoushan-001",
+    "name": "上海至舟山与普陀山五日行",
+    "timezone": "Asia/Shanghai",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-05",
+    "days": [
+      {
+        "id": "day-01",
+        "dayNumber": 1,
+        "date": "2026-10-01",
+        "title": "抵达上海",
+        "items": [
+          {
+            "id": "item-01",
+            "type": "transport",
+            "startTime": "14:00",
+            "endTime": "15:00",
+            "title": "抵达浦东机场",
+            "locationId": "loc-pvg"
+          },
+          {
+            "id": "item-02",
+            "type": "lodging",
+            "startTime": "17:00",
+            "endTime": "18:00",
+            "title": "入住外滩酒店",
+            "locationId": "loc-sh-hotel"
+          },
+          {
+            "id": "item-03",
+            "type": "activity",
+            "startTime": "19:30",
+            "endTime": "21:00",
+            "title": "外滩夜景",
+            "locationId": "loc-bund"
+          }
+        ]
+      },
+      {
+        "id": "day-02",
+        "dayNumber": 2,
+        "date": "2026-10-02",
+        "title": "上海城市漫步",
+        "items": [
+          {
+            "id": "item-04",
+            "type": "meal",
+            "startTime": "08:00",
+            "endTime": "09:00",
+            "title": "上海早餐",
+            "locationId": "loc-sh-hotel"
+          },
+          {
+            "id": "item-05",
+            "type": "activity",
+            "startTime": "10:00",
+            "endTime": "12:00",
+            "title": "豫园游览",
+            "locationId": "loc-yuyuan"
+          },
+          {
+            "id": "item-06",
+            "type": "meal",
+            "startTime": "18:00",
+            "endTime": "19:30",
+            "title": "本帮晚餐",
+            "locationId": "loc-bund"
+          }
+        ]
+      },
+      {
+        "id": "day-03",
+        "dayNumber": 3,
+        "date": "2026-10-03",
+        "title": "上海前往舟山",
+        "items": [
+          {
+            "id": "item-07",
+            "type": "transport",
+            "startTime": "08:00",
+            "endTime": "12:30",
+            "title": "跨城巴士",
+            "locationId": "loc-zhoushan"
+          },
+          {
+            "id": "item-08",
+            "type": "lodging",
+            "startTime": "14:00",
+            "endTime": "15:00",
+            "title": "入住舟山酒店",
+            "locationId": "loc-zh-hotel"
+          },
+          {
+            "id": "item-09",
+            "type": "meal",
+            "startTime": "18:00",
+            "endTime": "19:30",
+            "title": "海鲜晚餐",
+            "locationId": "loc-zhoushan"
+          }
+        ]
+      },
+      {
+        "id": "day-04",
+        "dayNumber": 4,
+        "date": "2026-10-04",
+        "title": "普陀山一日",
+        "items": [
+          {
+            "id": "item-10",
+            "type": "transport",
+            "startTime": "07:30",
+            "endTime": "08:10",
+            "title": "乘船登岛",
+            "locationId": "loc-putuo-port"
+          },
+          {
+            "id": "item-11",
+            "type": "activity",
+            "startTime": "09:00",
+            "endTime": "15:00",
+            "title": "普陀山步道",
+            "locationId": "loc-putuo"
+          },
+          {
+            "id": "item-12",
+            "type": "transport",
+            "startTime": "16:30",
+            "endTime": "17:10",
+            "title": "乘船返回",
+            "locationId": "loc-zhoushan"
+          }
+        ]
+      },
+      {
+        "id": "day-05",
+        "dayNumber": 5,
+        "date": "2026-10-05",
+        "title": "返回上海",
+        "items": [
+          {
+            "id": "item-13",
+            "type": "meal",
+            "startTime": "08:00",
+            "endTime": "09:00",
+            "title": "舟山早餐",
+            "locationId": "loc-zh-hotel"
+          },
+          {
+            "id": "item-14",
+            "type": "transport",
+            "startTime": "10:00",
+            "endTime": "14:00",
+            "title": "返回上海",
+            "locationId": "loc-pvg"
+          },
+          {
+            "id": "item-15",
+            "type": "activity",
+            "startTime": "15:00",
+            "endTime": "16:00",
+            "title": "行程结束",
+            "locationId": "loc-pvg"
+          }
+        ]
+      }
+    ]
+  },
+  "locations": [
+    {
+      "id": "loc-pvg",
+      "name": "上海浦东国际机场",
+      "longitude": 121.8052,
+      "latitude": 31.1434,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-sh-hotel",
+      "name": "上海外滩酒店（测试）",
+      "longitude": 121.4902,
+      "latitude": 31.2396,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-bund",
+      "name": "外滩",
+      "longitude": 121.4906,
+      "latitude": 31.2413,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-yuyuan",
+      "name": "豫园",
+      "longitude": 121.4921,
+      "latitude": 31.2271,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-zhoushan",
+      "name": "舟山",
+      "longitude": 122.2072,
+      "latitude": 29.9853,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-zh-hotel",
+      "name": "舟山酒店（测试）",
+      "longitude": 122.1069,
+      "latitude": 30.0198,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-putuo-port",
+      "name": "朱家尖蜈蚣峙码头",
+      "longitude": 122.3918,
+      "latitude": 29.931,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-putuo",
+      "name": "普陀山",
+      "longitude": 122.3867,
+      "latitude": 30.0097,
+      "crs": "WGS84"
+    }
+  ],
+  "routes": [
+    {
+      "id": "route-01",
+      "dayId": "day-01",
+      "fromLocationId": "loc-pvg",
+      "toLocationId": "loc-sh-hotel",
+      "mode": "METRO",
+      "style": "solid"
+    },
+    {
+      "id": "route-02",
+      "dayId": "day-02",
+      "fromLocationId": "loc-sh-hotel",
+      "toLocationId": "loc-yuyuan",
+      "mode": "WALK",
+      "style": "dotted"
+    },
+    {
+      "id": "route-03",
+      "dayId": "day-03",
+      "fromLocationId": "loc-yuyuan",
+      "toLocationId": "loc-zhoushan",
+      "mode": "BUS",
+      "style": "solid"
+    },
+    {
+      "id": "route-04",
+      "dayId": "day-04",
+      "fromLocationId": "loc-putuo-port",
+      "toLocationId": "loc-putuo",
+      "mode": "FERRY",
+      "style": "blue"
+    },
+    {
+      "id": "route-05",
+      "dayId": "day-05",
+      "fromLocationId": "loc-zhoushan",
+      "toLocationId": "loc-pvg",
+      "mode": "FLIGHT",
+      "style": "dashed-arc"
+    }
+  ],
+  "assets": {
+    "map": "maps/minimal-five-day.geojson",
+    "neutralMap": "maps/neutral-grid.svg",
+    "tables": [
+      "imports/minimal-five-day.csv",
+      "imports/minimal-five-day.xlsx",
+      "imports/minimal-five-day.xls"
+    ],
+    "images": [
+      "images/day-01.svg",
+      "images/day-02.svg",
+      "images/day-03.svg",
+      "images/day-04.svg",
+      "images/day-05.svg"
+    ],
+    "pdfText": "pdf/minimal-five-day-50-pages.html",
+    "all": [
+      "maps/minimal-five-day.geojson",
+      "maps/neutral-grid.svg",
+      "imports/minimal-five-day.csv",
+      "imports/minimal-five-day.xlsx",
+      "imports/minimal-five-day.xls",
+      "images/day-01.svg",
+      "images/day-02.svg",
+      "images/day-03.svg",
+      "images/day-04.svg",
+      "images/day-05.svg",
+      "pdf/minimal-five-day-50-pages.html",
+      "manifest.json"
+    ]
+  }
+}

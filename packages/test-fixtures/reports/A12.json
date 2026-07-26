@@ -1,0 +1,30 @@
+{
+  "taskId": "A12",
+  "fixtureVersion": "minimal-five-day@1",
+  "cases": {
+    "TC-A12-01": "passed",
+    "TC-A12-02": "passed",
+    "TC-A12-03": "passed"
+  },
+  "environment": {
+    "node": "26.0.0",
+    "packageManager": "npm",
+    "network": "disabled/not required",
+    "databaseMigration": "not applicable"
+  },
+  "evidence": [
+    "npm test",
+    "npm run generate",
+    "node --check src/*.mjs src/trips/*.mjs scripts/*.mjs test/*.mjs"
+  ],
+  "redEvidence": {
+    "command": "npm test",
+    "result": "TC-A12-01 and TC-A12-02 failed before implementation with ERR_MODULE_NOT_FOUND for src/index.mjs"
+  },
+  "assetTreeSha256": "b8da69243d864c045a6555975a527cacc63adeae13610c8cf60b5beef00e898c",
+  "contractImpact": "Adds the versioned minimal-five-day fixture contract only.",
+  "knownRisks": [
+    "Actual Spike packages are not present yet; TC-A12-03 proves independent package-level consumer contracts that A08-A11 can adopt.",
+    "The legacy .xls fixture is Excel 2003 SpreadsheetML rather than BIFF8; it is valid for Excel-compatible parser contract testing."
+  ]
+}

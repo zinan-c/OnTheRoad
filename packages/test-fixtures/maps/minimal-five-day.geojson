@@ -1,0 +1,249 @@
+{
+  "type": "FeatureCollection",
+  "fixtureVersion": "minimal-five-day@1",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "loc-pvg",
+      "properties": {
+        "kind": "marker",
+        "name": "上海浦东国际机场",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.8052,
+          31.1434
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-sh-hotel",
+      "properties": {
+        "kind": "marker",
+        "name": "上海外滩酒店（测试）",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.4902,
+          31.2396
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-bund",
+      "properties": {
+        "kind": "marker",
+        "name": "外滩",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.4906,
+          31.2413
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-yuyuan",
+      "properties": {
+        "kind": "marker",
+        "name": "豫园",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.4921,
+          31.2271
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-zhoushan",
+      "properties": {
+        "kind": "marker",
+        "name": "舟山",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.2072,
+          29.9853
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-zh-hotel",
+      "properties": {
+        "kind": "marker",
+        "name": "舟山酒店（测试）",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.1069,
+          30.0198
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-putuo-port",
+      "properties": {
+        "kind": "marker",
+        "name": "朱家尖蜈蚣峙码头",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3918,
+          29.931
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-putuo",
+      "properties": {
+        "kind": "marker",
+        "name": "普陀山",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3867,
+          30.0097
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "route-01",
+      "properties": {
+        "kind": "route",
+        "dayId": "day-01",
+        "mode": "METRO",
+        "style": "solid"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            121.8052,
+            31.1434
+          ],
+          [
+            121.4902,
+            31.2396
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "route-02",
+      "properties": {
+        "kind": "route",
+        "dayId": "day-02",
+        "mode": "WALK",
+        "style": "dotted"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            121.4902,
+            31.2396
+          ],
+          [
+            121.4921,
+            31.2271
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "route-03",
+      "properties": {
+        "kind": "route",
+        "dayId": "day-03",
+        "mode": "BUS",
+        "style": "solid"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            121.4921,
+            31.2271
+          ],
+          [
+            122.2072,
+            29.9853
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "route-04",
+      "properties": {
+        "kind": "route",
+        "dayId": "day-04",
+        "mode": "FERRY",
+        "style": "blue"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            122.3918,
+            29.931
+          ],
+          [
+            122.3867,
+            30.0097
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "route-05",
+      "properties": {
+        "kind": "route",
+        "dayId": "day-05",
+        "mode": "FLIGHT",
+        "style": "dashed-arc"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            122.2072,
+            29.9853
+          ],
+          [
+            121.8052,
+            31.1434
+          ]
+        ]
+      }
+    }
+  ]
+}

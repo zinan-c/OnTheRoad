@@ -1,0 +1,24 @@
+{
+  "fixtureVersion": "minimal-five-day@1",
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-26T00:00:00.000Z",
+  "generator": "scripts/generate-fixtures.mjs",
+  "networkRequired": false,
+  "provenance": "Synthetic test data authored for On The Road; no third-party binary assets.",
+  "license": "Project test fixture; internal use.",
+  "treeSha256": "b8da69243d864c045a6555975a527cacc63adeae13610c8cf60b5beef00e898c",
+  "assets": {
+    "images/day-01.svg": "81d602268288eb0140456c8aefc33c546122cc88fd622b6ee457950d3b01eb0c",
+    "images/day-02.svg": "00f9986778501fe9b1f5ac34e064b4c67e7179009c30a872579c88f3d5c85b74",
+    "images/day-03.svg": "14a933e139f6911bbf5f44ff60f66eb2b2a20dd9bb8a7a0d17cb0329ec99d941",
+    "images/day-04.svg": "bf0cf1b96031b96c2a6a38bfccfad414543a79dfabdc3d2db451b3504d4167bc",
+    "images/day-05.svg": "ebd4c8dc51a2d4ac78f66e603004eacbb700c56f9f8b6f424dd02e59fb2df539",
+    "imports/minimal-five-day.csv": "5cafea33c47bb95e22a3571ed6f20b856901380fbd85396dcaf01155fe33e196",
+    "imports/minimal-five-day.xls": "198fec2a1fd91654abe12ba1e7ece97909377ba062d6b07b13a60414bcfafc80",
+    "imports/minimal-five-day.xlsx": "4336df64a31e7549e10aa8e2b2bad338b6b93119a6135fc749302fc910f549f1",
+    "maps/minimal-five-day.geojson": "63a169a9de615cd2abd6b354c652866e50bef18225e9fab9ac62422120319dbf",
+    "maps/neutral-grid.svg": "1d1c7a0fcd13db88a5d892f92ddedc6591d6f5afbff3a0c17655d3651ffa58f3",
+    "pdf/minimal-five-day-50-pages.html": "93fc18a2589cdf99857eb288bfc445e5114f233320dc132e13deecb51eee13b9",
+    "src/trips/minimal-five-day.json": "c87c78152124c4b639fadee8ba6b925c92316efab345cc3f82582c94531070ed"
+  }
+}
