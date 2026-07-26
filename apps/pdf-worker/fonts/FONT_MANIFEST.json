@@ -1,0 +1,14 @@
+{
+  "family": "Noto Sans CJK SC",
+  "filename": "NotoSansCJKsc-Regular.otf",
+  "version": "2.004",
+  "fontconfigVersionInteger": 131334,
+  "sha256": "c3a9f5223868ca3a2b2e576d8113713b38e8fd8b08a7534b7f018cdecc34874d",
+  "source": "https://github.com/notofonts/noto-cjk/blob/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+  "license": "OFL-1.1",
+  "licenseFile": "OFL.txt",
+  "licenseSha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+  "licenseSource": "https://github.com/notofonts/noto-cjk/blob/main/Sans/LICENSE",
+  "copyright": "Copyright 2014-2021 Adobe; Noto is a trademark of Google Inc.",
+  "status": "vendored-and-checksummed"
+}

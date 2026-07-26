@@ -1,0 +1,14 @@
+{
+  "name": "@on-the-road/pdf-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node --experimental-strip-types src/cli.ts",
+    "lint": "eslint . --max-warnings=0 && node scripts/verify-source.mjs",
+    "typecheck": "tsc6 -p tsconfig.json",
+    "unit": "vitest run ../../tests/workspace/node-test-compat.spec.mjs --root ../..",
+    "test": "pnpm run unit",
+    "test:visual": "node --experimental-strip-types --test pdf-visual.e2e.spec.ts",
+    "build": "tsc6 -p tsconfig.build.json && node scripts/verify-source.mjs"
+  }
+}

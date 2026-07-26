@@ -1,0 +1,408 @@
+{
+  "testCase": "TC-A11-03",
+  "pageCount": 50,
+  "blankPages": [],
+  "clippedPages": [],
+  "pages": [
+    {
+      "page": 1,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.0926541,
+      "edgeMean": 0.198799,
+      "pngBytes": 26740
+    },
+    {
+      "page": 2,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107731,
+      "edgeMean": 1,
+      "pngBytes": 77930
+    },
+    {
+      "page": 3,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.120334,
+      "edgeMean": 1,
+      "pngBytes": 70030
+    },
+    {
+      "page": 4,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107313,
+      "edgeMean": 1,
+      "pngBytes": 59401
+    },
+    {
+      "page": 5,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107324,
+      "edgeMean": 1,
+      "pngBytes": 59424
+    },
+    {
+      "page": 6,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107352,
+      "edgeMean": 1,
+      "pngBytes": 59210
+    },
+    {
+      "page": 7,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107328,
+      "edgeMean": 1,
+      "pngBytes": 59249
+    },
+    {
+      "page": 8,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107405,
+      "edgeMean": 1,
+      "pngBytes": 59673
+    },
+    {
+      "page": 9,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107205,
+      "edgeMean": 1,
+      "pngBytes": 59206
+    },
+    {
+      "page": 10,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107483,
+      "edgeMean": 1,
+      "pngBytes": 59620
+    },
+    {
+      "page": 11,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.120505,
+      "edgeMean": 1,
+      "pngBytes": 70450
+    },
+    {
+      "page": 12,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107286,
+      "edgeMean": 1,
+      "pngBytes": 59029
+    },
+    {
+      "page": 13,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107123,
+      "edgeMean": 1,
+      "pngBytes": 58489
+    },
+    {
+      "page": 14,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107218,
+      "edgeMean": 1,
+      "pngBytes": 59034
+    },
+    {
+      "page": 15,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107229,
+      "edgeMean": 1,
+      "pngBytes": 59098
+    },
+    {
+      "page": 16,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107257,
+      "edgeMean": 1,
+      "pngBytes": 58830
+    },
+    {
+      "page": 17,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107233,
+      "edgeMean": 1,
+      "pngBytes": 58863
+    },
+    {
+      "page": 18,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107309,
+      "edgeMean": 1,
+      "pngBytes": 59336
+    },
+    {
+      "page": 19,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.12024,
+      "edgeMean": 1,
+      "pngBytes": 69914
+    },
+    {
+      "page": 20,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107355,
+      "edgeMean": 1,
+      "pngBytes": 59416
+    },
+    {
+      "page": 21,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107293,
+      "edgeMean": 1,
+      "pngBytes": 59253
+    },
+    {
+      "page": 22,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107382,
+      "edgeMean": 1,
+      "pngBytes": 59560
+    },
+    {
+      "page": 23,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107219,
+      "edgeMean": 1,
+      "pngBytes": 59054
+    },
+    {
+      "page": 24,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107314,
+      "edgeMean": 1,
+      "pngBytes": 59072
+    },
+    {
+      "page": 25,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107324,
+      "edgeMean": 1,
+      "pngBytes": 59673
+    },
+    {
+      "page": 26,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107352,
+      "edgeMean": 1,
+      "pngBytes": 59427
+    },
+    {
+      "page": 27,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.120426,
+      "edgeMean": 1,
+      "pngBytes": 70507
+    },
+    {
+      "page": 28,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107405,
+      "edgeMean": 1,
+      "pngBytes": 59748
+    },
+    {
+      "page": 29,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107205,
+      "edgeMean": 1,
+      "pngBytes": 59434
+    },
+    {
+      "page": 30,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107444,
+      "edgeMean": 1,
+      "pngBytes": 59857
+    },
+    {
+      "page": 31,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107382,
+      "edgeMean": 1,
+      "pngBytes": 59753
+    },
+    {
+      "page": 32,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107388,
+      "edgeMean": 1,
+      "pngBytes": 59845
+    },
+    {
+      "page": 33,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107226,
+      "edgeMean": 1,
+      "pngBytes": 59284
+    },
+    {
+      "page": 34,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.10732,
+      "edgeMean": 1,
+      "pngBytes": 59609
+    },
+    {
+      "page": 35,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.120427,
+      "edgeMean": 1,
+      "pngBytes": 70198
+    },
+    {
+      "page": 36,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107359,
+      "edgeMean": 1,
+      "pngBytes": 59619
+    },
+    {
+      "page": 37,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107335,
+      "edgeMean": 1,
+      "pngBytes": 59693
+    },
+    {
+      "page": 38,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107411,
+      "edgeMean": 1,
+      "pngBytes": 60106
+    },
+    {
+      "page": 39,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107212,
+      "edgeMean": 1,
+      "pngBytes": 59477
+    },
+    {
+      "page": 40,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107457,
+      "edgeMean": 1,
+      "pngBytes": 59930
+    },
+    {
+      "page": 41,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107395,
+      "edgeMean": 1,
+      "pngBytes": 59839
+    },
+    {
+      "page": 42,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107422,
+      "edgeMean": 1,
+      "pngBytes": 59389
+    },
+    {
+      "page": 43,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.120366,
+      "edgeMean": 1,
+      "pngBytes": 69944
+    },
+    {
+      "page": 44,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107354,
+      "edgeMean": 1,
+      "pngBytes": 59275
+    },
+    {
+      "page": 45,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107364,
+      "edgeMean": 1,
+      "pngBytes": 59257
+    },
+    {
+      "page": 46,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107392,
+      "edgeMean": 1,
+      "pngBytes": 58811
+    },
+    {
+      "page": 47,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107369,
+      "edgeMean": 1,
+      "pngBytes": 59207
+    },
+    {
+      "page": 48,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107445,
+      "edgeMean": 1,
+      "pngBytes": 59627
+    },
+    {
+      "page": 49,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107245,
+      "edgeMean": 1,
+      "pngBytes": 59149
+    },
+    {
+      "page": 50,
+      "width": 909,
+      "height": 1287,
+      "standardDeviation": 0.107482,
+      "edgeMean": 1,
+      "pngBytes": 59342
+    }
+  ]
+}

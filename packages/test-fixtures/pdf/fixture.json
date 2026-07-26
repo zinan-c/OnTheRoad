@@ -1,0 +1,9 @@
+{
+  "fixtureVersion": "a11-v1",
+  "title": "上海到舟山：五日旅行",
+  "subtitle": "On The Road PDF Spike",
+  "chapters": 48,
+  "mapAttribution": "Map fixture © OpenStreetMap contributors",
+  "mapAsset": "static-map.png",
+  "cjkProbe": "中文字体固定、目录页码准确、地图资源完整。"
+}
