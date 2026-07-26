@@ -1,0 +1,15 @@
+{
+  "name": "@on-the-road/importer-spike",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "generate:biff8": "node scripts/generate-biff8-fixture.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc6 -p tsconfig.json",
+    "unit": "vitest run ../../tests/workspace/node-test-compat.spec.mjs --root ../..",
+    "test": "pnpm run unit",
+    "build": "tsc6 -p tsconfig.build.json",
+    "benchmark": "node scripts/run-benchmark.mjs"
+  }
+}

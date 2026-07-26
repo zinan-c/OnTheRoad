@@ -1,0 +1,53 @@
+{
+  "taskId": "A10",
+  "cases": {
+    "TC-A10-01": "passed",
+    "TC-A10-02": "passed",
+    "TC-A10-03": "passed"
+  },
+  "fixtureVersion": "minimal-five-day@1",
+  "engine": {
+    "name": "SheetJS",
+    "version": "0.20.3",
+    "tarballSha256": "8dc73fc3b00203e72d176e85b50938627c7b086e607c682e8d3c22c02bb99fe8"
+  },
+  "biff8FixtureSha256": "2b8618f058fd614118573b2713fd6fc3e33f0c0869683cff91fd15d7118e156d",
+  "environment": {
+    "platform": "darwin",
+    "os": "macOS 26.5.2",
+    "arch": "arm64",
+    "node": "v24.14.0",
+    "network": "disabled/not required during execution"
+  },
+  "thresholds": {
+    "maxRows": 5000,
+    "maxP95MsPerFormat": 2000,
+    "maxRssBytes": 402653184,
+    "workerHeapLimitMb": 256,
+    "workerTimeoutMs": 10000
+  },
+  "measurements": {
+    "repetitions": 8,
+    "csvP95Ms": 31.033,
+    "xlsBiff8P95Ms": 71.41,
+    "xlsxP95Ms": 88.948,
+    "maxRssBytes": 313933824
+  },
+  "conclusion": "GO for SheetJS 0.20.3 under the frozen M0 whitelist",
+  "planB": "Apache POI in an isolated Spring Batch worker",
+  "redEvidence": {
+    "command": "npm test",
+    "result": "TC-A10-01 and TC-A10-02 failed before implementation with ERR_MODULE_NOT_FOUND for src/importer.mjs"
+  },
+  "evidence": [
+    "npm run generate:biff8",
+    "npm test",
+    "npm run benchmark",
+    "docs/reports/import-spike.md",
+    "docs/adr/A10-import-parser.md"
+  ],
+  "knownRisks": [
+    "The conclusion does not cover encrypted, macro-enabled or formula-bearing workbooks.",
+    "Inputs beyond 5000 rows require a new capacity decision."
+  ]
+}
