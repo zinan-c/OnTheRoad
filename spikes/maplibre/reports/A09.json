@@ -7,6 +7,11 @@
     "TC-A09-02": "passed",
     "TC-A09-03": "passed"
   },
+  "thresholds": {
+    "minimumRenderedRouteFeatures": 4,
+    "exactRouteModeCount": 4,
+    "minimumDegradedStateCount": 5
+  },
   "measurements": {
     "unitTests": 2,
     "browserInteractionTests": 3,
