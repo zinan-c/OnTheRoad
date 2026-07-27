@@ -1,0 +1,43 @@
+{
+  "taskId": "A11",
+  "fixtureVersion": "minimal-five-day@1",
+  "cases": {
+    "TC-A11-01": "passed",
+    "TC-A11-02": "passed",
+    "TC-A11-03": "passed"
+  },
+  "thresholds": {
+    "exactPageCount": 50,
+    "exactTocEntryCount": 48,
+    "maximumBlankPages": 0,
+    "maximumClippedPages": 0,
+    "minimumPageStandardDeviation": 0.018,
+    "minimumEdgeMean": 0.985
+  },
+  "measurements": {
+    "pageCount": 50,
+    "tocEntryCount": 48,
+    "blankPages": 0,
+    "clippedPages": 0,
+    "minimumPageStandardDeviation": 0.0926541,
+    "minimumEdgeMean": 1
+  },
+  "evidence": {
+    "pdf": "artifacts/a11-visual/a11-50-pages.pdf",
+    "perPage": "artifacts/a11-visual/per-page-evidence.json",
+    "contactSheet": "artifacts/a11-visual/all-pages-contact-sheet.png",
+    "pdfSha256": "a51229eca7c24ae36a016f4643ffaf3ee6a80d29b7ffbd15ab00efd1ff69c08b"
+  },
+  "environment": {
+    "node": "v24.14.0",
+    "network": "disabled/not required",
+    "font": "Noto Sans CJK SC 2.004",
+    "browser": "explicit installed Chromium/Google Chrome"
+  },
+  "conclusion": "GO",
+  "planB": "Keep the same physical-page gate and iterate pagination until TOC and anchors converge; if convergence fails, render fixed TOC and body blocks separately and merge without shipping known-wrong page numbers.",
+  "knownRisks": [
+    "Production templates above 100 pages require a new fixed-environment baseline.",
+    "The PDF binary contains Chromium metadata, so its SHA-256 records evidence but is not a cross-run determinism gate."
+  ]
+}
