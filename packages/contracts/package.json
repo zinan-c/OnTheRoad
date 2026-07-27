@@ -1,0 +1,16 @@
+{
+  "name": "@on-the-road/contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/generated/index.mjs"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc6 -p tsconfig.json",
+    "unit": "vitest run",
+    "build": "tsc6 -p tsconfig.build.json",
+    "generate": "node ../../scripts/generate-client.mjs",
+    "generate:check": "node ../../scripts/generate-client.mjs --check"
+  }
+}

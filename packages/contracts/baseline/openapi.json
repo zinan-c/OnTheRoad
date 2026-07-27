@@ -1,0 +1,60 @@
+{
+  "openapi": "3.1.0",
+  "paths": {
+    "/example": {
+      "get": {},
+      "post": {}
+    },
+    "/example/{exampleId}": {
+      "get": {}
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResourceId": {
+        "type": "string"
+      },
+      "LocalDate": {
+        "type": "string"
+      },
+      "ExampleResource": {
+        "required": [
+          "id",
+          "date"
+        ],
+        "properties": {
+          "id": {},
+          "date": {}
+        }
+      },
+      "CursorPage": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {},
+          "nextCursor": {}
+        }
+      },
+      "ProblemDetails": {
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "traceId",
+          "errors"
+        ],
+        "properties": {
+          "type": {},
+          "title": {},
+          "status": {},
+          "code": {},
+          "traceId": {},
+          "errors": {}
+        }
+      }
+    }
+  }
+}
