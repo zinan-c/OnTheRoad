@@ -420,8 +420,8 @@
 
 ### M0
 
-- `TC-M0-INT-01` — Shared fixture offline pipeline；代码：`tests/milestones/m0/offline-spikes.e2e.spec.ts`。阻断公网，用同一 minimal fixture 运行 Provider、Map、Importer、PDF Spike；断言版本一致、四类产物完整。
-- `TC-M0-INT-02` — Spike Go/No-Go gate；代码：`tests/milestones/m0/spike-gate.spec.ts`。读取测量和 ADR；断言每项都有阈值、结论、Plan B，任一未知结论使 gate 失败。
+- `TC-M0-INT-01` — Shared fixture offline pipeline；代码：`tests/milestones/m0/offline-spikes.e2e.spec.mjs`。阻断公网，用同一 minimal fixture 运行 Provider、Map、Importer、PDF Spike；断言版本一致、四类产物完整。
+- `TC-M0-INT-02` — Spike Go/No-Go gate；代码：`tests/milestones/m0/spike-gate.spec.mjs`。读取测量和 ADR；断言每项都有阈值、结论、Plan B，任一未知结论使 gate 失败。
 
 ### M1
 
