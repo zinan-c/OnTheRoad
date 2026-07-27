@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>A09 MapLibre 离线交互 Spike</title>
+    <link rel="stylesheet" href="/vendor/maplibre-gl.css">
+    <link rel="stylesheet" href="/app.css">
+  </head>
+  <body>
+    <main>
+      <header class="titlebar">
+        <div>
+          <p class="eyebrow">A09 · OFFLINE MAP HARNESS</p>
+          <h1>上海—舟山路线实验台</h1>
+        </div>
+        <output id="event-log" aria-label="最近交互事件">ready</output>
+      </header>
+      <section class="workspace">
+        <div class="map-shell">
+          <div id="neutral-grid" class="neutral-grid hidden" role="status" aria-label="底图不可用，中性网格已启用">
+            <span>底图不可用 / 本地中性网格</span>
+          </div>
+          <div id="map" aria-label="旅行路线地图"></div>
+          <div id="map-state" class="map-state hidden" data-testid="map-status"></div>
+          <div id="scenario-marker" class="sr-only"></div>
+        </div>
+        <aside>
+          <h2>路线图例</h2>
+          <ul id="legend" aria-label="路线图例"></ul>
+          <p id="attribution">MapLibre · Local GeoJSON fixture · © OpenStreetMap contributors</p>
+          <p class="hint">键盘：聚焦地点标记后使用方向键移动；Enter 选择。</p>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

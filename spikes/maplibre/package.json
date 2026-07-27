@@ -1,0 +1,19 @@
+{
+  "name": "@on-the-road/maplibre-spike",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "serve": "node --experimental-strip-types src/server.ts",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc6 -p tsconfig.json",
+    "unit": "vitest run map-interaction.spec.tsx --root .",
+    "test": "pnpm run unit",
+    "test:e2e": "node --experimental-strip-types --test map-degraded.e2e.spec.ts",
+    "test:visual": "node --experimental-strip-types --test map-styles.visual.spec.ts",
+    "build": "tsc6 -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "maplibre-gl": "6.0.0"
+  }
+}

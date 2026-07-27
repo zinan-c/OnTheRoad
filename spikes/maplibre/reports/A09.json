@@ -1,0 +1,51 @@
+{
+  "taskId": "A09",
+  "fixtureVersion": "minimal-five-day@1",
+  "maplibreVersion": "6.0.0",
+  "cases": {
+    "TC-A09-01": "passed",
+    "TC-A09-02": "passed",
+    "TC-A09-03": "passed"
+  },
+  "measurements": {
+    "unitTests": 2,
+    "browserInteractionTests": 3,
+    "renderedRouteFeatureCount": 4,
+    "markerCount": 3,
+    "visualViewport": {
+      "width": 1280,
+      "height": 760
+    }
+  },
+  "routeModes": [
+    "flight",
+    "walk",
+    "road",
+    "ferry"
+  ],
+  "degradedStates": [
+    "tile-failure-neutral-grid",
+    "zero-points",
+    "one-point",
+    "same-point",
+    "webgl-failure"
+  ],
+  "evidence": {
+    "screenshot": "evidence/map-styles.png",
+    "metadata": "evidence/map-styles.json",
+    "screenshotSha256": "e6938e4b8236f77b8fdb0babd447e5e46a75dc59dce6317823737b11134e5482"
+  },
+  "environment": {
+    "node": "v24.14.0",
+    "pnpm": "9.15.4",
+    "browser": "installed Google Chrome",
+    "network": "disabled/not required",
+    "basemap": "local deterministic SVG fixture tiles"
+  },
+  "conclusion": "GO",
+  "planB": "Use the neutral grid with explicit structured state; preserve text editing and WGS84 selection without silently loading another basemap.",
+  "knownRisks": [
+    "The spike validates current macOS only; later platform migration requires a separate browser/WebGL baseline.",
+    "Fixture tiles and route styles do not establish production basemap or routing-provider SLA."
+  ]
+}

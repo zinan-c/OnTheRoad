@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "checkJs": false,
+    "noEmit": true,
+    "typeRoots": ["./types"]
+  },
+  "include": ["src/**/*.mjs", "src/**/*.ts", "types/**/*.d.ts", "*.spec.ts", "*.spec.tsx"]
+}

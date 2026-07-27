@@ -1,0 +1,41 @@
+{
+  "case": "TC-A09-03",
+  "viewport": {
+    "width": 1280,
+    "height": 760
+  },
+  "diagnostics": {
+    "maplibreVersion": "6.0.0",
+    "fixtureVersion": "minimal-five-day@1",
+    "basemapMode": "fixture-tile",
+    "routeLayerIds": [
+      "route-flight",
+      "route-walk",
+      "route-road",
+      "route-ferry"
+    ],
+    "renderedRouteFeatureCount": 4,
+    "fitPlan": {
+      "kind": "bounds",
+      "message": "已适配全部有效坐标",
+      "bounds": [
+        [
+          121.4906,
+          30.0097
+        ],
+        [
+          122.3867,
+          31.2413
+        ]
+      ]
+    },
+    "markerCount": 3
+  },
+  "legend": [
+    "飞机",
+    "步行",
+    "道路交通",
+    "船运"
+  ],
+  "attribution": "MapLibre · Local GeoJSON fixture · © OpenStreetMap contributors"
+}
