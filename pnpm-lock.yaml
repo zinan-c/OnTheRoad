@@ -64,6 +64,8 @@ importers:
 
   spikes/pdf: {}
 
+  spikes/provider: {}
+
 packages:
 
   '@emnapi/core@1.11.1':
