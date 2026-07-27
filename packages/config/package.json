@@ -2,6 +2,16 @@
   "name": "@on-the-road/config",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/env.ts",
+      "default": "./dist/env.js"
+    },
+    "./env": {
+      "types": "./src/env.ts",
+      "default": "./dist/env.js"
+    }
+  },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc6 -p tsconfig.json",

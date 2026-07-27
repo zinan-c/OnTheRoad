@@ -30,13 +30,29 @@ importers:
         specifier: 4.1.10
         version: 4.1.10(vite@8.1.5)
 
-  apps/api: {}
+  apps/api:
+    dependencies:
+      '@on-the-road/config':
+        specifier: workspace:*
+        version: link:../../packages/config
 
-  apps/pdf-worker: {}
+  apps/pdf-worker:
+    dependencies:
+      '@on-the-road/config':
+        specifier: workspace:*
+        version: link:../../packages/config
 
-  apps/web: {}
+  apps/web:
+    dependencies:
+      '@on-the-road/config':
+        specifier: workspace:*
+        version: link:../../packages/config
 
-  apps/worker: {}
+  apps/worker:
+    dependencies:
+      '@on-the-road/config':
+        specifier: workspace:*
+        version: link:../../packages/config
 
   packages/config: {}
 
