@@ -1,0 +1,14 @@
+{
+  "name": "@on-the-road/provider-spike",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint scripts/verify-source.mjs --max-warnings=0 && node scripts/verify-source.mjs",
+    "typecheck": "tsc6 -p tsconfig.json",
+    "unit": "vitest run provider-golden.spec.ts provider-failure.spec.ts provider-spike.e2e.spec.ts",
+    "test": "pnpm run unit",
+    "build": "tsc6 -p tsconfig.build.json",
+    "smoke:here": "pnpm run build && node scripts/here-smoke.mjs"
+  }
+}

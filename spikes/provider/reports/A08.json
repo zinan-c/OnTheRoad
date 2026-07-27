@@ -1,0 +1,55 @@
+{
+  "taskId": "A08",
+  "cases": {
+    "TC-A08-01": "passed",
+    "TC-A08-02": "passed",
+    "TC-A08-03": "passed"
+  },
+  "fixtureVersion": "minimal-five-day@1",
+  "profile": "fixture-cn",
+  "provider": "here",
+  "domainCrs": "WGS84",
+  "thresholds": {
+    "maxCoordinateErrorMeters": 3,
+    "minimumGoldenPoints": 10
+  },
+  "measurements": {
+    "pointCount": 12,
+    "maxCoordinateErrorMeters": 0.082355,
+    "searchCandidateCount": 2,
+    "ambiguousCandidateCount": 2
+  },
+  "attribution": [
+    "© HERE"
+  ],
+  "evidenceSha256": "2dd85b8b428c8ce6b8ebc4b1435f113242015b61b34981156c66424e30ed35c9",
+  "conclusion": "GO",
+  "planB": "Offline fixture provider plus explicit map picking/manual WGS84 coordinates; no silent provider switching.",
+  "environment": {
+    "ciNetwork": "disabled/not required",
+    "mockTransport": "in-process Fetch contract server",
+    "liveSmoke": {
+      "date": "2026-07-27",
+      "query": "Shanghai",
+      "limit": 1,
+      "count": 1,
+      "label": "Shanghai, China",
+      "coordinate": {
+        "longitude": 121.4747,
+        "latitude": 31.25516,
+        "crs": "WGS84"
+      },
+      "resultType": "locality",
+      "credentials": "runtime environment; not persisted"
+    }
+  },
+  "redEvidence": {
+    "command": "pnpm run unit",
+    "result": "TC-A08-01 and TC-A08-02 failed before implementation because src/index.ts was absent"
+  },
+  "knownRisks": [
+    "One successful live smoke does not establish a production SLA or future data stability.",
+    "HERE result storage and attribution must follow the active account terms and response cache headers.",
+    "The 3 meter threshold covers conversion error, not upstream survey accuracy."
+  ]
+}
