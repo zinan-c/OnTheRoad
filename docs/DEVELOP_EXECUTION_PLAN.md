@@ -25,6 +25,8 @@ M0、M2、M4、M5 Gate 还必须提交一次架构/安全差异复审记录，�
 
 A02 使用双轨状态：Native Track 的启动、恢复和 dev gate 全绿即可标记当前阶段 `A02 Complete` 并放行后续开发。Compose Track 必须在本轮尝试；若环境不可用，记录原因并转入发布 checklist，不阻断当前 Milestone，但发布前必须补齐。
 
+A05 同样使用双轨状态：Dev Identity/Mock OIDC Track 的登录、会话、owner/BOLA、密钥轮换模拟和 dev gate 全绿即可标记当前阶段 `A05 Complete` 并放行后续开发。Staging IdP Track 必须在本轮尝试；若缺少 staging 环境、IdP 配置或可达回调，记录原因并转入发布 checklist，不阻断当前 Milestone，但真实 Authorization Code + PKCE 回调、HTTPS Cookie、登出和真实密钥轮换未通过时不得正式发布。
+
 ### 0.2 Test Case 编号
 
 - `TC-A01-01`：Task A01 的实现前契约/Red Case。
@@ -111,7 +113,7 @@ Next tasks unblocked:
 
 | Task | 依赖 | 实现前 Case | 完成后必须补齐 | 并行与修改冲突 |
 |---|---|---|---|---|
-| A05 | A03 | TC-A05-01、TC-A05-02 | TC-A05-03 | 可与 A06/A07/B01/C01 并行；identity 路由和 Web public shell 分区领取 |
+| A05 | A03 | TC-A05-01、TC-A05-02 | TC-A05-03 | Dev Track 可与 A06/A07/B01/C01 并行；identity 路由和 Web public shell 分区领取；Staging IdP 结果或阻塞必须交接到发布 checklist |
 | A06 | A02 | TC-A06-01、TC-A06-02 | TC-A06-03 | 可并行；Job migration 持 `LOCK-DB-MIGRATION` |
 | A07 | A01 | TC-A07-01、TC-A07-02 | TC-A07-03 | 可并行；应用 telemetry 文件按 app 分区，不同时改根 collector 配置 |
 | B01 | A02 | TC-B01-01、TC-B01-02 | TC-B01-03 | 可并行；独占 `LOCK-CONFIG`，seed 入口持 `LOCK-DB-MIGRATION` |
@@ -140,7 +142,7 @@ Next tasks unblocked:
 
 ### M1 Gate
 
-执行：`TC-M1-INT-01`、`TC-M1-INT-02`。只有 outbox 恢复、owner 隔离和 Trip/Day 原子创建均通过，M2 才可领取业务编辑 Task。
+执行：`TC-M1-INT-01`、`TC-M1-INT-02`。只有 outbox 恢复、owner 隔离和 Trip/Day 原子创建均通过，M2 才可领取业务编辑 Task。M1 可使用通过 Dev Track 的 `A05 Complete`；这不构成真实 Staging IdP 或发布就绪证据，发布前仍必须关闭 A05 release checklist。
 
 ---
 

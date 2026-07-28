@@ -39,3 +39,51 @@ gate.
   were interrupted.
 - No Compose readiness, persistence, EICAR, or parity item above is considered
   passed by this partial pull.
+
+## A05 staging identity gate
+
+This section is mandatory before the first production release whenever the
+development milestone completed A05 through the Dev Identity/Mock OIDC Track.
+
+- [ ] The production OIDC provider decision and issuer are recorded in the
+      identity ADR.
+- [ ] A dedicated staging client is configured; its client ID is expected and
+      its Secret is supplied only through the approved external Secret store.
+- [ ] Exact HTTPS callback, allowed origin, and post-logout redirect URIs are
+      registered in the staging IdP. Wildcard redirects are rejected.
+- [ ] Development identity is disabled and fails closed in staging and
+      production configurations.
+- [ ] `tests/identity/oidc-release.e2e.spec.ts` completes a real Authorization
+      Code + PKCE login and callback against the staging IdP.
+- [ ] The real flow verifies state, nonce, PKCE verifier, callback expiry,
+      CSRF/Origin checks, and replay rejection.
+- [ ] Session cookies on staging are HttpOnly, Secure, and use the approved
+      SameSite policy; browser storage and responses contain no long-lived
+      token or client Secret.
+- [ ] RP-initiated logout or the documented provider-specific logout flow
+      invalidates the application session and returns only to an allowlisted
+      URI.
+- [ ] Signing key and/or client Secret rotation is rehearsed using the
+      documented overlap policy; new sessions work and old sessions follow the
+      declared acceptance or revocation behavior.
+- [ ] IdP outage, discovery/JWKS timeout, invalid signature, expired token, and
+      rejected Cookie paths fail closed with redacted diagnostics.
+- [ ] Cross-owner enumeration still returns the documented 404/403 behavior
+      through the real authenticated session.
+- [ ] Application logs, traces, browser bundles, CI output, and release
+      artifacts have been checked for issuer credentials, tokens, Cookie
+      values, and signing material.
+- [ ] Issuer/client/callback metadata, redacted test output, key versions, test
+      timestamp, and approver are attached to the release record.
+
+Any unchecked item blocks release. Dev Identity or Mock OIDC evidence cannot
+waive this gate.
+
+### Current handoff — 2026-07-29
+
+- Status: deferred to staging/release validation; this does not block the
+  current A05 development gate once its Dev Track passes.
+- OIDC provider, staging origin, issuer, client registration, and staging
+  Secret have not yet been supplied or validated.
+- No real callback, HTTPS Cookie, provider logout, external Secret rotation, or
+  staging outage item above is considered passed.

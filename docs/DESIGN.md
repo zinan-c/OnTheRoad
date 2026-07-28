@@ -1746,6 +1746,8 @@ CREATE INDEX audit_trip_time_idx ON audit_log(trip_id, occurred_at DESC);
 
 - 使用 OIDC/OAuth 2.1 Authorization Code + PKCE；服务端 HttpOnly、Secure、SameSite Cookie。
 - 所有资源查询同时约束 `owner_id/tenant_id`，不只在路由层检查。
+- 身份验证采用双轨制：日常开发使用仅非生产可启用的开发身份和本地 mock OIDC；发布前必须在 staging 使用真实 IdP、HTTPS 回调/登出和外置 Secret 完成 smoke 与密钥轮换。两轨输出相同 Principal/Session/owner 语义，业务代码不得按轨道分支。
+- Dev Track 全绿可完成当前 A05 并放行后续开发；真实 Staging IdP gate 未通过时不得正式发布，mock 结果不能豁免该门禁。
 - 二期角色：Owner、Editor、Viewer；导出、删除、分享和成员管理单独授权。
 - 敏感操作写不可变 AuditLog。
 

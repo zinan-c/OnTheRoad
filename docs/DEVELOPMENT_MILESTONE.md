@@ -216,14 +216,22 @@ flowchart LR
 ### A05 OIDC、开发身份、Secret/回调与 owner 守卫（5 人日）
 
 - **优先级**：`P0 / Critical`
-- **目标**：建立本地可测、staging 可接入的身份认证和资源所有权边界。
+- **目标**：建立本地可测、staging 可接入的身份认证和资源所有权边界，并把不依赖外部 IdP 的开发门禁与发布前真实 IdP 门禁分离。
+- **轨道定义**：
+  - **Dev Identity/Mock OIDC Track**：日常开发默认轨道；使用仅非生产可启用的开发身份与本地 mock OIDC，验证登录/登出、Authorization Code + PKCE 契约、Cookie、state/nonce、会话过期、owner guard、BOLA 和密钥轮换策略。
+  - **Staging IdP Track**：当前阶段尽力验证、发布前强制轨道；使用真实 staging IdP、已登记的 HTTPS 回调/登出地址和外置 Secret。若环境或凭据尚不可用，则保存阻塞并把完整验证转入发布 checklist。
+- **共同契约**：两条轨道产生相同的内部 Principal、Session 和 owner authorization 语义；业务模块不得按身份轨道分支。开发身份必须在 staging/production 配置下 fail closed，真实 Secret 不得进入浏览器、日志、fixture 或仓库。
 - **实现范围**：OIDC Authorization Code + PKCE 决策、开发身份、HttpOnly Cookie、回调/登出、owner guard、密钥轮换接口和审计钩子。
 - **不在范围内**：团队成员、RBAC、公开分享、社交登录矩阵。
 - **预计修改的文件**：`apps/api/src/modules/identity/*`、`apps/web/app/(public)/*`、`packages/domain/src/identity/*`、`docs/adr/identity.md`。
 - **异常情况**：state/nonce 不匹配、回调过期、Cookie 被拒、IdP 不可用、跨用户枚举资源、密钥版本切换。
-- **测试要求**：auth integration、CSRF/Origin、跨 owner BOLA、会话过期、开发身份仅限非生产环境。
-- **验收标准**：本地 mock 与 staging IdP 都可用；跨用户资源返回 404/403 且无存在性泄露。
-- **完成标准**：所有已实现资源默认经过 owner guard；Secret 不进入浏览器或日志。
+- **测试要求**：
+  - Dev Track：开发身份和 mock OIDC auth integration、PKCE/state/nonce、CSRF/Origin、Cookie 属性、跨 owner BOLA、会话过期、本地新旧签名 key 轮换，以及 staging/production 启用开发身份时快速失败。
+  - Staging Track：当前环境可用时执行真实 Authorization Code + PKCE 回调、HTTPS Cookie、IdP 登出、Secret/签名 key 轮换、旧会话策略和 IdP 不可用行为；不可用时必须保存失败原因与发布前待办，不得伪造通过。
+  - Release Identity Gate：发布前对将要发布的 callback/origin/issuer/client 配置运行 staging smoke，确认 Secret 不进入浏览器、日志或构建产物；不得用 mock OIDC 替代真实回调。
+- **验收标准**：Dev Track 全绿、跨用户资源返回 404/403 且无存在性泄露，即可标记当前阶段 `A05 Complete`。Staging IdP Track 必须在本轮尝试；成功则保存证据，因环境或配置原因失败则登记到发布 checklist，不阻断当前 A05。
+- **完成标准**：所有已实现资源默认经过 owner guard；两轨 Principal/Session 语义一致；Secret 不进入浏览器或日志；开发身份在 staging/production fail closed。
+- **下游放行规则**：`A05 Complete` 放行 D01、后续开发和当前 Milestone Gate；正式发布前必须完成 Staging IdP Track/release checklist，否则不得发布。
 
 ### A06 Outbox、BullMQ、Job 基类与幂等记录（4 人日）
 
@@ -362,7 +370,7 @@ flowchart LR
 
 ### M1 完成标准与可演示场景
 
-- **完成标准**：Trip、平台、身份和 QA DRI 签署；数据库 migration、OpenAPI 与生成客户端一致；没有只存在于 Redis/localStorage 的业务事实。
+- **完成标准**：Trip、平台、身份和 QA DRI 签署；数据库 migration、OpenAPI 与生成客户端一致；没有只存在于 Redis/localStorage 的业务事实。身份签署允许引用通过 Dev Track 的 `A05 Complete`，但必须同时保留未关闭的 Staging IdP 发布阻断项。
 - **可演示**：用户登录后创建上海→舟山 5 日旅行，Day 1–5 原子出现；刷新/重启不丢失；另一用户不可访问；展示一次 outbox 故障恢复。
 
 ---

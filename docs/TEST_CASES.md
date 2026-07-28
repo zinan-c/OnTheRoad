@@ -17,6 +17,7 @@
 
 - 单元/属性测试使用 Vitest/Jest + fast-check；组件使用 Testing Library；浏览器使用 Playwright。
 - PostgreSQL/PostGIS、Redis/BullMQ、MinIO、ClamAV 使用双轨测试：本机原生轨覆盖日常启动和快速集成，Compose/Testcontainers 轨在 CI/staging 覆盖 Linux、网络、资源和故障恢复；不以纯 mock 证明持久化不变量。
+- 身份使用双轨测试：开发身份/Mock OIDC 轨覆盖日常登录、会话和 owner 安全门禁，真实 Staging IdP 轨在发布前覆盖登记回调、HTTPS Cookie、登出和真实密钥轮换；mock OIDC 不得作为发布身份凭据。
 - 并发测试使用 barrier/latch 控制提交顺序；时间相关测试使用 fake clock；故障使用显式 fault injection。
 - Provider contract 使用本地 mock server；CI 不访问公共地图服务。
 - PDF 必须由独立 parser 打开，并逐页渲染验证；“页面出现下载按钮”不是 PDF 成功测试。
@@ -97,8 +98,8 @@
 ### A05
 
 - `TC-A05-01` — Login/session contract；代码：`apps/api/test/identity/session.e2e-spec.ts`。开发身份和 mock OIDC 登录/登出；断言 HttpOnly/Secure/SameSite、state/nonce 和过期行为。
-- `TC-A05-02` — Owner/BOLA matrix；代码：`tests/security/owner-access.e2e.spec.ts`。User B 猜测 User A 的各资源 ID；断言 404/403 且无存在性泄露。
-- `TC-A05-03` — Staging IdP + key rotation；代码：`tests/identity/oidc-smoke.e2e.spec.ts`。完成真实回调并轮换签名 key；断言新旧会话按策略工作且 Secret 不进日志。
+- `TC-A05-02` — Owner/BOLA and environment boundary；代码：`tests/security/owner-access.e2e.spec.ts`、`apps/api/test/identity/environment-guard.spec.ts`。User B 猜测 User A 的各资源 ID，并分别以 development/staging/production 配置启动开发身份；断言跨 owner 返回 404/403 且无存在性泄露，开发身份在非 development 环境 fail closed。
+- `TC-A05-03` — Dev gate/Staging IdP handoff；代码：`tests/identity/dev-auth-gate.e2e.spec.ts`。运行开发身份和 mock OIDC 完整流程并模拟新旧签名 key 轮换，断言 Principal/Session/owner 语义一致且 Secret 不进日志；随后尝试真实 Staging IdP smoke。环境可用时运行 `tests/identity/oidc-release.e2e.spec.ts` 验证真实回调，环境或配置不可用时断言保存可行动原因且发布 checklist 包含全部强制项。Dev Case 全绿且 handoff 完整即可通过当前 A05，但未完成的 Staging IdP 项继续阻断正式发布。
 
 ### A06
 

@@ -286,7 +286,7 @@ on-the-road/
 | A02 | 双轨依赖栈：原生开发 + Compose 验证 | PLAT | 6 | A01 | Native Track 启动/恢复/fail-closed 全绿后 A02 Complete；Compose 当前尽力验证，未完成项阻断正式发布 |
 | A03 | 配置分层、Secret 校验、`.env.example` | BE | 1 | A01 | 缺必需配置快速失败且不泄密 |
 | A04 | OpenAPI v1、Problem Details、生成客户端 | BE/FE | 2 | A01 | 契约变更由 CI 检测 |
-| A05 | OIDC Provider 决策、开发身份、Secret/回调和 owner 守卫 | BE/PLAT | 5 | A03 | 本地 mock + staging IdP 可用；跨用户资源返回 404/403；密钥可轮换 |
+| A05 | 双轨身份：开发身份/Mock OIDC + Staging IdP 发布验证 | BE/PLAT | 5 | A03 | Dev Track 登录/会话/owner/轮换全绿后 A05 Complete；Staging IdP 当前尽力验证，未完成项阻断正式发布 |
 | A06 | Outbox、BullMQ、Job 基类和幂等记录 | BE | 4 | A02 | 重复投递不重复副作用 |
 | A07 | 结构化日志、Trace ID、基础指标 | PLAT | 2 | A01 | Web/API/Worker trace 可串联 |
 | A08 | 地图/地理编码/坐标系 Spike | BE/FE | 3 | A12 | 自含轻量 harness 中至少 10 个中外 golden 点、候选/反查/转换可重复 |
