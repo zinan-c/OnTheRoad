@@ -16,7 +16,7 @@
 ### 0.2 通用约束
 
 - 单元/属性测试使用 Vitest/Jest + fast-check；组件使用 Testing Library；浏览器使用 Playwright。
-- PostgreSQL/PostGIS、Redis/BullMQ、MinIO、ClamAV 集成测试使用 Testcontainers/Compose，不以纯 mock 证明持久化不变量。
+- PostgreSQL/PostGIS、Redis/BullMQ、MinIO、ClamAV 使用双轨测试：本机原生轨覆盖日常启动和快速集成，Compose/Testcontainers 轨在 CI/staging 覆盖 Linux、网络、资源和故障恢复；不以纯 mock 证明持久化不变量。
 - 并发测试使用 barrier/latch 控制提交顺序；时间相关测试使用 fake clock；故障使用显式 fault injection。
 - Provider contract 使用本地 mock server；CI 不访问公共地图服务。
 - PDF 必须由独立 parser 打开，并逐页渲染验证；“页面出现下载按钮”不是 PDF 成功测试。
@@ -44,9 +44,9 @@
 
 ### A02
 
-- `TC-A02-01` — Local stack health；代码：`tests/infra/compose-health.spec.ts`。启动空卷 Compose；断言 PostGIS extension、Redis ping、MinIO bucket 和 ClamAV 全部 ready。
-- `TC-A02-02` — Restart/degraded scanner；代码：`tests/infra/compose-recovery.spec.ts`。重启单服务并让 ClamAV 不可用；断言数据保留且媒体 readiness fail-closed。
-- `TC-A02-03` — One-command bootstrap；代码：`tests/infra/bootstrap.e2e.spec.ts`。从干净环境运行开发启动脚本两次；断言幂等、无重复初始化并输出可行动健康状态。
+- `TC-A02-01` — Native bootstrap/health；代码：`tests/infra/native-health.spec.mjs`。从隔离数据目录运行原生启动命令两次；断言版本检查、PID/端口隔离和初始化幂等，并验证 PostGIS extension、authenticated Redis、MinIO bucket 与 ClamAV TCP readiness。
+- `TC-A02-02` — Native restart/degraded scanner；代码：`tests/infra/native-recovery.spec.mjs`。保留数据重启原生服务、清理残留 PID，并让 ClamAV 不可用；断言 PostgreSQL/Redis/对象数据保留，媒体 readiness fail-closed，停止命令不终止非本项目进程。
+- `TC-A02-03` — Dev gate/Compose handoff；代码：`tests/infra/dev-gate.e2e.spec.mjs`。从干净项目状态运行 Native Track 两次，断言幂等且共享健康探针全绿；随后尝试 Compose parity。Compose 可用时验证等价 capability/readiness；不可用时断言保存可行动失败原因，并且发布 checklist 包含全部 Compose 强制项。Native Case 全绿且 handoff 完整即可通过当前 A02，但未完成的 Compose 项继续阻断正式发布。
 
 ### A03
 

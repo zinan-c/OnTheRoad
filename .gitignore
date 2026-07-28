@@ -6,3 +6,5 @@ coverage/
 dist/
 **/dist/
 .DS_Store
+infra/local-stack.env
+infra/native/.runtime/

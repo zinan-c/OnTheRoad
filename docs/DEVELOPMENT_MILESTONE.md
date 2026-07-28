@@ -82,17 +82,25 @@ flowchart LR
 - **验收标准**：CI 在支持的 Node 24 环境全绿；分支保护可引用稳定 check 名称。
 - **完成标准**：脚本在本机和 CI 输出一致；开发文档写明版本与命令；无被跳过的空测试命令。
 
-### A02 Compose：PostGIS、Redis、MinIO、ClamAV（3 人日）
+### A02 双轨依赖栈：原生开发 + Compose 验证（6 人日）
 
 - **优先级**：`P0 / Critical`
-- **目标**：一条命令启动本地数据、队列、对象存储和扫描依赖。
-- **实现范围**：健康检查、持久卷、非默认开发凭据、初始化 bucket、PostGIS extension、ClamAV 健康状态、服务网络与资源限额。
+- **目标**：开发者可在 macOS 不使用容器启动 PostGIS、Redis、MinIO 和 ClamAV；CI/staging 使用 Compose 验证与发布环境一致的集成行为。
+- **轨道定义**：
+  - **Native Track**：日常开发默认轨道；一条命令发现或启动本机服务，使用项目隔离的数据目录、端口、PID 和日志，提供幂等初始化与统一健康检查。
+  - **Compose Track**：当前阶段尽力验证、发布前强制轨道；优先在当前环境尝试短生命周期 Compose，若容器环境不可用则记录阻塞并把完整验证转入发布 checklist。
+- **共同契约**：两条轨道使用相同的环境变量、PostgreSQL migration/PostGIS extension、Redis 认证、S3-compatible bucket 初始化、ClamAV TCP adapter 和 readiness 输出；应用代码不得感知当前轨道。
+- **实现范围**：原生服务发现/进程编排、Compose、健康检查、隔离数据目录/持久卷、非默认开发凭据、初始化 bucket、PostGIS extension、ClamAV signature/健康状态、服务网络与资源限额。
 - **不在范围内**：生产 HA、托管服务采购、跨区备份。
-- **预计修改的文件**：`infra/compose/docker-compose.yml`、`infra/compose/init/*`、`scripts/dev-up.*`、`.env.example`、`docs/runbooks/local-stack.md`。
-- **异常情况**：端口占用、镜像架构不兼容、ClamAV signature 未就绪、MinIO bucket 初始化重复；启动脚本需幂等且给出可行动错误。
-- **测试要求**：空卷首次启动、保留卷重启、单服务重启；SQL 验证 PostGIS，S3 put/get，Redis ping，EICAR 扫描阻断。
-- **验收标准**：新环境按文档一条命令启动，全部必要服务健康；扫描不可用时系统明确 fail-closed。
-- **完成标准**：健康检查可供 API readiness 使用；敏感默认值不进入生产配置。
+- **预计修改的文件**：`infra/local-stack.env.example`、`infra/native/*`、`infra/compose/docker-compose.yml`、`infra/compose/init/*`、`scripts/dev-up.*`、`scripts/dev-down.*`、`.env.example`、`docs/runbooks/local-stack.md`。
+- **异常情况**：缺少本机 binary、版本不兼容、端口占用、残留 PID、异常退出后的孤儿进程、ClamAV signature 未就绪、MinIO bucket 重复初始化、镜像架构不兼容；启动脚本需幂等且给出可行动错误。
+- **测试要求**：
+  - Native Track：干净数据目录首次启动、重复启动、保留数据重启、显式停止与异常残留恢复；SQL 验证 PostGIS，S3 put/get，Redis ping，EICAR 扫描阻断。
+  - Compose Track：当前环境可用时验证空卷首次启动、保留卷重启、单服务重启、Linux 服务名/权限/只读边界与资源限额，并执行同一组 PostGIS、S3、Redis、ClamAV 探针；当前环境不可用时必须保存失败原因和发布前待办，不得伪造通过。
+  - Release Parity Gate：发布前相同 `.env` 契约和 fixture 在两条轨道得到相同 capability/readiness 结果；不得用纯 mock 替代任一持久化或扫描断言。
+- **验收标准**：本机新环境按文档一条命令进入 `Native Ready`，Native Track 的启动、持久化、恢复和 fail-closed Case 全绿，即可标记当前阶段 `A02 Complete`。Compose Track 必须在本轮尝试；成功则保存证据，因环境原因失败则登记到发布 checklist，不阻断当前 A02。
+- **完成标准**：健康检查可供 API readiness 使用；应用只依赖 URL/凭据/capability，不依赖本机路径或 Compose DNS；migration 和 bucket 初始化在两轨幂等；敏感默认值不进入生产配置。
+- **下游放行规则**：`A02 Complete` 放行后续开发和当前 Milestone Gate；正式发布前必须完成 Compose Track parity/release checklist，否则不得发布。
 
 ### A03 配置分层、Secret 校验与 `.env.example`（1 人日）
 

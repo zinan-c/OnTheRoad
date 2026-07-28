@@ -23,6 +23,8 @@
 
 M0、M2、M4、M5 Gate 还必须提交一次架构/安全差异复审记录，检查模块边界、Provider/文件/网络攻击面、状态机和 Plan B 是否因本里程碑实现发生变化。每次 Gate 演示同时运行固定五日 fixture 和一条从空账号开始的真实路径；fixture 不能替代创建、权限与持久化验证。
 
+A02 使用双轨状态：Native Track 的启动、恢复和 dev gate 全绿即可标记当前阶段 `A02 Complete` 并放行后续开发。Compose Track 必须在本轮尝试；若环境不可用，记录原因并转入发布 checklist，不阻断当前 Milestone，但发布前必须补齐。
+
 ### 0.2 Test Case 编号
 
 - `TC-A01-01`：Task A01 的实现前契约/Red Case。
@@ -90,7 +92,7 @@ Next tasks unblocked:
 
 | Task | 依赖 | 实现前 Case | 完成后必须补齐 | 并行与修改冲突 |
 |---|---|---|---|---|
-| A02 | A01 | TC-A02-01、TC-A02-02 | TC-A02-03 | 可与 A03/A04/A08–A10 并行；Compose 文件独占 |
+| A02 | A01 | TC-A02-01、TC-A02-02 | TC-A02-03 | Native Track 可与 A03/A04/A08–A10 并行；`infra/native` 与 `infra/compose` 可分区修改，但共享 env/readiness 契约需串行 review |
 | A03 | A01 | TC-A03-01、TC-A03-02 | TC-A03-03 | 可并行；修改根 `.env.example` 时与 A02 协调，持 `LOCK-WORKSPACE` |
 | A04 | A01 | TC-A04-01、TC-A04-02 | TC-A04-03 | 可并行；独占 `LOCK-CONTRACT`，workflow 修改持 `LOCK-CI` |
 | A08 | A12 | TC-A08-01、TC-A08-02 | TC-A08-03 | 可与 A09/A10 并行；golden 更新持 `LOCK-FIXTURE` |

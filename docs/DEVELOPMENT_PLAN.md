@@ -184,7 +184,7 @@ on-the-road/
 目标：用最小实验验证最危险技术，不做假 UI。
 
 - 冻结本文 Q1–Q14 的默认决策或 ADR。
-- 建立 monorepo/CI；平台流并行启动 Compose，Spike 使用独立 harness，不等待完整基础设施串行完成。
+- 建立 monorepo/CI；平台流并行建立原生开发 + Compose 验证双轨依赖栈，Spike 使用独立 harness，不等待完整基础设施串行完成。
 - 生成 OpenAPI 客户端和统一 Problem Details。
 - Spike A：高德/国际 Provider 的搜索、反查、坐标转换与 attribution。
 - Spike B：MapLibre Marker 拖动、地图点选、路线线型。
@@ -196,7 +196,7 @@ on-the-road/
 
 ### Sprint 1（2 周）：平台骨架、Trip/Day 与 Location 核心
 
-- 完成 Compose、身份最小集、owner 访问控制、outbox/Job 基类和基础可观测性。
+- 完成双轨依赖栈、身份最小集、owner 访问控制、outbox/Job 基类和基础可观测性。
 - Trip/Destination CRUD、向导和日期变更预览。
 - 原子生成 TripDay、工作日人工覆盖。
 - Provider contracts、Location/staging schema、候选签名和状态机。
@@ -283,7 +283,7 @@ on-the-road/
 | ID | 任务 | 角色 | 估算 | 依赖 | 完成标准 |
 |---|---|---:|---:|---|---|
 | A01 | 建立 monorepo、质量脚本和 CI | PLAT | 2 | - | install/lint/typecheck/unit/build 全绿 |
-| A02 | Compose：PostGIS/Redis/MinIO/ClamAV | PLAT | 3 | A01 | 新环境一条命令可启动；扫描器不可用有明确健康状态 |
+| A02 | 双轨依赖栈：原生开发 + Compose 验证 | PLAT | 6 | A01 | Native Track 启动/恢复/fail-closed 全绿后 A02 Complete；Compose 当前尽力验证，未完成项阻断正式发布 |
 | A03 | 配置分层、Secret 校验、`.env.example` | BE | 1 | A01 | 缺必需配置快速失败且不泄密 |
 | A04 | OpenAPI v1、Problem Details、生成客户端 | BE/FE | 2 | A01 | 契约变更由 CI 检测 |
 | A05 | OIDC Provider 决策、开发身份、Secret/回调和 owner 守卫 | BE/PLAT | 5 | A03 | 本地 mock + staging IdP 可用；跨用户资源返回 404/403；密钥可轮换 |
@@ -950,7 +950,7 @@ async function renderPdf(jobId) {
 | 静态 | TypeScript strict、lint、OpenAPI diff、SQL lint | CI 每次提交 |
 | 单元 | 日期、排序、状态机、费用、评分、fingerprint | Vitest/Jest |
 | 属性测试 | 日期范围、金额换算、排序集合、坐标范围 | fast-check |
-| 集成 | PostGIS、Redis/BullMQ、MinIO、outbox | Testcontainers |
+| 集成 | PostGIS、Redis/BullMQ、MinIO、ClamAV、outbox | 本机原生快速集成 + CI/staging Compose/Testcontainers parity gate |
 | Provider contract | 同一 fixture 验证各 adapter | mock server + 少量受控 smoke |
 | 组件 | 编辑器、候选、上传、错误态 | Testing Library |
 | E2E | 核心闭环、移动端、键盘 | Playwright |
@@ -1100,8 +1100,8 @@ async function renderPdf(jobId) {
 
 ### 13.1 环境
 
-- Local：Compose + fixture Provider。
-- CI：短生命周期 Testcontainers；不依赖公共地图服务。
+- Local：默认 Native Track + fixture Provider，不要求 Docker；需要排查 Linux/网络差异时可显式运行 Compose Track。
+- CI：短生命周期 Compose/Testcontainers，复用与 Native Track 相同的 migration、环境变量和 readiness 探针；不依赖公共地图服务。
 - Staging：与生产同类托管资源，使用独立 Provider Key/配额。
 - Production：Web/API/Worker 分开伸缩，PDF 独立节点池。
 
@@ -1161,7 +1161,7 @@ G08 的 PM 为 cohort Owner，负责在 Sprint 1 建立同意记录、测试账�
 1. 建立 ADR-001：日期范围权威，TotalDays 由日期派生。
 2. 建立 ADR-002：WGS84 为领域坐标，Provider Adapter 负责转换。
 3. 建立 ADR-003：公共 Nominatim 仅显式搜索，不做自动补全。
-4. 建立 monorepo、CI 和 Compose。
+4. 建立 monorepo、CI 和原生开发 + Compose 验证双轨依赖栈。
 5. 固化 OpenAPI 错误格式、ID/时间/并发/幂等约定。
 6. 实现 Trip/Day migration 和日期属性测试。
 7. 实现 Provider contract 与离线 fixture。

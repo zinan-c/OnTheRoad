@@ -11,7 +11,7 @@ On The Road 是一个以“按天时间线 + 地图轨迹”为核心工作台�
 
 > 创建旅行 → 自动生成每日计划 → 编辑并排序行程 → 搜索/确认地点 → 地图联动与路线生成 → 图片与费用管理 → Excel 导入 → 生成真实 PDF
 
-推荐从“TypeScript 模块化单体 + 独立异步 Worker”起步：Next.js 负责 Web，NestJS + Fastify 负责 API，NestJS Worker 负责地理编码、路线、导入和 PDF 等耗时任务，PostgreSQL/PostGIS 保存业务和空间数据，Redis 承担队列、锁与短期缓存，S3 兼容存储保存图片、导入源文件和 PDF。该形态可以在单机 Docker Compose 中开发，也可以在生产环境中按 Web、API、通用 Worker、PDF Worker 分别扩容。
+推荐从“TypeScript 模块化单体 + 独立异步 Worker”起步：Next.js 负责 Web，NestJS + Fastify 负责 API，NestJS Worker 负责地理编码、路线、导入和 PDF 等耗时任务，PostgreSQL/PostGIS 保存业务和空间数据，Redis 承担队列、锁与短期缓存，S3 兼容存储保存图片、导入源文件和 PDF。开发依赖采用双轨制：macOS 日常开发默认运行本机原生服务，CI/staging 使用 Compose 验证 Linux 与发布环境等价性；生产环境按 Web、API、通用 Worker、PDF Worker 分别扩容。
 
 设计遵循四条原则：
 
@@ -1825,15 +1825,23 @@ temporary/maps/{jobId}/...
 
 ### 16.1 单机开发
 
-Docker Compose：
+本地依赖使用双轨制，应用层只消费统一的 URL、凭据和 capability/readiness 契约：
+
+- **Native Track（默认）**：macOS 原生运行 PostgreSQL/PostGIS、Redis、MinIO 和 ClamAV；项目脚本管理隔离的数据目录、端口、PID、日志、初始化和停止，不要求 Docker。
+- **Compose Track（显式）**：当前环境尽力运行，CI/staging 以及发布前强制验证；覆盖 Linux 镜像、服务 DNS、权限、持久卷、资源限额和故障恢复。
+- Native Track 的启动、恢复和 fail-closed Case 全绿即可完成当前 A02；Compose parity gate 未通过时不得正式发布。
 
 ```text
-web + api + worker + pdf-worker
-postgres/postgis + redis + minio
-mail/debug tools（可选）
+Native:  web + api + worker + pdf-worker
+         localhost postgres/postgis + redis + minio + clamav
+
+Compose: application integration probes
+         service-DNS postgres/postgis + redis + minio + clamav
 ```
 
 - Provider 使用 mock fixtures 或显式搜索的 Nominatim 降级。
+- 两条轨道执行同一套 migration、bucket initializer、Redis/S3/PostGIS/ClamAV 探针和固定五日 fixture。
+- ClamAV 统一通过 TCP adapter 访问；应用不得依赖 macOS binary 路径、Unix socket 或 Compose service name。
 - CJK 字体、Chromium 与生产镜像保持一致，避免“本地能导出、线上缺字”。
 - 使用固定种子数据创建 5 天、多目的地示例。
 
