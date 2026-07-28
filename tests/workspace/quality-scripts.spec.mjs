@@ -39,8 +39,14 @@ test("TC-A01-01 workspace quality commands cover every package", async () => {
   }
 
   const workspaces = await workspacePackages();
+  const lockfile = await readFile(new URL("pnpm-lock.yaml", root), "utf8");
   assert.ok(workspaces.length >= 2, "at least one app and shared package are required");
   for (const workspace of workspaces) {
+    const workspacePath = workspace.relativePath.replace(/\/package\.json$/u, "");
+    assert.ok(
+      lockfile.includes(`\n  ${workspacePath}:`),
+      `pnpm-lock.yaml needs an importer for ${workspacePath}`,
+    );
     const unitCommand =
       workspace.manifest.scripts?.unit;
     assert.equal(
