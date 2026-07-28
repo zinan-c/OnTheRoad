@@ -20,6 +20,11 @@ declare module "node:crypto" {
   export function createHash(algorithm: string): any;
 }
 
+declare module "node:fs" {
+  export function existsSync(path: string): boolean;
+  export function readdirSync(path: string): string[];
+}
+
 declare module "node:module" {
   export function createRequire(url: string): (specifier: string) => any;
 }

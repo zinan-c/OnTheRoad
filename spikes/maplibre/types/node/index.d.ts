@@ -9,6 +9,11 @@ declare module "node:assert/strict" {
   export default assert;
 }
 
+declare module "node:fs" {
+  export function existsSync(path: string): boolean;
+  export function readdirSync(path: string): string[];
+}
+
 declare module "node:fs/promises" {
   export const mkdir: any;
   export const readFile: any;

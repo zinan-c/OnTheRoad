@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { existsSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import {
   access,
@@ -23,6 +24,30 @@ const defaultFontPath = path.join(
 );
 const expectedFontSha256 =
   "c3a9f5223868ca3a2b2e576d8113713b38e8fd8b08a7534b7f018cdecc34874d";
+
+function compatibleChromiumPath(expected: string): string {
+  if (existsSync(expected)) return expected;
+
+  let expectedBrowserDir = path.dirname(expected);
+  while (
+    !path.basename(expectedBrowserDir).startsWith("chromium-") &&
+    path.dirname(expectedBrowserDir) !== expectedBrowserDir
+  ) {
+    expectedBrowserDir = path.dirname(expectedBrowserDir);
+  }
+  const cacheRoot = path.dirname(expectedBrowserDir);
+  const suffix = path.relative(expectedBrowserDir, expected);
+  if (!existsSync(cacheRoot)) return expected;
+
+  for (const directory of readdirSync(cacheRoot)
+    .filter((name) => name.startsWith("chromium-"))
+    .sort()
+    .reverse()) {
+    const candidate = path.join(cacheRoot, directory, suffix);
+    if (existsSync(candidate)) return candidate;
+  }
+  return expected;
+}
 
 export class ResourceTimeoutError extends Error {
   constructor(message: string) {
@@ -226,7 +251,8 @@ async function renderPdf(
 ): Promise<void> {
   const { chromium } = await loadPlaywright();
   const executablePath =
-    process.env.OTR_A11_CHROMIUM_PATH ?? chromium.executablePath();
+    process.env.OTR_A11_CHROMIUM_PATH
+    ?? compatibleChromiumPath(chromium.executablePath());
   const disableSandbox = process.env.OTR_A11_DISABLE_CHROMIUM_SANDBOX === "1";
   const browser = await chromium.launch({
     executablePath,

@@ -26,11 +26,10 @@ interface PageEvidence {
 }
 
 async function identify(imagePath: string): Promise<PageEvidence> {
-  const { stdout } = await execFileAsync("magick", [
-    imagePath,
+  const { stdout } = await execFileAsync("identify", [
     "-format",
     "%w %h %[fx:standard_deviation] %[fx:(mean)] %b",
-    "info:",
+    imagePath,
   ]);
   const [width, height, deviation, mean, bytes] = stdout.trim().split(/\s+/);
   return {
@@ -52,7 +51,7 @@ async function edgeMean(imagePath: string, width: number, height: number): Promi
   ];
   const values = await Promise.all(
     geometries.map(async (geometry) => {
-      const { stdout } = await execFileAsync("magick", [
+      const { stdout } = await execFileAsync("convert", [
         imagePath,
         "-crop",
         geometry,
@@ -135,8 +134,7 @@ test("TC-A11-03 renders and inspects every physical page", async () => {
         2,
       )}\n`,
     );
-    await execFileAsync("magick", [
-      "montage",
+    await execFileAsync("montage", [
       "-font",
       path.resolve("../../apps/pdf-worker/fonts/NotoSansCJKsc-Regular.otf"),
       "+label",
