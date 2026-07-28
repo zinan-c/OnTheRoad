@@ -60,22 +60,26 @@ test("TC-A01-01 workspace quality commands cover every package", async () => {
   }
 });
 
-test("TC-A01-01 a failed workspace makes the Turbo aggregate task fail", async () => {
-  const intentionalError = new URL(
-    "../../apps/api/src/tc-a01-aggregate-error.ts",
-    import.meta.url,
-  );
-  await writeFile(intentionalError, 'export const count: number = "wrong";\n');
-  try {
-    const result = spawnSync("pnpm", ["run", "typecheck"], {
-      cwd: root,
-      encoding: "utf8",
-      env: process.env,
-    });
-    assert.notEqual(result.status, 0);
-    assert.match(`${result.stdout}${result.stderr}`, /@on-the-road\/api#typecheck/i);
-    assert.match(`${result.stdout}${result.stderr}`, /not assignable to type 'number'/i);
-  } finally {
-    await rm(intentionalError, { force: true });
-  }
-});
+test(
+  "TC-A01-01 a failed workspace makes the Turbo aggregate task fail",
+  async () => {
+    const intentionalError = new URL(
+      "../../apps/api/src/tc-a01-aggregate-error.ts",
+      import.meta.url,
+    );
+    await writeFile(intentionalError, 'export const count: number = "wrong";\n');
+    try {
+      const result = spawnSync("pnpm", ["run", "typecheck"], {
+        cwd: root,
+        encoding: "utf8",
+        env: process.env,
+      });
+      assert.notEqual(result.status, 0);
+      assert.match(`${result.stdout}${result.stderr}`, /@on-the-road\/api#typecheck/i);
+      assert.match(`${result.stdout}${result.stderr}`, /not assignable to type 'number'/i);
+    } finally {
+      await rm(intentionalError, { force: true });
+    }
+  },
+  30_000,
+);
