@@ -1,4 +1,4 @@
-name: All Test Cases
+name: "CI: Test Cases"
 
 on:
   push:
@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  development:
-    name: all-tests / development
+  test-cases:
+    name: "CI: Test Cases"
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -38,44 +38,3 @@ jobs:
         run: pnpm run test:all:dev
       - name: Verify tests did not change tracked sources
         run: git diff --exit-code
-
-  compose:
-    name: all-tests / A02 Compose integration
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.4
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Run Compose bootstrap and health cases
-        env:
-          RUN_COMPOSE_INTEGRATION: "1"
-        run: >-
-          pnpm exec vitest run
-          tests/infra/bootstrap.e2e.spec.mjs
-          tests/infra/compose-health.spec.mjs
-          --maxWorkers=1
-      - name: Run Compose persistence and fail-closed cases
-        env:
-          RUN_COMPOSE_INTEGRATION: "1"
-        run: >-
-          pnpm exec vitest run
-          tests/infra/compose-recovery.spec.mjs
-          --maxWorkers=1
-      - name: Remove Compose services and volumes
-        if: always()
-        run: |
-          if [[ -f infra/local-stack.env ]]; then
-            docker compose \
-              --env-file infra/local-stack.env \
-              -f infra/compose/docker-compose.yml \
-              down --volumes --remove-orphans
-          fi

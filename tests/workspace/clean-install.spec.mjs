@@ -85,7 +85,7 @@ test("TC-A01-03 CI exposes stable required check names on Node 24", async () => 
   for (const check of ["lint", "typecheck", "unit", "build"]) {
     assert.match(workflow, new RegExp(`matrix:\\s*[\\s\\S]*${check}`));
   }
-  assert.match(workflow, /name: quality \/ clean-install/);
+  assert.match(workflow, /name: "CI: Quality Related \/ clean-install"/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
   assert.match(workflow, /git diff --exit-code/);
 });
