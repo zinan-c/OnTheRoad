@@ -37,6 +37,8 @@ M0 在 `spikes/importer/vendor/xlsx` 固定官方 SheetJS 0.20.3 运行文件，
 
 RSS 门禁与 V8 heap 不相同；它还包含 SheetJS 代码、codepage 表、原始/解压 buffer 与进程本身。基准在独立 Node 子进程中加 `--max-old-space-size=256`，以避免 fixture 生成过程污染解析 RSS。
 
+普通单元测试会验证三种格式的测量结果及 GO/NO-GO 计算，但不要求任意开发机或共享 CI runner 必须复现固定环境的 GO 结论。容量决策以 `reports/A10.json` 记录的 Node、平台、架构和阈值为准；更换基准环境时必须重新生成并评审证据。
+
 ## BIFF8 证据
 
 `scripts/generate-biff8-fixture.mjs` 使用 SheetJS 从 A12 XLSX 生成 `fixtures/minimal-five-day-biff8.xls`。`file` 将其识别为 Composite Document File V2，SHA-256 固定为 `2b8618f058fd614118573b2713fd6fc3e33f0c0869683cff91fd15d7118e156d`；重复生成哈希一致。TC-A10-01 用 SheetJS 回读并核对 15 行与 fixture version。

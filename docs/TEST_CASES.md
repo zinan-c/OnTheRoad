@@ -76,7 +76,7 @@
 
 - `TC-A10-01` — Three-format parsing；代码：`spikes/importer/format-roundtrip.spec.ts`。解析 xlsx/xls/csv 及 1900/1904 日期；断言行数/类型/golden 一致。
 - `TC-A10-02` — Malformed/resource attack；代码：`spikes/importer/import-security.spec.ts`。输入 ZIP bomb、损坏文件、超 shared strings/公式；断言在资源上限内失败且不执行公式。
-- `TC-A10-03` — 5,000-row benchmark；代码：`spikes/importer/import-benchmark.spec.ts`。固定环境重复解析；断言耗时/RSS 报告生成且未超过 Spike 门槛。
+- `TC-A10-03` — 5,000-row benchmark；代码：`spikes/importer/import-benchmark.spec.mjs`。任意开发/CI 主机重复解析并校验 GO/NO-GO 计算；发布容量门禁使用 `spikes/importer/reports/A10.json` 中固定环境的耗时/RSS 证据，避免把共享 CI runner 当作可比基准环境。
 
 ### A11
 
