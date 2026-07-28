@@ -33,6 +33,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - if: matrix.task == 'unit'
         run: pnpm exec playwright install --with-deps chromium
+      - if: matrix.task == 'unit'
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends --yes poppler-utils
       - run: pnpm run ${{ matrix.task }}
 
   clean-install:
@@ -50,6 +52,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install --no-install-recommends --yes poppler-utils
       - run: pnpm run quality
       - run: pnpm run ci:smoke
       - run: git diff --exit-code
