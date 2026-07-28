@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, stat } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "vitest";
@@ -74,9 +74,17 @@ describe("TC-A02-03 one-command bootstrap", () => {
 
   test("missing Compose reports an actionable failure", async () => {
     const root = await isolatedBootstrap();
+    const fakeBin = join(root, "test-bin");
+    await mkdir(fakeBin);
+    await writeFile(join(fakeBin, "docker"), "#!/bin/sh\nexit 1\n", {
+      mode: 0o755,
+    });
     const result = run("bash", ["scripts/dev-up.sh", "--track", "compose"], {
       cwd: root,
-      env: { ...process.env, PATH: "/usr/bin:/bin" },
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
+      },
     });
     assert.equal(result.status, 3, combinedOutput(result));
     assert.match(combinedOutput(result), /Docker CLI is missing|Compose v2 is required/);
