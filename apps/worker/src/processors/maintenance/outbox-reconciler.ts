@@ -8,8 +8,8 @@ export type JobEvent = Readonly<{
 }>;
 
 export interface RecoverableOutbox {
-  listRecoverableOutbox(): JobEvent[];
-  markPublished(eventId: string): void;
+  listRecoverableOutbox(): JobEvent[] | Promise<JobEvent[]>;
+  markPublished(eventId: string): void | Promise<void>;
 }
 
 export interface JobQueue {
@@ -24,12 +24,12 @@ export class OutboxReconciler {
   ) {}
 
   async reconcile(): Promise<{ scanned: number; enqueued: number }> {
-    const events = this.outbox.listRecoverableOutbox();
+    const events = await this.outbox.listRecoverableOutbox();
     let enqueued = 0;
     for (const event of events) {
       if (await this.queue.has(event.eventId)) continue;
       await this.queue.add(event);
-      this.outbox.markPublished(event.eventId);
+      await this.outbox.markPublished(event.eventId);
       enqueued += 1;
     }
     return { scanned: events.length, enqueued };

@@ -60,6 +60,12 @@ importers:
 
   packages/domain: {}
 
+  packages/observability: {}
+
+  packages/providers: {}
+
+  packages/storage: {}
+
   packages/test-fixtures: {}
 
   spikes/importer: {}

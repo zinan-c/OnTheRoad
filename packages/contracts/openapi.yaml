@@ -485,36 +485,59 @@
         }
       },
       "Destination": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/DestinationInput"
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "countryCode",
+          "city",
+          "region",
+          "sortOrder",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
           },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "id",
-              "sortOrder",
-              "createdAt",
-              "updatedAt"
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "countryCode": {
+            "type": [
+              "string",
+              "null"
             ],
-            "properties": {
-              "id": {
-                "$ref": "#/components/schemas/ResourceId"
-              },
-              "sortOrder": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "createdAt": {
-                "$ref": "#/components/schemas/UtcDateTime"
-              },
-              "updatedAt": {
-                "$ref": "#/components/schemas/UtcDateTime"
-              }
-            }
+            "pattern": "^[A-Z]{2}$"
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 160
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 160
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
           }
-        ]
+        }
       },
       "TripInput": {
         "type": "object",

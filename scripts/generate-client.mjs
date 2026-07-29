@@ -71,7 +71,7 @@ export function generateClientSource(contract) {
 // OpenAPI SHA-256: ${hash}
 
 /** @typedef {{ id: string, date: string }} ExampleResource */
-/** @typedef {{ id: string, name: string, countryCode?: string, city?: string, region?: string, sortOrder: number, createdAt: string, updatedAt: string }} Destination */
+/** @typedef {{ id: string, name: string, countryCode: string | null, city: string | null, region: string | null, sortOrder: number, createdAt: string, updatedAt: string }} Destination */
 /** @typedef {{ id: string, ownerId: string, name: string, startDate: string, endDate: string, totalDays: number, travelers: number, defaultCurrency: string, budget: string | null, timezone: string, mapProfile: "cn_primary" | "international_primary" | "hybrid", description: string | null, status: "draft" | "active" | "archived" | "deleted", version: number, createdAt: string, updatedAt: string, deletedAt: string | null, destinations: Destination[] }} Trip */
 /** @typedef {{ items: Trip[], nextCursor: string | null }} TripPage */
 /** @typedef {{ code: string, label: string, aliases?: string[], icon?: string, color?: string, lineStyle?: string }} ReferenceEntry */
@@ -135,12 +135,17 @@ export function parseTripResponse(value) {
     if (typeof destination.createdAt !== "string" || typeof destination.updatedAt !== "string") {
       throw new TypeError("Destination timestamps must be strings");
     }
+    for (const field of ["countryCode", "city", "region"]) {
+      if (destination[field] !== null && typeof destination[field] !== "string") {
+        throw new TypeError(\`Destination.\${field} must be a string or null\`);
+      }
+    }
     return {
       id: destination.id,
       name: destination.name,
-      ...(typeof destination.countryCode === "string" ? { countryCode: destination.countryCode } : {}),
-      ...(typeof destination.city === "string" ? { city: destination.city } : {}),
-      ...(typeof destination.region === "string" ? { region: destination.region } : {}),
+      countryCode: /** @type {string | null} */ (destination.countryCode),
+      city: /** @type {string | null} */ (destination.city),
+      region: /** @type {string | null} */ (destination.region),
       sortOrder: Number(destination.sortOrder),
       createdAt: destination.createdAt,
       updatedAt: destination.updatedAt,
@@ -312,7 +317,7 @@ export class OnTheRoadClient {
 
   /** @param {{ search?: string, currency?: string, status?: string, limit?: number }} [filters] */
   async listTrips(filters = {}) {
-    const query = new URLSearchParams();
+    const query = new globalThis.URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {
       if (value !== undefined) query.set(key, String(value));
     }
