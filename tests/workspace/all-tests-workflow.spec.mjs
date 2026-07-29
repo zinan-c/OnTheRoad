@@ -23,9 +23,18 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.match(testWorkflow, /^name: "CI: Test Cases"$/m);
   assert.match(testWorkflow, /run: pnpm run test:all:dev/);
+  assert.match(
+    testWorkflow,
+    /bash scripts\/install-native-minio\.sh "\$RUNNER_TEMP\/otr-native-minio"/,
+  );
   assert.doesNotMatch(testWorkflow, /RUN_COMPOSE_INTEGRATION/);
   assert.doesNotMatch(testWorkflow, /docker compose/);
   assert.match(qualityWorkflow, /^name: "CI: Quality Related"$/m);
+  assert.equal(
+    qualityWorkflow.match(/bash scripts\/install-native-minio\.sh/g)?.length,
+    2,
+    "unit and clean-install paths both require native MinIO",
+  );
 
   for (const command of [
     "pnpm run unit",

@@ -12,6 +12,11 @@ export type NativeMinio = Readonly<{
   stop: () => Promise<void>;
 }>;
 
+type NativeMinioOptions = Readonly<{
+  minioBin?: string;
+  mcBin?: string;
+}>;
+
 async function unusedPort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -30,36 +35,58 @@ async function unusedPort(): Promise<number> {
 }
 
 async function waitUntilReady(endpoint: string, process: ChildProcess): Promise<void> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (process.exitCode !== null) {
-      throw new Error(`Native MinIO exited before readiness (${process.exitCode}).`);
+  let startupError: Error | undefined;
+  const captureStartupError = (error: Error) => {
+    startupError = error;
+  };
+  process.once("error", captureStartupError);
+  try {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (startupError) {
+        throw new Error(`Native MinIO failed to start: ${startupError.message}`, {
+          cause: startupError,
+        });
+      }
+      if (process.exitCode !== null) {
+        throw new Error(`Native MinIO exited before readiness (${process.exitCode}).`);
+      }
+      try {
+        const response = await fetch(`${endpoint}/minio/health/ready`);
+        if (response.ok) return;
+      } catch {
+        // The native server has not bound the port yet.
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    try {
-      const response = await fetch(`${endpoint}/minio/health/ready`);
-      if (response.ok) return;
-    } catch {
-      // The native server has not bound the port yet.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
+  } finally {
+    process.off("error", captureStartupError);
   }
   throw new Error("Timed out waiting for native MinIO.");
 }
 
 function runMc(
+  mcBin: string,
   configDirectory: string,
   environment: NodeJS.ProcessEnv,
   args: readonly string[],
 ): void {
-  const result = spawnSync("mc", args, {
+  const result = spawnSync(mcBin, args, {
     env: { ...environment, MC_CONFIG_DIR: configDirectory },
     encoding: "utf8",
   });
+  if (result.error) {
+    throw new Error(`Native MC failed to start: ${result.error.message}`, {
+      cause: result.error,
+    });
+  }
   if (result.status !== 0) {
     throw new Error(`mc ${args[0]} failed: ${result.stderr || result.stdout}`);
   }
 }
 
-export async function startNativeMinio(): Promise<NativeMinio> {
+export async function startNativeMinio(
+  options: NativeMinioOptions = {},
+): Promise<NativeMinio> {
   const root = await mkdtemp(join(tmpdir(), "otr-d01-minio-"));
   const dataDirectory = join(root, "data");
   const configDirectory = join(root, "mc");
@@ -75,8 +102,10 @@ export async function startNativeMinio(): Promise<NativeMinio> {
     MINIO_ROOT_USER: accessKey,
     MINIO_ROOT_PASSWORD: secretKey,
   };
+  const minioBin = options.minioBin ?? process.env.MINIO_BIN ?? "minio";
+  const mcBin = options.mcBin ?? process.env.MC_BIN ?? "mc";
   const server = spawn(
-    "minio",
+    minioBin,
     [
       "server",
       "--address",
@@ -92,7 +121,7 @@ export async function startNativeMinio(): Promise<NativeMinio> {
   );
   try {
     await waitUntilReady(endpoint, server);
-    runMc(configDirectory, environment, [
+    runMc(mcBin, configDirectory, environment, [
       "alias",
       "set",
       "otr-d01",
@@ -100,18 +129,18 @@ export async function startNativeMinio(): Promise<NativeMinio> {
       accessKey,
       secretKey,
     ]);
-    runMc(configDirectory, environment, [
+    runMc(mcBin, configDirectory, environment, [
       "mb",
       "--ignore-existing",
       "otr-d01/attachments",
     ]);
-    runMc(configDirectory, environment, [
+    runMc(mcBin, configDirectory, environment, [
       "version",
       "enable",
       "otr-d01/attachments",
     ]);
   } catch (error) {
-    server.kill("SIGTERM");
+    if (server.pid && server.exitCode === null) server.kill("SIGTERM");
     await rm(root, { recursive: true, force: true });
     throw error;
   }

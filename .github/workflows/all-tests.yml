@@ -29,6 +29,10 @@ jobs:
           cache: pnpm
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install pinned native MinIO test tools
+        run: |
+          bash scripts/install-native-minio.sh "$RUNNER_TEMP/otr-native-minio"
+          echo "$RUNNER_TEMP/otr-native-minio" >> "$GITHUB_PATH"
       - name: Install Chromium and Linux test tools
         run: |
           pnpm exec playwright install --with-deps chromium

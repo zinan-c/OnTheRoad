@@ -32,6 +32,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - if: matrix.task == 'unit'
+        name: Install pinned native MinIO test tools
+        run: |
+          bash scripts/install-native-minio.sh "$RUNNER_TEMP/otr-native-minio"
+          echo "$RUNNER_TEMP/otr-native-minio" >> "$GITHUB_PATH"
+      - if: matrix.task == 'unit'
         run: pnpm exec playwright install --with-deps chromium
       - if: matrix.task == 'unit'
         run: sudo apt-get update && sudo apt-get install --no-install-recommends --yes poppler-utils
@@ -51,6 +56,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install pinned native MinIO test tools
+        run: |
+          bash scripts/install-native-minio.sh "$RUNNER_TEMP/otr-native-minio"
+          echo "$RUNNER_TEMP/otr-native-minio" >> "$GITHUB_PATH"
       - run: pnpm exec playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install --no-install-recommends --yes poppler-utils
       - run: pnpm run quality
