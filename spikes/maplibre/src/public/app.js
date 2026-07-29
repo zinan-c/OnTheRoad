@@ -92,6 +92,42 @@ if (scenario === "webgl-failure") {
     }
   });
   const initialize = () => {
+    const routeLayerIds = Object.keys(ROUTE_STYLES).map(
+      (mode) => `route-${mode}`,
+    );
+    let harnessReady = false;
+    const markHarnessReady = () => {
+      if (
+        harnessReady
+        || !map.getSource("routes")
+        || !map.isSourceLoaded("routes")
+      ) {
+        return;
+      }
+      const renderedRouteFeatureCount = map.queryRenderedFeatures({
+        layers: routeLayerIds,
+      }).length;
+      if (
+        (scenario === "default" || scenario === "tile-failure")
+        && renderedRouteFeatureCount < routeLayerIds.length
+      ) {
+        return;
+      }
+      harnessReady = true;
+      map.off("render", markHarnessReady);
+      window.__MAP_DIAGNOSTICS__ = {
+        maplibreVersion: maplibregl.getVersion(),
+        fixtureVersion: FIXTURE_VERSION,
+        basemapMode:
+          scenario === "tile-failure" ? "neutral-grid" : "fixture-tile",
+        routeLayerIds,
+        renderedRouteFeatureCount,
+        fitPlan: plan,
+        markerCount: activeLocations.length,
+      };
+      window.__HARNESS_READY__ = true;
+    };
+    map.on("render", markHarnessReady);
     map.addSource("routes", { type: "geojson", data: ROUTES });
     for (const [mode, routeStyle] of Object.entries(ROUTE_STYLES)) {
       map.addLayer({
@@ -161,24 +197,7 @@ if (scenario === "webgl-failure") {
     if (scenario === "tile-failure") {
       setTimeout(() => showGrid("底图不可用 / 本地中性网格"), 250);
     }
-    map.once("idle", () => {
-      const routeLayerIds = Object.keys(ROUTE_STYLES).map(
-        (mode) => `route-${mode}`,
-      );
-      window.__MAP_DIAGNOSTICS__ = {
-        maplibreVersion: maplibregl.getVersion(),
-        fixtureVersion: FIXTURE_VERSION,
-        basemapMode:
-          scenario === "tile-failure" ? "neutral-grid" : "fixture-tile",
-        routeLayerIds,
-        renderedRouteFeatureCount: map.queryRenderedFeatures({
-          layers: routeLayerIds,
-        }).length,
-        fitPlan: plan,
-        markerCount: activeLocations.length,
-      };
-      window.__HARNESS_READY__ = true;
-    });
+    map.triggerRepaint();
   };
   map.once("style.load", initialize);
 }
