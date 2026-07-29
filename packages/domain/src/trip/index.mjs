@@ -2,6 +2,8 @@
 import { createHash } from "node:crypto";
 import { currencies, normalizeCurrencyCode } from "../../../config/src/reference-data.mjs";
 
+export * from "./date-range.mjs";
+
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const MONEY_PATTERN = /^(0|[1-9]\d{0,15})(?:\.\d{1,2})?$/u;
 const COUNTRY_PATTERN = /^[A-Z]{2}$/u;
