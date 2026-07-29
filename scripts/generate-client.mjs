@@ -71,6 +71,8 @@ export function generateClientSource(contract) {
 // OpenAPI SHA-256: ${hash}
 
 /** @typedef {{ id: string, date: string }} ExampleResource */
+/** @typedef {{ code: string, label: string, aliases?: string[], icon?: string, color?: string, lineStyle?: string }} ReferenceEntry */
+/** @typedef {{ currencies: ReferenceEntry[], costCategories: ReferenceEntry[], transportModes: ReferenceEntry[], currencyAliases: Record<string, string> }} ReferenceData */
 /** @typedef {{ field: string, message: string }} FieldError */
 /** @typedef {{ type: string, title: string, status: number, code: string, traceId: string, errors: FieldError[], detail?: string, instance?: string }} ProblemDetails */
 
@@ -94,6 +96,48 @@ export function parseExampleResponse(value) {
     throw new TypeError("ExampleResource.date must be YYYY-MM-DD");
   }
   return { id: object.id, date: object.date };
+}
+
+/** @param {unknown} value @returns {ReferenceData} */
+export function parseReferenceDataResponse(value) {
+  const object = asObject(value, "ReferenceData");
+  /** @param {unknown} entries @param {string} name @param {boolean} visual */
+  const parseEntries = (entries, name, visual) => {
+    if (!Array.isArray(entries)) throw new TypeError(\`\${name} must be an array\`);
+    return entries.map((entry) => {
+      const parsed = asObject(entry, \`\${name} entry\`);
+      if (typeof parsed.code !== "string" || typeof parsed.label !== "string") {
+        throw new TypeError(\`\${name} code and label must be strings\`);
+      }
+      if (parsed.aliases !== undefined && (!Array.isArray(parsed.aliases) || parsed.aliases.some((alias) => typeof alias !== "string"))) {
+        throw new TypeError(\`\${name} aliases must be strings\`);
+      }
+      if (visual && (typeof parsed.icon !== "string" || !/^#[0-9A-F]{6}$/u.test(String(parsed.color)))) {
+        throw new TypeError(\`\${name} visual fields are invalid\`);
+      }
+      if (name === "transportModes" && !["solid", "dashed", "dotted"].includes(String(parsed.lineStyle))) {
+        throw new TypeError("transportModes lineStyle is invalid");
+      }
+      return {
+        code: parsed.code,
+        label: parsed.label,
+        ...(Array.isArray(parsed.aliases) ? { aliases: /** @type {string[]} */ (parsed.aliases) } : {}),
+        ...(typeof parsed.icon === "string" ? { icon: parsed.icon } : {}),
+        ...(typeof parsed.color === "string" ? { color: parsed.color } : {}),
+        ...(typeof parsed.lineStyle === "string" ? { lineStyle: parsed.lineStyle } : {}),
+      };
+    });
+  };
+  const aliases = asObject(object.currencyAliases, "currencyAliases");
+  if (Object.values(aliases).some((alias) => typeof alias !== "string")) {
+    throw new TypeError("currencyAliases values must be strings");
+  }
+  return {
+    currencies: parseEntries(object.currencies, "currencies", false),
+    costCategories: parseEntries(object.costCategories, "costCategories", true),
+    transportModes: parseEntries(object.transportModes, "transportModes", true),
+    currencyAliases: /** @type {Record<string, string>} */ (aliases),
+  };
 }
 
 /** @param {unknown} value @returns {ProblemDetails} */
@@ -155,6 +199,18 @@ export class OnTheRoadClient {
       throw new ApiProblemError(parseProblemDetails(payload));
     }
     return { data: parseExampleResponse(payload), etag: response.headers.get("etag") };
+  }
+
+  /** @returns {Promise<{ data: ReferenceData }>} */
+  async getReferenceData() {
+    const response = await this.fetch(\`\${this.baseUrl}/api/v1/system/reference-data\`, {
+      headers: { accept: "application/json, application/problem+json" },
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new ApiProblemError(parseProblemDetails(payload));
+    }
+    return { data: parseReferenceDataResponse(payload) };
   }
 }
 `;

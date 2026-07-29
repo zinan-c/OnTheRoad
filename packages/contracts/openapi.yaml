@@ -102,6 +102,27 @@
           }
         }
       }
+    },
+    "/system/reference-data": {
+      "get": {
+        "operationId": "getReferenceData",
+        "summary": "List immutable currency, cost category, and transport mode reference data",
+        "responses": {
+          "200": {
+            "description": "Central reference data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceData"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -200,6 +221,131 @@
           },
           "date": {
             "$ref": "#/components/schemas/LocalDate"
+          }
+        }
+      },
+      "ReferenceData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "currencies",
+          "costCategories",
+          "transportModes",
+          "currencyAliases"
+        ],
+        "properties": {
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceCurrency"
+            }
+          },
+          "costCategories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceVisual"
+            }
+          },
+          "transportModes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransportMode"
+            }
+          },
+          "currencyAliases": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReferenceCurrency": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "label",
+          "aliases"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReferenceVisual": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "label",
+          "icon",
+          "color"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-F]{6}$"
+          }
+        }
+      },
+      "TransportMode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "label",
+          "aliases",
+          "icon",
+          "color",
+          "lineStyle"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "icon": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-F]{6}$"
+          },
+          "lineStyle": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "dashed",
+              "dotted"
+            ]
           }
         }
       },

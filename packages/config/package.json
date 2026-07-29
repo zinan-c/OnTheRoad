@@ -10,6 +10,10 @@
     "./env": {
       "types": "./src/env.ts",
       "default": "./dist/env.js"
+    },
+    "./reference-data": {
+      "types": "./src/reference-data.mjs",
+      "default": "./src/reference-data.mjs"
     }
   },
   "scripts": {
