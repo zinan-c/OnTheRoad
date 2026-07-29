@@ -3,7 +3,7 @@
 > 版本：0.1
 > 日期：2026-07-26
 > 依赖文档：[DESIGN.md](./DESIGN.md)、[DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md)
-> 计划基线：59 个 P0 任务，合计约 225 理想人日；1 周 Sprint 0 + 5 个两周功能 Sprint + 2 周稳定/灰度，第 14 周为显式缓冲。
+> 计划基线：58 个有效 P0 任务，合计约 223 理想人日；G08 以 Deprecated 历史编号保留但不计入任务数/人日；1 周 Sprint 0 + 5 个两周功能 Sprint + 2 周稳定/灰度，第 14 周为显式缓冲。
 > 文档用途：研发排期、TDD、里程碑评审、演示验收及 Go/No-Go 签署。
 
 ## 0. 需求理解、假设与执行口径
@@ -44,12 +44,12 @@ MVP 必须形成真实、可恢复、可验证的完整链路：
 | Milestone | 时间盒 | 任务 | 理想人日 | 核心产物 |
 |---|---:|---|---:|---|
 | M0 风险定案与工程基线 | Sprint 0，1 周 | A01–A04、A08–A12 | 21 | CI、契约、四类 Spike、最小 fixture |
-| M1 旅行基础与异步底座 | Sprint 1，2 周 | A05–A07、B01–B04、C01、C03、D01、G08 | 35 | Trip/Day、身份、Job、Location/Storage 契约 |
+| M1 旅行基础与异步底座 | Sprint 1，2 周 | A05–A07、B01–B04、C01、C03、D01 | 33 | Trip/Day、身份、Job、Location/Storage 契约 |
 | M2 行程编辑与地点确认 | Sprint 2，2 周 | B05–B09、C02、C04–C06、D02、D04、E01–E02 | 55 | 可持久编辑的一天、地点确认、媒体安全底座、导入入口 |
 | M3 路线、图片、费用与导入 staging | Sprint 3，2 周 | C07–C09、D03、D05、E03–E05 | 36 | 地图路线联动、图片 UX、费用统计、Excel 校验预览 |
 | M4 Excel 闭环与 PDF 骨架 | Sprint 4，2 周 | E06–E09、F01–F03、F05 | 40 | 幂等正式导入、媒体子任务、冻结快照、可运行打印 Worker |
 | M5 PDF 闭环与功能冻结 | Sprint 5，2 周 | F04、F06–F07、G01 | 15 | 中文完整 PDF、下载/取消/重试、完整五日样例 |
-| M6 稳定、灰度与 GA 门禁 | 稳定/灰度 2 周 | G02–G07；G08 持续 | 23 | E2E/安全/容量证据、监控 Runbook、发布签署 |
+| M6 稳定、灰度与 GA 门禁 | 稳定/灰度 2 周 | G02–G07 | 23 | E2E/安全/容量证据、监控 Runbook、发布签署 |
 
 ```mermaid
 flowchart LR
@@ -59,7 +59,6 @@ flowchart LR
   M3 --> M4["M4 导入闭环/PDF 骨架"]
   M4 --> M5["M5 PDF 闭环/功能冻结"]
   M5 --> M6["M6 稳定/灰度/GA"]
-  M1 -. "Beta 招募持续" .-> M6
 ```
 
 ---
@@ -341,17 +340,12 @@ flowchart LR
 - **验收标准**：上传只能落到服务端分配的随机 key；覆盖尝试失败；返回可追踪 object version。
 - **完成标准**：应用不使用本地路径/Base64 作为持久事实；接口可替换 S3 Provider。
 
-### G08 Beta cohort、测试账号池和灰度样本运营（2 人日，跨期持续）
+### G08 Beta cohort、测试账号池和灰度样本运营 — Deprecated
 
-- **优先级**：`P0 / Normal`
-- **目标**：在功能完成前准备真实、已同意的 Beta 样本，避免灰度门禁最后失真。
-- **实现范围**：招募规则、同意/退出记录、测试账号、样本归属、事件去重口径、5%/25% 看板和 owner。
-- **不在范围内**：市场推广、付费增长、以合成流量替代真实 Beta。
-- **预计修改的文件**：`docs/beta/cohort-plan.md`、`docs/beta/consent-template.md`、`docs/beta/sample-ledger-template.*`、`docs/runbooks/gray-release.md`。
-- **异常情况**：样本不足、同一 Trip 重复计数、用户撤回、测试数据混入生产指标、隐私同意缺失。
-- **测试要求**：指标去重规则演练、退出/删除流程桌面演练、样本看板审查。
-- **验收标准**：Sprint 1 已启动招募并指定 PM owner；不足时自动延后 GA，不伪造通过。
-- **完成标准**：M1 完成“机制已启动”；M6 完成实际样本与灰度签署，本任务不重复计人日。
+- **状态**：`Deprecated / 2026-07-29`；编号保留，不得分配给新任务。
+- **范围变更**：G08 在实现前从 M1 移出，也不再作为 M6 的跨期任务或发布门禁。
+- **处理方式**：不创建 cohort、同意记录、测试账号池、样本 ledger 或固定样本数看板；`TC-G08-01`～`TC-G08-03` 和 `TC-M6-INT-03` 同步退役。
+- **决策记录**：原范围、影响、M6 替代门禁和未来重新启用条件见 [`deprecated/G08-beta-cohort.md`](./deprecated/G08-beta-cohort.md)。
 
 ### M1 集成测试要求
 
@@ -366,7 +360,7 @@ flowchart LR
 - Trip/Day 创建、列表、编辑、复制、软删恢复均为真实持久化。
 - 跨用户访问、双击创建、日期缩短、Redis 丢失均有正确结果。
 - Provider、Location、Storage 和 Job 契约稳定，可供 M2 并行开发。
-- Beta cohort 机制已启动并有 owner、时间表和退出机制。
+- G08 已标记为 Deprecated，不纳入 M1 验收或完成标准。
 
 ### M1 完成标准与可演示场景
 
@@ -892,7 +886,7 @@ flowchart LR
 
 ### M6.1 目标与边界
 
-用自动化、故障注入、容量、安全、恢复演练和真实 Beta 样本证明系统可以发布。此阶段不新增功能，只修复阻断、数据完整性、安全和性能回归；第 14 周缓冲不自动降低门禁。
+用自动化、故障注入、容量、安全、恢复演练和受控分阶段发布证据证明系统可以发布。此阶段不新增功能，只修复阻断、数据完整性、安全和性能回归；第 14 周缓冲不自动降低门禁。真实 Beta cohort 和固定用户样本数不再是 M6 前置条件，合成探针只能作为技术健康证据，不能被表述为用户验证。
 
 ### G02 E2E 核心闭环（6 人日）
 
@@ -972,7 +966,7 @@ flowchart LR
 2. 按固定 staging 规格执行 DESIGN §17.4 六项容量门禁并归档原始结果。
 3. 演练 Redis 清空、outbox 未发布、PDF Worker OOM、Import 卡 geocoding、S3 短暂失败、PostgreSQL 恢复和对象 orphan cleanup。
 4. 完成数据库备份恢复与 expand/migrate/contract 回滚兼容演练。
-5. 内部→5%→25%→100% 按最小时间/样本逐级签署；真实 Beta 样本不足则保持 feature flag 后并延后 GA。
+5. 按内部/staging→受控 canary→扩大范围→100% 逐级签署；每阶段依据最小观察时间、QG/SLO、数据完整性、告警和回滚准备度晋级，不设置固定真实用户或 Trip 样本下限。生产流量不足时归档合成探针与人工签署，并明确其仅证明技术健康。
 
 ### M6 验收标准
 
@@ -983,7 +977,7 @@ flowchart LR
 
 ### M6 完成标准与可演示场景
 
-- **完成标准**：产品、UX、工程、QA、安全和运维共同签署 Release Done；5%/25% 真实样本门禁满足后方可 100% GA。第 14 周只用于关闭门禁，不改变门禁。
+- **完成标准**：G02–G07、`TC-M6-INT-01`、`TC-M6-INT-02`、QG、发布审批和回滚准备度均有证据后，由产品、UX、工程、QA、安全和运维共同签署 Release Done；不要求 Beta cohort 或固定真实样本数。第 14 周只用于关闭有效门禁，不改变门禁。
 - **可演示**：从空账号完成完整五日闭环；展示桌面和手机；演示 Redis 丢失后 Job 恢复、Provider 无 Key 降级、导入续跑、PDF 取消/重试/过期；展示 Dashboard 与告警演练证据。
 
 ---
@@ -1087,7 +1081,7 @@ stateDiagram-v2
 | R41 | 高负载下队列饥饿或 Worker OOM | 5,000 行、100 页 PDF、媒体并发同时运行；测 RSS、oldest age、API p95，验证队列/资源隔离 | 降低并发、暂停低优先级队列、扩独立 Worker；Excel 超阈值转 Spring Batch/POI |
 | R42 | 地图底图/静态图服务完全不可用 | 阻断 tile/static host；Web/PDF 仍须显示中性网格、Marker、Route、Legend、范围和降级说明 | 启用本地 fixture/中性 renderer；关闭“真实路线”标识，保留行程编辑与导出 |
 | R43 | 联系信息/地址/签名 URL 泄露日志 | 注入敏感字段触发 4xx/5xx/重试；日志、trace、metrics、错误平台不得出现原文/查询参数 | 立即关闭外发日志 sink、轮换 Key/URL、执行泄露响应；只保留 hash/脱敏摘要 |
-| R44 | Beta/灰度样本不足或重复计数 | 同 Trip 多次执行、账号撤回、合成数据混入；样本看板必须去重并标来源，门禁不得判绿 | 保持 feature flag 内部/Beta，延后 GA；扩大已同意 cohort，不能降低样本门槛 |
+| R44 | Deprecated：Beta/灰度样本不足或重复计数 | G08 在实现前移出 M1/M6；本风险编号仅保留历史追踪，不参与发布判定 | 不执行原 Plan B；按 [`deprecated/G08-beta-cohort.md`](./deprecated/G08-beta-cohort.md) 的 M6 替代门禁处理 |
 
 ### 9.1 高风险 TDD 执行顺序
 
@@ -1124,7 +1118,7 @@ stateDiagram-v2
 
 ## 10. 开发执行建议
 
-1. 在 issue tracker 中以 Milestone → Task → Test Case 建三层结构；Task 标题保留 A01–G08 ID，避免与原计划失去追踪。
+1. 在 issue tracker 中以 Milestone → Task → Test Case 建三层结构；有效 Task 标题保留 A01–G07 ID，G08 仅以 Deprecated 历史 ID 保留且不得复用。
 2. 每个 `P0 / Critical` Task 先提交测试/fixture/契约 PR，再提交实现 PR；并发竞态必须在实现前确定 barrier。
 3. M0、M2、M4、M5 结束时分别做一次架构/安全复审，不把所有风险堆到 M6。
 4. G01/G02/G03/G04/G05 自动化从对应功能进入主干时增量建设，M6 只完成最终矩阵和签署。

@@ -134,15 +134,9 @@ Next tasks unblocked:
 | C03 | A04、B02 | TC-C03-01、TC-C03-02 | TC-C03-03 | 可与 B03/B04 并行；独占 Location/Geocoding schema，修改 ImportRow 时登记 `LOCK-IMPORT-SCHEMA` |
 | B04 | A04、B02 | TC-B04-01、TC-B04-02 | TC-B04-03 | 可与后端 Task 并行；持 `LOCK-WEB-SHELL` 仅修改 Trip list/wizard shell |
 
-### M1 Wave 3
-
-| Task | 依赖 | 实现前 Case | 完成后必须补齐 | 并行与修改冲突 |
-|---|---|---|---|---|
-| G08 | B04 | TC-G08-01、TC-G08-02 | TC-G08-03 | B04-03 通过后启动真实招募；模板可提前准备，只持 `LOCK-DOCS` 的 beta 子目录 |
-
 ### M1 Gate
 
-执行：`TC-M1-INT-01`、`TC-M1-INT-02`。只有 outbox 恢复、owner 隔离和 Trip/Day 原子创建均通过，M2 才可领取业务编辑 Task。M1 可使用通过 Dev Track 的 `A05 Complete`；这不构成真实 Staging IdP 或发布就绪证据，发布前仍必须关闭 A05 release checklist。
+执行：`TC-M1-INT-01`、`TC-M1-INT-02`。只有 outbox 恢复、owner 隔离和 Trip/Day 原子创建均通过，M2 才可领取业务编辑 Task。M1 可使用通过 Dev Track 的 `A05 Complete`；这不构成真实 Staging IdP 或发布就绪证据，发布前仍必须关闭 A05 release checklist。G08 已从 M1 移出并标记为 Deprecated，不再领取、实现或阻断本 Gate；决策记录见 [`deprecated/G08-beta-cohort.md`](./deprecated/G08-beta-cohort.md)。
 
 ---
 
@@ -268,11 +262,10 @@ Next tasks unblocked:
 | Task | 依赖 | 实现前 Case | 完成后必须补齐 | 并行与修改冲突 |
 |---|---|---|---|---|
 | G07 | 全部 | TC-G07-01、TC-G07-02 | TC-G07-03 | 在其他 Task 稳定后汇总；独占 `LOCK-DOCS`，不得改业务实现 |
-| G08 收敛 | G08-03、G02–G06 | 无新增 Task Case | TC-M6-INT-03 | 只更新真实样本与 Go/No-Go 记录；不得以合成数据补足样本 |
 
 ### M6 Gate
 
-执行：`TC-M6-INT-01`、`TC-M6-INT-02`、`TC-M6-INT-03`。所有 Task `03`、Milestone Integration Case、风险追踪矩阵和发布门禁均有代码或归档证据后，才可签署 Release Done。
+执行：`TC-M6-INT-01`、`TC-M6-INT-02`。所有有效 Task `03`、Milestone Integration Case、风险追踪矩阵和发布门禁均有代码或归档证据后，才可签署 Release Done。`TC-M6-INT-03` 随 G08 一并标记为 Deprecated 并保留编号，真实 Beta cohort 或固定用户样本数不再是 Release Done 的前置条件。
 
 ---
 

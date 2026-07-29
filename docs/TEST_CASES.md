@@ -155,11 +155,9 @@
 - `TC-D01-02` — Overwrite/expiry/owner；代码：`packages/storage/test/upload-security.integration.spec.ts`。重复 put、过期 URL、跨 owner complete；断言拒绝且原对象不变。
 - `TC-D01-03` — MinIO round-trip；代码：`apps/api/test/attachments/upload.e2e-spec.ts`。浏览器式直传后 complete/reload；断言 DB 元数据与实际对象 version/checksum 对应。
 
-### G08
+### G08 — Deprecated
 
-- `TC-G08-01` — Cohort consent schema；代码：`tests/beta/cohort-ledger.spec.ts`。录入同意、来源和 owner；断言缺同意记录不能计样本。
-- `TC-G08-02` — Dedup/withdrawal；代码：`tests/beta/sample-counting.spec.ts`。同 Trip 重复执行、用户撤回、合成样本混入；断言去重/剔除且阶段不误判绿。
-- `TC-G08-03` — Gray gate rehearsal；代码：`tests/beta/gray-gate.e2e.spec.ts`。输入不足/足够的真实样本 ledger；断言前者延后 GA，后者生成可签署记录。
+G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已退役且编号保留，不创建原计划中的 `tests/beta/*`，也不参与 Milestone Gate。原测试意图和替代发布证据见 [`deprecated/G08-beta-cohort.md`](./deprecated/G08-beta-cohort.md)。
 
 ---
 
@@ -454,15 +452,15 @@
 
 ### M6
 
-- `TC-M6-INT-01` — Release acceptance matrix；代码：`tests/milestones/m6/release-matrix.e2e.spec.ts`。聚合 AC01–26、QG-01–10 和全 Task `03` 结果；断言无缺项/跳过关键 Case。
+- `TC-M6-INT-01` — Release acceptance matrix；代码：`tests/milestones/m6/release-matrix.e2e.spec.ts`。聚合 AC01–26、QG-01–10 和全有效 Task `03` 结果；断言无缺项/跳过关键 Case，Deprecated Case 不进入分母。
 - `TC-M6-INT-02` — Recovery/rolling compatibility；代码：`tests/milestones/m6/recovery-compatibility.e2e.spec.ts`。演练 Redis/S3/DB/Worker 故障、备份恢复及新旧 API/Worker/schemaVersion 共存；断言幂等恢复、未知消息隔离、旧应用可回滚。
-- `TC-M6-INT-03` — Plan B and gray gate；代码：`tests/milestones/m6/gray-plan-b.spec.ts`。逐项核对适用 Plan B 演练记录并输入 internal/5%/25% 样本；断言样本不足不放量，任何硬停止条件立即 No-Go。
+- `TC-M6-INT-03` — **Deprecated**：原 Plan B and gray sample gate 随 G08 退役；编号保留，不创建 `tests/milestones/m6/gray-plan-b.spec.ts`，不参与 M6 Gate。Plan B 演练由对应 Task Case、`TC-M6-INT-02` 和 Runbook 证据覆盖。
 
 ---
 
 ## 系统级高风险 TDD 追踪
 
-下表将 `DEVELOPMENT_MILESTONE.md` 的 R01–R44 绑定到实际 Case 代码。一个风险映射多个 Case 时，所有 Case 都必须通过；Plan B 的实际演练统一在 `TC-M6-INT-03` 归档。
+下表将 `DEVELOPMENT_MILESTONE.md` 的 R01–R44 绑定到实际 Case 代码。一个有效风险映射多个 Case 时，所有 Case 都必须通过；Plan B 的实际演练由对应 Task Case、`TC-M6-INT-02` 和 Runbook 归档。R44 为 Deprecated 历史编号，不参与发布判定。
 
 | Risk | 主 Case | 补充 Case |
 |---|---|---|
@@ -509,7 +507,7 @@
 | R41 | TC-G05-01 | TC-G05-02 |
 | R42 | TC-C05-02 | TC-F02-02 |
 | R43 | TC-A07-02 | TC-G04-01 |
-| R44 | TC-G08-02 | TC-G08-03 |
+| R44 | Deprecated | 见 [`deprecated/G08-beta-cohort.md`](./deprecated/G08-beta-cohort.md) |
 
 ---
 
