@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "note": "Application-owned resource boundaries. This file does not configure or replace the shared collector.",
+  "partitions": [
+    {
+      "serviceName": "web",
+      "resourceServiceName": "on-the-road-web",
+      "metricPrefix": "otr_web"
+    },
+    {
+      "serviceName": "api",
+      "resourceServiceName": "on-the-road-api",
+      "metricPrefix": "otr_api"
+    },
+    {
+      "serviceName": "worker",
+      "resourceServiceName": "on-the-road-worker",
+      "metricPrefix": "otr_worker"
+    },
+    {
+      "serviceName": "pdf-worker",
+      "resourceServiceName": "on-the-road-pdf-worker",
+      "metricPrefix": "otr_pdf_worker"
+    }
+  ]
+}
