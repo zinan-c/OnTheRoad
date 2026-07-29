@@ -71,6 +71,9 @@ export function generateClientSource(contract) {
 // OpenAPI SHA-256: ${hash}
 
 /** @typedef {{ id: string, date: string }} ExampleResource */
+/** @typedef {{ id: string, name: string, countryCode?: string, city?: string, region?: string, sortOrder: number, createdAt: string, updatedAt: string }} Destination */
+/** @typedef {{ id: string, ownerId: string, name: string, startDate: string, endDate: string, totalDays: number, travelers: number, defaultCurrency: string, budget: string | null, timezone: string, mapProfile: "cn_primary" | "international_primary" | "hybrid", description: string | null, status: "draft" | "active" | "archived" | "deleted", version: number, createdAt: string, updatedAt: string, deletedAt: string | null, destinations: Destination[] }} Trip */
+/** @typedef {{ items: Trip[], nextCursor: string | null }} TripPage */
 /** @typedef {{ code: string, label: string, aliases?: string[], icon?: string, color?: string, lineStyle?: string }} ReferenceEntry */
 /** @typedef {{ currencies: ReferenceEntry[], costCategories: ReferenceEntry[], transportModes: ReferenceEntry[], currencyAliases: Record<string, string> }} ReferenceData */
 /** @typedef {{ field: string, message: string }} FieldError */
@@ -96,6 +99,86 @@ export function parseExampleResponse(value) {
     throw new TypeError("ExampleResource.date must be YYYY-MM-DD");
   }
   return { id: object.id, date: object.date };
+}
+
+/** @param {unknown} value @returns {Trip} */
+export function parseTripResponse(value) {
+  const object = asObject(value, "Trip");
+  for (const field of ["id", "ownerId", "name", "startDate", "endDate", "defaultCurrency", "timezone", "mapProfile", "status", "createdAt", "updatedAt"]) {
+    if (typeof object[field] !== "string" || object[field].length === 0) {
+      throw new TypeError(\`Trip.\${field} must be a non-empty string\`);
+    }
+  }
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/u.test(String(object.startDate)) || !/^\\d{4}-\\d{2}-\\d{2}$/u.test(String(object.endDate))) {
+    throw new TypeError("Trip dates must be YYYY-MM-DD");
+  }
+  if (!["cn_primary", "international_primary", "hybrid"].includes(String(object.mapProfile))) {
+    throw new TypeError("Trip.mapProfile is invalid");
+  }
+  if (!["draft", "active", "archived", "deleted"].includes(String(object.status))) {
+    throw new TypeError("Trip.status is invalid");
+  }
+  for (const field of ["totalDays", "travelers", "version"]) {
+    if (!Number.isSafeInteger(object[field]) || Number(object[field]) < 1) {
+      throw new TypeError(\`Trip.\${field} must be a positive integer\`);
+    }
+  }
+  if (!Array.isArray(object.destinations)) throw new TypeError("Trip.destinations must be an array");
+  const destinations = object.destinations.map((value) => {
+    const destination = asObject(value, "Destination");
+    if (typeof destination.id !== "string" || typeof destination.name !== "string") {
+      throw new TypeError("Destination id and name must be strings");
+    }
+    if (!Number.isSafeInteger(destination.sortOrder) || Number(destination.sortOrder) < 0) {
+      throw new TypeError("Destination.sortOrder must be a non-negative integer");
+    }
+    if (typeof destination.createdAt !== "string" || typeof destination.updatedAt !== "string") {
+      throw new TypeError("Destination timestamps must be strings");
+    }
+    return {
+      id: destination.id,
+      name: destination.name,
+      ...(typeof destination.countryCode === "string" ? { countryCode: destination.countryCode } : {}),
+      ...(typeof destination.city === "string" ? { city: destination.city } : {}),
+      ...(typeof destination.region === "string" ? { region: destination.region } : {}),
+      sortOrder: Number(destination.sortOrder),
+      createdAt: destination.createdAt,
+      updatedAt: destination.updatedAt,
+    };
+  });
+  return {
+    id: /** @type {string} */ (object.id),
+    ownerId: /** @type {string} */ (object.ownerId),
+    name: /** @type {string} */ (object.name),
+    startDate: /** @type {string} */ (object.startDate),
+    endDate: /** @type {string} */ (object.endDate),
+    totalDays: Number(object.totalDays),
+    travelers: Number(object.travelers),
+    defaultCurrency: /** @type {string} */ (object.defaultCurrency),
+    budget: typeof object.budget === "string" ? object.budget : null,
+    timezone: /** @type {string} */ (object.timezone),
+    mapProfile: /** @type {Trip["mapProfile"]} */ (object.mapProfile),
+    description: typeof object.description === "string" ? object.description : null,
+    status: /** @type {Trip["status"]} */ (object.status),
+    version: Number(object.version),
+    createdAt: /** @type {string} */ (object.createdAt),
+    updatedAt: /** @type {string} */ (object.updatedAt),
+    deletedAt: typeof object.deletedAt === "string" ? object.deletedAt : null,
+    destinations,
+  };
+}
+
+/** @param {unknown} value @returns {TripPage} */
+export function parseTripPageResponse(value) {
+  const object = asObject(value, "TripPage");
+  if (!Array.isArray(object.items)) throw new TypeError("TripPage.items must be an array");
+  if (object.nextCursor !== null && typeof object.nextCursor !== "string") {
+    throw new TypeError("TripPage.nextCursor must be a string or null");
+  }
+  return {
+    items: object.items.map(parseTripResponse),
+    nextCursor: /** @type {string | null} */ (object.nextCursor),
+  };
 }
 
 /** @param {unknown} value @returns {ReferenceData} */
@@ -211,6 +294,74 @@ export class OnTheRoadClient {
       throw new ApiProblemError(parseProblemDetails(payload));
     }
     return { data: parseReferenceDataResponse(payload) };
+  }
+
+  /** @param {Record<string, unknown>} input @param {string} idempotencyKey */
+  async createTrip(input, idempotencyKey) {
+    return this.#tripRequest("/trips", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
+      body: JSON.stringify(input),
+    });
+  }
+
+  /** @param {string} tripId */
+  async getTrip(tripId) {
+    return this.#tripRequest(\`/trips/\${encodeURIComponent(tripId)}\`);
+  }
+
+  /** @param {{ search?: string, currency?: string, status?: string, limit?: number }} [filters] */
+  async listTrips(filters = {}) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined) query.set(key, String(value));
+    }
+    const suffix = query.size ? \`?\${query}\` : "";
+    const response = await this.fetch(\`\${this.baseUrl}/api/v1/trips\${suffix}\`, {
+      headers: { accept: "application/json, application/problem+json" },
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new ApiProblemError(parseProblemDetails(payload));
+    return { data: parseTripPageResponse(payload) };
+  }
+
+  /** @param {string} tripId @param {Record<string, unknown>} patch @param {number} version */
+  async updateTrip(tripId, patch, version) {
+    return this.#tripRequest(\`/trips/\${encodeURIComponent(tripId)}\`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "if-match": String(version) },
+      body: JSON.stringify(patch),
+    });
+  }
+
+  /** @param {string} tripId @param {number} version */
+  async deleteTrip(tripId, version) {
+    return this.#tripRequest(\`/trips/\${encodeURIComponent(tripId)}\`, {
+      method: "DELETE",
+      headers: { "if-match": String(version) },
+    });
+  }
+
+  /** @param {string} tripId @param {number} version */
+  async restoreTrip(tripId, version) {
+    return this.#tripRequest(\`/trips/\${encodeURIComponent(tripId)}/restore\`, {
+      method: "POST",
+      headers: { "if-match": String(version) },
+    });
+  }
+
+  /** @param {string} path @param {RequestInit} [init] */
+  async #tripRequest(path, init) {
+    const response = await this.fetch(\`\${this.baseUrl}/api/v1\${path}\`, {
+      ...init,
+      headers: {
+        accept: "application/json, application/problem+json",
+        ...init?.headers,
+      },
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new ApiProblemError(parseProblemDetails(payload));
+    return { data: parseTripResponse(payload), etag: response.headers.get("etag") };
   }
 }
 `;
