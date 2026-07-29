@@ -50,27 +50,29 @@ test("TC-A09-03 captures four route styles with legend and attribution", async (
       (await harness.page.locator("#attribution").textContent()) ?? "",
       /MapLibre.*Local GeoJSON fixture.*OpenStreetMap contributors/,
     );
-    await mkdir(evidenceRoot, { recursive: true });
-    const screenshotPath = path.join(evidenceRoot, "map-styles.png");
-    await harness.page.screenshot({
+    const screenshot = await harness.page.screenshot({
       animations: "disabled",
-      path: screenshotPath,
     });
-    await writeFile(
-      path.join(evidenceRoot, "map-styles.json"),
-      `${JSON.stringify(
-        {
-          case: "TC-A09-03",
-          viewport: { width: 1280, height: 760 },
-          diagnostics,
-          legend: ["飞机", "步行", "道路交通", "船运"],
-          attribution:
-            "MapLibre · Local GeoJSON fixture · © OpenStreetMap contributors",
-        },
-        null,
-        2,
-      )}\n`,
-    );
+    assert.ok(screenshot.byteLength > 0);
+    if (process.env.OTR_A09_UPDATE_EVIDENCE === "1") {
+      await mkdir(evidenceRoot, { recursive: true });
+      await writeFile(path.join(evidenceRoot, "map-styles.png"), screenshot);
+      await writeFile(
+        path.join(evidenceRoot, "map-styles.json"),
+        `${JSON.stringify(
+          {
+            case: "TC-A09-03",
+            viewport: { width: 1280, height: 760 },
+            diagnostics,
+            legend: ["飞机", "步行", "道路交通", "船运"],
+            attribution:
+              "MapLibre · Local GeoJSON fixture · © OpenStreetMap contributors",
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    }
   } finally {
     await harness.close();
   }
