@@ -39,7 +39,10 @@ jobs:
       - if: matrix.task == 'unit'
         run: pnpm exec playwright install --with-deps chromium
       - if: matrix.task == 'unit'
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends --yes poppler-utils
+        name: Install Linux test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
       - run: pnpm run ${{ matrix.task }}
 
   clean-install:
@@ -61,7 +64,10 @@ jobs:
           bash scripts/install-native-minio.sh "$RUNNER_TEMP/otr-native-minio"
           echo "$RUNNER_TEMP/otr-native-minio" >> "$GITHUB_PATH"
       - run: pnpm exec playwright install --with-deps chromium
-      - run: sudo apt-get update && sudo apt-get install --no-install-recommends --yes poppler-utils
+      - name: Install Linux test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
       - run: pnpm run quality
       - run: pnpm run ci:smoke
       - run: git diff --exit-code

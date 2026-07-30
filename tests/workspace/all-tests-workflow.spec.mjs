@@ -35,6 +35,16 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     2,
     "unit and clean-install paths both require native MinIO",
   );
+  assert.equal(
+    qualityWorkflow.match(/install --no-install-recommends --yes imagemagick poppler-utils/g)
+      ?.length,
+    2,
+    "unit and clean-install paths both require ImageMagick and Poppler",
+  );
+  assert.match(
+    testWorkflow,
+    /install --no-install-recommends --yes imagemagick poppler-utils/,
+  );
 
   for (const command of [
     "pnpm run unit",

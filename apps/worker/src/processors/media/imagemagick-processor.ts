@@ -15,7 +15,7 @@ const TYPES: Readonly<Record<string, string>> = {
 };
 
 export class ImageMagickProcessor implements ImageProcessor {
-  readonly #binary: string;
+  readonly #binary: string | undefined;
   readonly #maximumInputBytes: number;
   readonly #timeoutMs: number;
 
@@ -24,9 +24,67 @@ export class ImageMagickProcessor implements ImageProcessor {
     maximumInputBytes?: number;
     timeoutMs?: number;
   }> = {}) {
-    this.#binary = options.binary ?? "magick";
+    this.#binary = options.binary;
     this.#maximumInputBytes = options.maximumInputBytes ?? 20 * 1024 * 1024;
     this.#timeoutMs = options.timeoutMs ?? 15_000;
+  }
+
+  async #identify(input: string): Promise<Readonly<{
+    stdout: string;
+    convertBinary: string;
+  }>> {
+    const identifyArguments = [
+      "identify",
+      "-ping",
+      "-format",
+      "%m %w %h",
+      input,
+    ];
+    if (this.#binary) {
+      const { stdout } = await execFileAsync(this.#binary, identifyArguments, {
+        encoding: "utf8",
+        timeout: this.#timeoutMs,
+        maxBuffer: 64 * 1024,
+      });
+      return {
+        stdout,
+        convertBinary: this.#binary,
+      };
+    }
+
+    try {
+      const { stdout } = await execFileAsync("magick", identifyArguments, {
+        encoding: "utf8",
+        timeout: this.#timeoutMs,
+        maxBuffer: 64 * 1024,
+      });
+      return {
+        stdout,
+        convertBinary: "magick",
+      };
+    } catch (error) {
+      if (
+        !(error instanceof Error)
+        || !("code" in error)
+        || error.code !== "ENOENT"
+      ) {
+        throw error;
+      }
+    }
+
+    const { stdout } = await execFileAsync(
+      "identify",
+      identifyArguments.slice(1),
+      {
+        encoding: "utf8",
+        timeout: this.#timeoutMs,
+        maxBuffer: 64 * 1024,
+      },
+    );
+    return {
+      stdout,
+      convertBinary: "convert",
+    };
   }
 
   async process(value: Buffer): Promise<Readonly<{
@@ -44,15 +102,10 @@ export class ImageMagickProcessor implements ImageProcessor {
     const thumbnailPath = join(directory, "thumbnail.png");
     try {
       await writeFile(input, value, { flag: "wx", mode: 0o600 });
-      const { stdout } = await execFileAsync(
-        this.#binary,
-        ["identify", "-ping", "-format", "%m %w %h", input],
-        {
-          encoding: "utf8",
-          timeout: this.#timeoutMs,
-          maxBuffer: 64 * 1024,
-        },
-      );
+      const {
+        stdout,
+        convertBinary,
+      } = await this.#identify(input);
       const [format, widthValue, heightValue] = stdout.trim().split(/\s+/u);
       const detectedContentType = format ? TYPES[format.toUpperCase()] : undefined;
       const width = Number(widthValue);
@@ -65,7 +118,7 @@ export class ImageMagickProcessor implements ImageProcessor {
         throw new Error("ImageMagick returned invalid image metadata.");
       }
       await execFileAsync(
-        this.#binary,
+        convertBinary,
         [
           input,
           "-auto-orient",
