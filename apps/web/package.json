@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@on-the-road/config": "workspace:*"
+    "@on-the-road/config": "workspace:*",
+    "maplibre-gl": "6.0.0"
   },
   "scripts": {
     "lint": "eslint . --max-warnings=0",

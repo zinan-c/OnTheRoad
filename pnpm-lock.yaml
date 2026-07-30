@@ -47,6 +47,9 @@ importers:
       '@on-the-road/config':
         specifier: workspace:*
         version: link:../../packages/config
+      maplibre-gl:
+        specifier: 6.0.0
+        version: 6.0.0
 
   apps/worker:
     dependencies:
