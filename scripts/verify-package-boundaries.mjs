@@ -6,6 +6,7 @@ const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx"]);
 const DIRECT_SOURCE_IMPORT = /(?:from\s+|import\s*\()\s*["'][^"']*packages\/[^"']*\/src(?:\/[^"']*)?["']/g;
 const WORKSPACE_IMPORT = /(?:from\s+|import\s*\()\s*["'](@on-the-road\/[^/"']+)/g;
+const HANDCRAFTED_API_PATH = /["'`]\/api\/v1(?:\/|["'`])/g;
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -41,11 +42,18 @@ for (const app of appEntries.filter((entry) => entry.isDirectory())) {
         );
       }
     }
+    if (app.name === "web" && relative(appRoot, file).startsWith("src/")) {
+      for (const match of source.matchAll(HANDCRAFTED_API_PATH)) {
+        violations.push(
+          `${relative(ROOT, file)}: handcrafted API path ${match[0]}; use @on-the-road/contracts`,
+        );
+      }
+    }
   }
 }
 
 if (violations.length > 0) {
-  console.error("Direct imports from packages/*/src are forbidden:");
+  console.error("Package boundary violations:");
   console.error(violations.join("\n"));
   process.exitCode = 1;
 } else {

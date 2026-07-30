@@ -10,11 +10,19 @@
       "url": "/api/v1"
     }
   ],
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
   "paths": {
     "/example": {
       "get": {
         "operationId": "getExample",
         "summary": "Contract smoke endpoint",
+        "deprecated": true,
+        "x-environment": "contract-test-only",
+        "security": [],
         "parameters": [
           {
             "$ref": "#/components/parameters/Cursor"
@@ -46,6 +54,9 @@
       },
       "post": {
         "operationId": "createExample",
+        "deprecated": true,
+        "x-environment": "contract-test-only",
+        "security": [],
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -76,6 +87,9 @@
     "/example/{exampleId}": {
       "get": {
         "operationId": "getExampleById",
+        "deprecated": true,
+        "x-environment": "contract-test-only",
+        "security": [],
         "parameters": [
           {
             "$ref": "#/components/parameters/ExampleId"
@@ -570,6 +584,638 @@
           }
         }
       }
+    },
+    "/identity/development-session": {
+      "post": {
+        "operationId": "createDevelopmentSession",
+        "summary": "Create a local development session",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevelopmentSessionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Authenticated session",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/SessionCookie"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/identity/oidc/authorize": {
+      "get": {
+        "operationId": "beginOidcAuthorization",
+        "summary": "Begin the configured OIDC authorization-code flow",
+        "security": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to the identity provider",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Set-Cookie": {
+                "$ref": "#/components/headers/SessionCookie"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/identity/oidc/callback": {
+      "get": {
+        "operationId": "completeOidcAuthorization",
+        "summary": "Complete the OIDC authorization-code flow",
+        "security": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated session",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/SessionCookie"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/identity/session": {
+      "get": {
+        "operationId": "getSession",
+        "summary": "Return the principal for the current owner session",
+        "responses": {
+          "200": {
+            "description": "Current session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSession",
+        "summary": "Revoke the current session",
+        "responses": {
+          "204": {
+            "description": "Session revoked",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/SessionCookie"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/dates": {
+      "patch": {
+        "operationId": "changeTripDates",
+        "summary": "Change a Trip date range and reconcile generated days",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripDateChangeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reconciled Trip and days",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripDateChangeResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/locations/search": {
+      "get": {
+        "operationId": "searchLocations",
+        "summary": "Search location candidates using Trip destination context",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 200
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranked candidates; the server never silently selects an ambiguous result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationCandidatePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/locations/{locationId}/candidate": {
+      "post": {
+        "operationId": "confirmLocationCandidate",
+        "summary": "Confirm one candidate for an unresolved or ambiguous Location",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/LocationId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationCandidateSelection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved Location",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/locations/{locationId}/coordinates": {
+      "patch": {
+        "operationId": "adjustLocationCoordinates",
+        "summary": "Persist a map-selected or marker-dragged WGS84 point",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/LocationId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoordinateAdjustment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Manually adjusted Location",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/attachments/upload-sessions": {
+      "post": {
+        "operationId": "createAttachmentUploadSession",
+        "summary": "Create a bounded direct-upload session",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachmentUploadInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upload session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentUploadSession"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/attachments/{attachmentId}/complete": {
+      "post": {
+        "operationId": "completeAttachmentUpload",
+        "summary": "Verify immutable object metadata and queue media processing",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/AttachmentId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachmentCompleteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Attachment accepted for scanning and processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/expenses": {
+      "post": {
+        "operationId": "createExpense",
+        "summary": "Record an owner-scoped expense and settlement snapshot",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenseInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Expense snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expense"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/expenses/summary": {
+      "get": {
+        "operationId": "getExpenseSummary",
+        "summary": "Return original-currency and settlement totals",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expense summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseSummary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/exchange-rates": {
+      "put": {
+        "operationId": "setExchangeRate",
+        "summary": "Set a manual exchange rate for settlement",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeRateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored exchange rate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeRate"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/imports/uploads": {
+      "post": {
+        "operationId": "createImportUpload",
+        "summary": "Create an immutable workbook upload",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportUploadInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Import source attachment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportUpload"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/imports/{attachmentId}/inspection": {
+      "post": {
+        "operationId": "queueImportInspection",
+        "summary": "Queue safe workbook inspection after the clean-scan gate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/AttachmentId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queued inspection job",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/jobs/{jobId}": {
+      "get": {
+        "operationId": "getJob",
+        "summary": "Return status and progress for an owner-scoped asynchronous job",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/system/capabilities": {
+      "get": {
+        "operationId": "getCapabilities",
+        "summary": "Return enabled provider and worker capabilities without secrets",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Public capability matrix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityMatrix"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -643,6 +1289,30 @@
         "schema": {
           "$ref": "#/components/schemas/ResourceId"
         }
+      },
+      "LocationId": {
+        "name": "locationId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ResourceId"
+        }
+      },
+      "AttachmentId": {
+        "name": "attachmentId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ResourceId"
+        }
+      },
+      "JobId": {
+        "name": "jobId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ResourceId"
+        }
       }
     },
     "headers": {
@@ -651,6 +1321,20 @@
         "schema": {
           "type": "string"
         }
+      },
+      "SessionCookie": {
+        "description": "Hardened HttpOnly, Secure, SameSite session cookie.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-otr_session",
+        "description": "Owner identity is derived exclusively from the authenticated session; clients cannot submit ownerId."
       }
     },
     "responses": {
@@ -1574,6 +2258,672 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "DevelopmentSessionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "subject"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        }
+      },
+      "Principal": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "issuer",
+          "subject"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "issuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principal"
+        ],
+        "properties": {
+          "principal": {
+            "$ref": "#/components/schemas/Principal"
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          }
+        }
+      },
+      "TripDateChangeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "startDate",
+          "endDate",
+          "removedDayPolicy"
+        ],
+        "properties": {
+          "startDate": {
+            "$ref": "#/components/schemas/LocalDate"
+          },
+          "endDate": {
+            "$ref": "#/components/schemas/LocalDate"
+          },
+          "removedDayPolicy": {
+            "type": "string",
+            "enum": [
+              "reject_non_empty",
+              "archive"
+            ]
+          }
+        }
+      },
+      "TripDateChangeResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "trip",
+          "createdDayIds",
+          "archivedDayIds"
+        ],
+        "properties": {
+          "trip": {
+            "$ref": "#/components/schemas/Trip"
+          },
+          "createdDayIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceId"
+            }
+          },
+          "archivedDayIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceId"
+            }
+          }
+        }
+      },
+      "Wgs84Point": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          }
+        }
+      },
+      "LocationCandidate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "candidateId",
+          "name",
+          "formattedAddress",
+          "countryCode",
+          "point",
+          "provider",
+          "confidence"
+        ],
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "formattedAddress": {
+            "type": "string"
+          },
+          "countryCode": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "district": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "point": {
+            "$ref": "#/components/schemas/Wgs84Point"
+          },
+          "placeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "LocationCandidatePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query",
+          "items",
+          "ambiguous"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocationCandidate"
+            }
+          },
+          "ambiguous": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LocationCandidateSelection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "candidateId"
+        ],
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "CoordinateAdjustment": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Wgs84Point"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "formattedAddress": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "Location": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "inputText",
+          "name",
+          "status",
+          "manuallyAdjusted",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "inputText": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "formattedAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "point": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Wgs84Point"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "placeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unresolved",
+              "resolving",
+              "resolved",
+              "ambiguous",
+              "failed"
+            ]
+          },
+          "manuallyAdjusted": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "AttachmentUploadInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "filename",
+          "contentType",
+          "contentLength",
+          "checksumSha256"
+        ],
+        "properties": {
+          "filename": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "contentLength": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20971520
+          },
+          "checksumSha256": {
+            "type": "string",
+            "minLength": 44,
+            "maxLength": 44
+          }
+        }
+      },
+      "AttachmentUploadSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attachmentId",
+          "uploadUrl",
+          "expiresAt"
+        ],
+        "properties": {
+          "attachmentId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          }
+        }
+      },
+      "AttachmentCompleteInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "objectVersion",
+          "checksumSha256"
+        ],
+        "properties": {
+          "objectVersion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checksumSha256": {
+            "type": "string",
+            "minLength": 44,
+            "maxLength": 44
+          }
+        }
+      },
+      "Attachment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "uploaded",
+              "scanning",
+              "ready",
+              "failed"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "ExpenseInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "amount",
+          "currency",
+          "categoryCode"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,2})?$"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "categoryCode": {
+            "type": "string"
+          },
+          "itineraryItemId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Expense": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "originalAmount",
+          "currency",
+          "settlementCurrency",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "originalAmount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "settlementCurrency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "ExpenseSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "settlementCurrency",
+          "settledActualTotal",
+          "originalCurrencyTotals",
+          "unconverted",
+          "rateSnapshots"
+        ],
+        "properties": {
+          "settlementCurrency": {
+            "type": "string"
+          },
+          "settledActualTotal": {
+            "type": "string"
+          },
+          "originalCurrencyTotals": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "unconverted": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "rateSnapshots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExchangeRate"
+            }
+          }
+        }
+      },
+      "ExchangeRateInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fromCurrency",
+          "toCurrency",
+          "rate"
+        ],
+        "properties": {
+          "fromCurrency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "toCurrency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "rate": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,12})?$"
+          }
+        }
+      },
+      "ExchangeRate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExchangeRateInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "version"
+            ],
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        ]
+      },
+      "ImportUploadInput": {
+        "$ref": "#/components/schemas/AttachmentUploadInput"
+      },
+      "ImportUpload": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "objectKey",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "uploaded",
+              "ready",
+              "failed"
+            ]
+          },
+          "objectKey": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "status",
+          "progress",
+          "attempts",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "result": {},
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProblemDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          }
+        }
+      },
+      "CapabilityMatrix": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "geocoding",
+          "reverseGeocoding",
+          "directions",
+          "staticMaps",
+          "imports",
+          "exports"
+        ],
+        "properties": {
+          "geocoding": {
+            "type": "boolean"
+          },
+          "reverseGeocoding": {
+            "type": "boolean"
+          },
+          "directions": {
+            "type": "boolean"
+          },
+          "staticMaps": {
+            "type": "boolean"
+          },
+          "imports": {
+            "type": "boolean"
+          },
+          "exports": {
+            "type": "boolean"
           }
         }
       },

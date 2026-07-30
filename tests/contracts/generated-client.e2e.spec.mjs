@@ -10,6 +10,7 @@ let server;
 
 afterEach(async () => {
   if (server?.listening) {
+    server.closeAllConnections();
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
   server = undefined;
@@ -18,9 +19,16 @@ afterEach(async () => {
 test("TC-A04-03 generated client round-trips success and 4xx Problem Details", async () => {
   server = createServer((request, response) => {
     response.setHeader("content-type", "application/json");
-    if (request.url === "/api/v1/example") {
-      response.setHeader("etag", "\"example-v1\"");
-      response.end(JSON.stringify({ id: "106144e2-4d65-4bd0-a67d-43edbc88ac8d", date: "2026-07-27" }));
+    if (request.url === "/api/v1/system/capabilities") {
+      response.setHeader("etag", "\"capabilities-v1\"");
+      response.end(JSON.stringify({
+        geocoding: true,
+        reverseGeocoding: true,
+        directions: false,
+        staticMaps: false,
+        imports: true,
+        exports: false,
+      }));
       return;
     }
     response.statusCode = 404;
@@ -38,12 +46,14 @@ test("TC-A04-03 generated client round-trips success and 4xx Problem Details", a
   const address = server.address();
   const client = new OnTheRoadClient(`http://127.0.0.1:${address.port}`);
 
-  const success = await client.getExample();
-  assert.equal(success.data.date, "2026-07-27");
-  assert.equal(success.etag, "\"example-v1\"");
+  const success = await client.request("getCapabilities");
+  assert.equal(success.data.geocoding, true);
+  assert.equal(success.etag, "\"capabilities-v1\"");
 
   await assert.rejects(
-    () => client.getExample("missing"),
+    () => client.request("getJob", {
+      path: { jobId: "106144e2-4d65-4bd0-a67d-43edbc88ac8d" },
+    }),
     (error) => {
       assert.ok(error instanceof ApiProblemError);
       assert.equal(error.problem.status, 404);

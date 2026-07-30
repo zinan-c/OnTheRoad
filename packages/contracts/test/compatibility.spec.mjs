@@ -16,3 +16,20 @@ test("TC-A04-02 breaking changes are rejected when a required response field is 
     /ExampleResource.*date/u,
   );
 });
+
+test("P1-03 compatibility rejects removal of every newly public path and schema", async () => {
+  const current = await readContract();
+  const withoutLocationSearch = JSON.parse(JSON.stringify(current));
+  delete withoutLocationSearch.paths["/trips/{tripId}/locations/search"];
+  assert.throws(
+    () => assertBackwardCompatible(current, withoutLocationSearch),
+    /locations\/search.*path removed/u,
+  );
+
+  const withoutJob = JSON.parse(JSON.stringify(current));
+  delete withoutJob.components.schemas.Job;
+  assert.throws(
+    () => assertBackwardCompatible(current, withoutJob),
+    /Job: schema removed/u,
+  );
+});

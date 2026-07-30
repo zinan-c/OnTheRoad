@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { expect, test } from "vitest";
 
-test("REVIEW-P1-05 applications cannot import package source paths", () => {
+test("REVIEW-P1-05/P1-03 applications use package exports and generated API contracts", () => {
   const result = spawnSync(
     process.execPath,
     ["scripts/verify-package-boundaries.mjs"],
