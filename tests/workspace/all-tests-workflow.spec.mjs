@@ -6,11 +6,11 @@ const root = new URL("../../", import.meta.url);
 
 test("TC-A01-03 every push runs the development test gate", async () => {
   const testWorkflow = await readFile(
-    new URL(".github/workflows/all-tests.yml", root),
+    new URL(".github/workflows/ci_test_cases.yml", root),
     "utf8",
   );
   const qualityWorkflow = await readFile(
-    new URL(".github/workflows/ci.yml", root),
+    new URL(".github/workflows/ci_quality_related.yml", root),
     "utf8",
   );
   const packageJson = JSON.parse(
@@ -21,7 +21,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     testWorkflow,
     /^on:\n {2}push:\n {2}pull_request:\n {2}workflow_dispatch:$/m,
   );
-  assert.match(testWorkflow, /^name: "CI: Test Cases"$/m);
+  assert.match(testWorkflow, /^name: "CI-Test Cases"$/m);
   assert.match(testWorkflow, /run: pnpm run test:all:dev/);
   assert.match(
     testWorkflow,
@@ -29,7 +29,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.doesNotMatch(testWorkflow, /RUN_COMPOSE_INTEGRATION/);
   assert.doesNotMatch(testWorkflow, /docker compose/);
-  assert.match(qualityWorkflow, /^name: "CI: Quality Related"$/m);
+  assert.match(qualityWorkflow, /^name: "CI-Quality Related"$/m);
   assert.equal(
     qualityWorkflow.match(/bash scripts\/install-native-minio\.sh/g)?.length,
     2,

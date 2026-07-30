@@ -1,4 +1,4 @@
-name: "CI: Test Cases"
+name: "CI-Test Cases"
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   test-cases:
-    name: "CI: Test Cases"
+    name: "CI-Test Cases"
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:

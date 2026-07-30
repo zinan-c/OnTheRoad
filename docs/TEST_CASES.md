@@ -41,7 +41,7 @@
 
 - `TC-A01-01` — Workspace quality commands；代码：`tests/workspace/quality-scripts.spec.ts`。给定干净 workspace，逐项执行 lint/typecheck/unit/build；断言所有 workspace 被覆盖且任一命令非零会使总任务失败。
 - `TC-A01-02` — Version/cache failure；代码：`tests/workspace/toolchain-guard.spec.ts`。注入错误 Node/pnpm 版本与故意类型错误；断言启动快速失败、缓存不能把失败伪装为通过。
-- `TC-A01-03` — Clean checkout CI smoke；代码：`.github/workflows/ci.yml`、`tests/workspace/clean-install.spec.ts`。无 node_modules 环境安装并执行全套质量命令；断言生成物无未提交 diff。
+- `TC-A01-03` — Clean checkout CI smoke；代码：`.github/workflows/ci_quality_related.yml`、`tests/workspace/clean-install.spec.ts`。无 node_modules 环境安装并执行全套质量命令；断言生成物无未提交 diff。
 
 ### A02
 

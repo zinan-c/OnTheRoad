@@ -80,12 +80,15 @@ test(
 );
 
 test("TC-A01-03 CI exposes stable required check names on Node 24", async () => {
-  const workflow = await readFile(join(rootPath, ".github/workflows/ci.yml"), "utf8");
+  const workflow = await readFile(
+    join(rootPath, ".github/workflows/ci_quality_related.yml"),
+    "utf8",
+  );
   assert.match(workflow, /node-version-file: \.nvmrc/);
   for (const check of ["lint", "typecheck", "unit", "build"]) {
     assert.match(workflow, new RegExp(`matrix:\\s*[\\s\\S]*${check}`));
   }
-  assert.match(workflow, /name: "CI: Quality Related \/ clean-install"/);
+  assert.match(workflow, /name: "CI-Quality Related \/ clean-install"/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
   assert.match(workflow, /git diff --exit-code/);
 });

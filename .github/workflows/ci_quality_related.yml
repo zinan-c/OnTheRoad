@@ -1,4 +1,4 @@
-name: "CI: Quality Related"
+name: "CI-Quality Related"
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   quality:
-    name: "CI: Quality Related / ${{ matrix.task }}"
+    name: "CI-Quality Related / ${{ matrix.task }}"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -46,7 +46,7 @@ jobs:
       - run: pnpm run ${{ matrix.task }}
 
   clean-install:
-    name: "CI: Quality Related / clean-install"
+    name: "CI-Quality Related / clean-install"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

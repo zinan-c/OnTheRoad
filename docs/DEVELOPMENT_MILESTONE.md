@@ -75,7 +75,7 @@ flowchart LR
 - **目标**：建立所有应用与共享包的可安装、可构建、可测试基线。
 - **实现范围**：pnpm workspace、Turbo pipeline、Node 24 锁定、strict TypeScript、lint/typecheck/unit/build 脚本、缓存策略和 CI required checks。
 - **不在范围内**：生产发布流水线、Kubernetes、业务模块实现。
-- **预计修改的文件**：`package.json`、`pnpm-workspace.yaml`、`turbo.json`、`.nvmrc`、`tsconfig.base.json`、`.github/workflows/ci.yml`、`apps/*/package.json`、`packages/*/package.json`。
+- **预计修改的文件**：`package.json`、`pnpm-workspace.yaml`、`turbo.json`、`.nvmrc`、`tsconfig.base.json`、`.github/workflows/ci_quality_related.yml`、`apps/*/package.json`、`packages/*/package.json`。
 - **异常情况**：锁文件漂移、Node/pnpm 版本不符、缓存污染、单个 workspace 循环依赖；均需快速失败并指出 workspace。
 - **测试要求**：干净 checkout 执行 install/lint/typecheck/unit/build；验证缓存命中和故意类型错误会阻断 CI。
 - **验收标准**：CI 在支持的 Node 24 环境全绿；分支保护可引用稳定 check 名称。
@@ -119,7 +119,7 @@ flowchart LR
 - **目标**：冻结前后端可演进的 REST 契约和统一错误格式。
 - **实现范围**：`/api/v1`、RFC 9457 风格错误、ID/日期/分页/ETag/Idempotency 约定、OpenAPI 生成及 typed client、契约 diff。
 - **不在范围内**：完整业务 endpoint、GraphQL。
-- **预计修改的文件**：`packages/contracts/openapi.yaml`、`packages/contracts/src/generated/*`、`apps/api/src/common/problem-details/*`、`scripts/generate-client.*`、`.github/workflows/ci.yml`。
+- **预计修改的文件**：`packages/contracts/openapi.yaml`、`packages/contracts/src/generated/*`、`apps/api/src/common/problem-details/*`、`scripts/generate-client.*`、`.github/workflows/ci_quality_related.yml`。
 - **异常情况**：生成文件未提交、破坏性 schema 变化、未知错误泄露堆栈、客户端与 spec 不同步。
 - **测试要求**：schema lint、生成结果无 diff、Problem Details 集成测试、breaking-change CI fixture。
 - **验收标准**：示例 endpoint 可由生成客户端调用；所有错误含 `code/status/traceId`。
