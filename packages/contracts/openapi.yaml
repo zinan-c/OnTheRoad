@@ -332,6 +332,201 @@
           }
         }
       }
+    },
+    "/trips/{tripId}/days/{tripDayId}/itinerary-items": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TripId"
+        },
+        {
+          "$ref": "#/components/parameters/TripDayId"
+        }
+      ],
+      "get": {
+        "operationId": "listItineraryItems",
+        "responses": {
+          "200": {
+            "description": "Visible itinerary items ordered within the day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItineraryItem"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createItineraryItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItineraryItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created itinerary item",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/itinerary-items/{itemId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TripId"
+        },
+        {
+          "$ref": "#/components/parameters/ItineraryItemId"
+        }
+      ],
+      "get": {
+        "operationId": "getItineraryItem",
+        "responses": {
+          "200": {
+            "description": "Owner-scoped itinerary item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateItineraryItem",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItineraryItemPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated itinerary item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteItineraryItem",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Soft-deleted itinerary item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/itinerary-items/{itemId}/copy": {
+      "post": {
+        "operationId": "copyItineraryItem",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/ItineraryItemId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "targetTripDayId"
+                ],
+                "properties": {
+                  "targetTripDayId": {
+                    "$ref": "#/components/schemas/ResourceId"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Copied itinerary item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -384,6 +579,22 @@
       },
       "TripId": {
         "name": "tripId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ResourceId"
+        }
+      },
+      "TripDayId": {
+        "name": "tripDayId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ResourceId"
+        }
+      },
+      "ItineraryItemId": {
+        "name": "itemId",
         "in": "path",
         "required": true,
         "schema": {
@@ -741,6 +952,390 @@
             ]
           }
         }
+      },
+      "ItineraryItemType": {
+        "type": "string",
+        "enum": [
+          "activity",
+          "attraction",
+          "dining",
+          "hotel",
+          "transport",
+          "other"
+        ]
+      },
+      "ItineraryTimeKind": {
+        "type": "string",
+        "enum": [
+          "clock",
+          "range",
+          "period",
+          "unscheduled"
+        ]
+      },
+      "SensitiveItineraryValue": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxLength": 10000
+          },
+          {
+            "type": "object",
+            "additionalProperties": true
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "DiningItemInput": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "mealType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "breakfast",
+              "lunch",
+              "dinner",
+              "snack",
+              "other",
+              null
+            ]
+          },
+          "details": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 5000
+          },
+          "locationId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "AccommodationInput": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "details": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 5000
+          },
+          "locationId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkInAt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UtcDateTime"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkOutAt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UtcDateTime"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bookingInfo": {
+            "$ref": "#/components/schemas/SensitiveItineraryValue"
+          },
+          "contactInfo": {
+            "$ref": "#/components/schemas/SensitiveItineraryValue"
+          }
+        }
+      },
+      "ItineraryItemInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tripDayId",
+          "itemType",
+          "timeKind"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "target"
+            ]
+          },
+          {
+            "required": [
+              "description"
+            ]
+          }
+        ],
+        "properties": {
+          "tripDayId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "itemType": {
+            "$ref": "#/components/schemas/ItineraryItemType"
+          },
+          "timeKind": {
+            "$ref": "#/components/schemas/ItineraryTimeKind"
+          },
+          "startTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "endTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "endDayOffset": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "default": 0
+          },
+          "timeZone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "timePeriod": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "early_morning",
+              "morning",
+              "noon",
+              "afternoon",
+              "evening",
+              "night",
+              "late_night",
+              null
+            ]
+          },
+          "target": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "durationMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 525600
+          },
+          "destinationId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locationId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startLocationId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endLocationId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transportModeCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "bookingInfo": {
+            "$ref": "#/components/schemas/SensitiveItineraryValue"
+          },
+          "contactInfo": {
+            "$ref": "#/components/schemas/SensitiveItineraryValue"
+          },
+          "remark": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "externalSource": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "externalId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "dining": {
+            "$ref": "#/components/schemas/DiningItemInput"
+          },
+          "accommodation": {
+            "$ref": "#/components/schemas/AccommodationInput"
+          }
+        }
+      },
+      "ItineraryItemPatch": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": true,
+        "description": "Partial canonical ItineraryItemInput; tripDayId is immutable."
+      },
+      "ItineraryItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ItineraryItemInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "tripId",
+              "ownerId",
+              "sortOrder",
+              "version",
+              "createdAt",
+              "updatedAt",
+              "deletedAt"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              "tripId": {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              "ownerId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sortOrder": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "createdAt": {
+                "$ref": "#/components/schemas/UtcDateTime"
+              },
+              "updatedAt": {
+                "$ref": "#/components/schemas/UtcDateTime"
+              },
+              "deletedAt": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/UtcDateTime"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        ]
       },
       "ReferenceData": {
         "type": "object",

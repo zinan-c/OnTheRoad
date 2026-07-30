@@ -1,0 +1,11 @@
+DROP FUNCTION IF EXISTS copy_itinerary_item(text, uuid, uuid, uuid);
+DROP FUNCTION IF EXISTS delete_itinerary_item(text, uuid, uuid, integer);
+DROP FUNCTION IF EXISTS update_itinerary_item(text, uuid, uuid, integer, jsonb);
+DROP FUNCTION IF EXISTS create_itinerary_item(text, uuid, jsonb);
+DROP FUNCTION IF EXISTS itinerary_item_as_json(uuid);
+DROP TABLE IF EXISTS accommodation;
+DROP TABLE IF EXISTS dining_item;
+DROP TABLE IF EXISTS itinerary_item_audit;
+DROP TABLE IF EXISTS itinerary_item;
+DROP INDEX IF EXISTS destination_id_trip_unique_idx;
+DROP INDEX IF EXISTS trip_day_id_trip_unique_idx;
