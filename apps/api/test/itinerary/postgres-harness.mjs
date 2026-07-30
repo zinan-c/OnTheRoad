@@ -9,7 +9,8 @@ import {
 const execFileAsync = promisify(execFile);
 
 export const itineraryDatabaseUrl =
-  process.env.OTR_B05_DATABASE_URL
+  process.env.OTR_B07_DATABASE_URL
+  || process.env.OTR_B05_DATABASE_URL
   || process.env.OTR_M1_DATABASE_URL
   || process.env.OTR_TRIP_DATABASE_URL;
 

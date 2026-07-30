@@ -397,6 +397,49 @@
         }
       }
     },
+    "/trips/{tripId}/days/{tripDayId}/itinerary-items/reorder": {
+      "post": {
+        "operationId": "reorderItineraryItems",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/TripDayId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItineraryReorderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Atomically reordered complete same-Day item set",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItineraryReorderResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/trips/{tripId}/itinerary-items/{itemId}": {
       "parameters": [
         {
@@ -1280,6 +1323,59 @@
         "minProperties": 1,
         "additionalProperties": true,
         "description": "Partial canonical ItineraryItemInput; tripDayId is immutable."
+      },
+      "ItineraryReorderInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "baseVersion",
+          "orderedIds"
+        ],
+        "properties": {
+          "baseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "orderedIds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/ResourceId"
+            }
+          }
+        }
+      },
+      "ItineraryReorderResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tripDayId",
+          "version",
+          "orderedIds",
+          "eventId"
+        ],
+        "properties": {
+          "tripDayId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "orderedIds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/ResourceId"
+            }
+          },
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       },
       "ItineraryItem": {
         "allOf": [

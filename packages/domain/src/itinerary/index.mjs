@@ -22,6 +22,8 @@ const TIME_PERIODS = new Set([
 ]);
 const MEAL_TYPES = new Set(["breakfast", "lunch", "dinner", "snack", "other"]);
 
+export * from "./order.mjs";
+
 export class ItineraryDomainError extends Error {
   constructor(code, message, status = 422, field) {
     super(message);

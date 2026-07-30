@@ -75,6 +75,7 @@ export function generateClientSource(contract) {
 /** @typedef {{ id: string, ownerId: string, name: string, startDate: string, endDate: string, totalDays: number, travelers: number, defaultCurrency: string, budget: string | null, timezone: string, mapProfile: "cn_primary" | "international_primary" | "hybrid", description: string | null, status: "draft" | "active" | "archived" | "deleted", version: number, createdAt: string, updatedAt: string, deletedAt: string | null, destinations: Destination[] }} Trip */
 /** @typedef {{ items: Trip[], nextCursor: string | null }} TripPage */
 /** @typedef {{ id: string, tripId: string, ownerId: string, tripDayId: string, itemType: "activity" | "attraction" | "dining" | "hotel" | "transport" | "other", timeKind: "clock" | "range" | "period" | "unscheduled", startTime: string | null, endTime: string | null, endDayOffset: 0 | 1, timeZone: string | null, timePeriod: string | null, target: string | null, description: string | null, durationMinutes: number | null, destinationId: string | null, locationId: string | null, startLocationId: string | null, endLocationId: string | null, transportModeCode: string | null, bookingInfo: unknown, contactInfo: unknown, remark: string | null, externalSource: string | null, externalId: string | null, dining: Record<string, unknown> | null, accommodation: Record<string, unknown> | null, sortOrder: number, version: number, createdAt: string, updatedAt: string, deletedAt: string | null }} ItineraryItem */
+/** @typedef {{ tripDayId: string, version: number, orderedIds: string[], eventId: string }} ItineraryReorderResult */
 /** @typedef {{ code: string, label: string, aliases?: string[], icon?: string, color?: string, lineStyle?: string }} ReferenceEntry */
 /** @typedef {{ currencies: ReferenceEntry[], costCategories: ReferenceEntry[], transportModes: ReferenceEntry[], currencyAliases: Record<string, string> }} ReferenceData */
 /** @typedef {{ field: string, message: string }} FieldError */
@@ -219,6 +220,33 @@ export function parseItineraryItemResponse(value) {
     if (object[field] !== null) asObject(object[field], \`ItineraryItem.\${field}\`);
   }
   return /** @type {ItineraryItem} */ (object);
+}
+
+/** @param {unknown} value @returns {ItineraryReorderResult} */
+export function parseItineraryReorderResponse(value) {
+  const object = asObject(value, "ItineraryReorderResult");
+  for (const field of ["tripDayId", "eventId"]) {
+    if (typeof object[field] !== "string" || object[field].length === 0) {
+      throw new TypeError(\`ItineraryReorderResult.\${field} must be a non-empty string\`);
+    }
+  }
+  if (!Number.isSafeInteger(object.version) || Number(object.version) < 1) {
+    throw new TypeError("ItineraryReorderResult.version must be a positive integer");
+  }
+  if (
+    !Array.isArray(object.orderedIds)
+    || object.orderedIds.length === 0
+    || object.orderedIds.some((id) => typeof id !== "string")
+    || new Set(object.orderedIds).size !== object.orderedIds.length
+  ) {
+    throw new TypeError("ItineraryReorderResult.orderedIds must be a non-empty unique string array");
+  }
+  return {
+    tripDayId: /** @type {string} */ (object.tripDayId),
+    version: Number(object.version),
+    orderedIds: /** @type {string[]} */ (object.orderedIds),
+    eventId: /** @type {string} */ (object.eventId),
+  };
 }
 
 /** @param {unknown} value @returns {ReferenceData} */
@@ -451,6 +479,27 @@ export class OnTheRoadClient {
         body: JSON.stringify({ targetTripDayId }),
       },
     );
+  }
+
+  /** @param {string} tripId @param {string} tripDayId @param {number} baseVersion @param {string[]} orderedIds */
+  async reorderItineraryItems(tripId, tripDayId, baseVersion, orderedIds) {
+    const response = await this.fetch(
+      \`\${this.baseUrl}/api/v1/trips/\${encodeURIComponent(tripId)}/days/\${encodeURIComponent(tripDayId)}/itinerary-items/reorder\`,
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json, application/problem+json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ baseVersion, orderedIds }),
+      },
+    );
+    const payload = await response.json();
+    if (!response.ok) throw new ApiProblemError(parseProblemDetails(payload));
+    return {
+      data: parseItineraryReorderResponse(payload),
+      etag: response.headers.get("etag"),
+    };
   }
 
   /** @param {string} path @param {RequestInit} [init] */
