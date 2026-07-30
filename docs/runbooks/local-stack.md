@@ -69,8 +69,9 @@ The start command will:
 2. allocate only configured loopback ports;
 3. start or discover only processes owned by this project;
 4. initialize PostGIS and the S3 bucket idempotently;
-5. wait for the shared readiness probes;
-6. print `Local stack: Native Ready`.
+5. run the shared `db:migrate`, `db:seed`, and `db:status --check` entrypoint;
+6. wait for the shared readiness probes;
+7. print `Local stack: Native Ready`.
 
 PID files must record both PID and an ownership fingerprint. Stop/recovery must
 verify that fingerprint before signaling a process, so stale PID files cannot
@@ -136,6 +137,30 @@ A parity failure caused by an available but behaviorally incompatible stack
 blocks A02 and requires a fix. A documented container-environment availability
 failure may be handed off, but continues to block `Release Ready`. It must not
 be bypassed by replacing a real dependency with a mock.
+
+## Database schema lifecycle
+
+Native, Compose, CI, staging, and production use the same commands. The
+connection string is read only from `DATABASE_URL`; it is never accepted as a
+CLI argument.
+
+```sh
+pnpm run db:migrate
+pnpm run db:seed
+pnpm run db:status -- --check --json
+```
+
+Each migration records its version, expanded-SQL SHA-256 checksum, start time,
+completion time, and state in `otr_schema_migration`. Applied checksum drift,
+unknown versions, dirty state, and a schema below the minimum compatible
+version fail the status/readiness gate. A failed or interrupted transaction
+must be inspected before an explicit `pnpm run db:migrate -- --recover`; the
+runner does not silently mark it complete. Migration SQL is transactional, and
+the advisory lock prevents two deployers from migrating concurrently.
+
+Production deployment runs migration as a one-shot pre-deploy job, then starts
+applications only after `db:status --check` succeeds. Application replicas do
+not race to migrate during startup.
 
 ## Troubleshooting policy
 

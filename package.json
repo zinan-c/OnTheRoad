@@ -8,6 +8,11 @@
     "node": "24.14.0",
     "pnpm": "9.15.4"
   },
+  "pnpm": {
+    "overrides": {
+      "@types/node": "24.10.1"
+    }
+  },
   "scripts": {
     "preinstall": "node scripts/check-toolchain.mjs",
     "toolchain:check": "node scripts/check-toolchain.mjs",
@@ -17,6 +22,9 @@
     "test:integration": "vitest run tests/config tests/contracts tests/infra tests/milestones",
     "test:cases:verify": "node scripts/verify-required-cases.mjs",
     "test:cases:required": "node scripts/run-required-cases.mjs",
+    "db:migrate": "pnpm --filter @on-the-road/database run build && node packages/database/dist/cli.js migrate",
+    "db:status": "pnpm --filter @on-the-road/database run build && node packages/database/dist/cli.js status",
+    "db:seed": "pnpm --filter @on-the-road/database run build && node packages/database/dist/cli.js seed",
     "test:visual": "pnpm --filter @on-the-road/maplibre-spike run test:e2e && pnpm --filter @on-the-road/maplibre-spike run test:visual && pnpm --filter @on-the-road/pdf-spike run test:visual",
     "test:all:dev": "pnpm run unit && pnpm run test:integration && pnpm run test:visual && pnpm run ci:smoke",
     "build": "turbo run build",
@@ -26,6 +34,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.62.0",
+    "@types/node": "24.10.1",
     "@typescript/typescript6": "6.0.2",
     "eslint": "10.8.0",
     "fast-check": "4.9.0",

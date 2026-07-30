@@ -18,6 +18,7 @@ stack_validate_env
 if [[ "${1:-}" == "--dry-run" ]]; then
   echo "docker compose --env-file infra/local-stack.env -f infra/compose/docker-compose.yml up -d --wait postgres redis minio clamav"
   echo "docker compose --env-file infra/local-stack.env -f infra/compose/docker-compose.yml run --rm minio-init"
+  echo "pnpm run db:migrate && pnpm run db:seed && pnpm run db:status -- --check"
   echo "bash scripts/dev-up-health.sh --track compose"
   exit 0
 fi
@@ -45,4 +46,5 @@ fi
 echo "Ensuring the MinIO bucket exists..."
 compose run --rm minio-init
 
+stack_apply_database_schema
 "${SCRIPT_DIR}/dev-up-health.sh" --track compose

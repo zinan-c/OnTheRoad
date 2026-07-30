@@ -40,6 +40,17 @@ jobs:
           sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
       - name: Start pinned integration dependencies
         run: bash scripts/dev-up.sh --track compose
+      - name: Apply and verify the unified database schema
+        run: |
+          set -a
+          source infra/local-stack.env
+          set +a
+          pnpm run db:migrate
+          pnpm run db:seed
+          pnpm run db:status -- --check --json
+          OTR_DATABASE_MIGRATION_TEST_URL="$DATABASE_URL" \
+            pnpm --filter @on-the-road/database exec vitest run \
+              test/migration-runner.spec.ts test/migration-runner.integration.spec.ts
       - name: Run every required M0-M2 case without skips
         env:
           RUN_COMPOSE_INTEGRATION: "1"

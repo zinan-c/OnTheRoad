@@ -256,4 +256,5 @@ start_postgres
 start_redis
 start_minio
 start_clamav
+stack_apply_database_schema
 "${SCRIPT_DIR}/dev-up-native-health.sh"

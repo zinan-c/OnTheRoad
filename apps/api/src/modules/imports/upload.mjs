@@ -1,5 +1,4 @@
 // @ts-nocheck -- runtime contract is covered by upload-to-inspect tests.
-/* global structuredClone */
 import { createHash, randomUUID } from "node:crypto";
 
 const MAXIMUM_SOURCE_BYTES = 20 * 1024 * 1024;

@@ -105,6 +105,19 @@ stack_validate_env() {
   fi
 }
 
+stack_apply_database_schema() {
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "pnpm is required to apply the application database schema." >&2
+    return 1
+  fi
+  (
+    cd "${STACK_REPO_ROOT}"
+    pnpm run db:migrate
+    pnpm run db:seed
+    pnpm run db:status -- --check
+  )
+}
+
 stack_binary() {
   local variable="$1"
   local fallback="$2"

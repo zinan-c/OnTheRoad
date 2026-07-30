@@ -1,1 +1,7 @@
-export const databaseWorkspace = "@on-the-road/database";
+export {
+  DatabaseMigrationError,
+  DatabaseMigrator,
+  createDatabasePool,
+  discoverMigrations,
+  minimumCompatibleSchemaVersion,
+} from "./migration/index.js";

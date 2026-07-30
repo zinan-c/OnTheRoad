@@ -6,12 +6,26 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./migration": {
+      "types": "./src/migration/index.ts",
+      "default": "./dist/migration/index.js"
     }
+  },
+  "bin": {
+    "otr-db": "./dist/cli.js"
   },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc6 -p tsconfig.json",
     "unit": "vitest run --passWithNoTests",
-    "build": "tsc6 -p tsconfig.build.json"
+    "build": "tsc6 -p tsconfig.build.json && node scripts/copy-sql.mjs"
+  },
+  "devDependencies": {
+    "@types/pg": "8.15.5"
+  },
+  "dependencies": {
+    "@on-the-road/config": "workspace:*",
+    "pg": "8.16.3"
   }
 }
