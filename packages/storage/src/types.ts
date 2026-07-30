@@ -27,6 +27,23 @@ export interface ObjectStorage {
   inspectObject(objectKey: string): Promise<StoredObjectMetadata>;
 }
 
+export type ImmutableStoredObject = Readonly<{
+  key: string;
+  version: string;
+  checksumSha256: string;
+  contentType: string;
+  contentLength: number;
+}>;
+
+export interface MediaObjectStorage {
+  readQuarantine(objectKey: string, objectVersion: string): Promise<Buffer>;
+  putImmutable(
+    objectKey: string,
+    value: Buffer,
+    contentType: string,
+  ): Promise<ImmutableStoredObject>;
+}
+
 export class StorageError extends Error {
   readonly code: string;
   readonly status: number;

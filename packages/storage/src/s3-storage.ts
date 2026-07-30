@@ -7,6 +7,8 @@ import {
 
 import {
   StorageError,
+  type ImmutableStoredObject,
+  type MediaObjectStorage,
   type ObjectStorage,
   type StoredObjectMetadata,
   type UploadSession,
@@ -63,7 +65,7 @@ function canonicalPath(bucket: string, objectKey: string): string {
 
 function canonicalQuery(parameters: Readonly<Record<string, string>>): string {
   return Object.entries(parameters)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
     .map(([key, value]) => `${encode(key)}=${encode(value)}`)
     .join("&");
 }
@@ -83,7 +85,7 @@ function isValidChecksum(value: string): boolean {
   }
 }
 
-export class S3ObjectStorage implements ObjectStorage {
+export class S3ObjectStorage implements ObjectStorage, MediaObjectStorage {
   readonly #endpoint: URL;
   readonly #region: string;
   readonly #bucket: string;
@@ -220,12 +222,127 @@ export class S3ObjectStorage implements ObjectStorage {
     };
   }
 
+  async readQuarantine(
+    objectKey: string,
+    objectVersion: string,
+  ): Promise<Buffer> {
+    if (!/^attachments\/[a-f0-9]{32}\/[A-Za-z0-9-]+$/u.test(objectKey)) {
+      throw new StorageError("OBJECT_KEY_INVALID", "Object key is invalid.");
+    }
+    if (!objectVersion.trim()) {
+      throw new StorageError(
+        "OBJECT_VERSION_REQUIRED",
+        "An immutable object version is required.",
+      );
+    }
+    const response = await this.#fetch(
+      this.#presign(
+        "GET",
+        objectKey,
+        {},
+        60,
+        this.#clock(),
+        { versionId: objectVersion },
+      ),
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      throw new StorageError(
+        "QUARANTINE_READ_FAILED",
+        `Immutable quarantine read failed with status ${response.status}.`,
+        response.status === 404 ? 404 : 502,
+      );
+    }
+    const declaredLength = Number(response.headers.get("content-length"));
+    if (
+      Number.isSafeInteger(declaredLength)
+      && declaredLength > this.#maximumUploadBytes
+    ) {
+      throw new StorageError(
+        "CONTENT_LENGTH_NOT_ALLOWED",
+        "The quarantine object exceeds the safe processing limit.",
+        413,
+      );
+    }
+    const value = Buffer.from(new Uint8Array(await response.arrayBuffer()));
+    if (value.byteLength > this.#maximumUploadBytes) {
+      throw new StorageError(
+        "CONTENT_LENGTH_NOT_ALLOWED",
+        "The quarantine object exceeds the safe processing limit.",
+        413,
+      );
+    }
+    return value;
+  }
+
+  async putImmutable(
+    objectKey: string,
+    value: Buffer,
+    contentType: string,
+  ): Promise<ImmutableStoredObject> {
+    if (!/^derived\/[0-9a-f-]{36}\/[A-Za-z0-9-]+$/u.test(objectKey)) {
+      throw new StorageError(
+        "DERIVATIVE_KEY_INVALID",
+        "Derivative object key is invalid.",
+      );
+    }
+    if (value.byteLength < 1 || value.byteLength > this.#maximumUploadBytes) {
+      throw new StorageError(
+        "CONTENT_LENGTH_NOT_ALLOWED",
+        "Derivative length is outside the allowed range.",
+        413,
+      );
+    }
+    const digest = createHash("sha256").update(value).digest("base64");
+    const headers = {
+      "content-length": String(value.byteLength),
+      "content-type": contentType,
+      "if-none-match": "*",
+      "x-amz-checksum-sha256": digest,
+      "x-amz-meta-sha256": digest,
+    };
+    const response = await this.#fetch(
+      this.#presign("PUT", objectKey, headers, 60, this.#clock()),
+      { method: "PUT", headers, body: value },
+    );
+    if (response.status === 409 || response.status === 412) {
+      throw new StorageError(
+        "IMMUTABLE_OBJECT_EXISTS",
+        "The derivative object key already exists.",
+        409,
+      );
+    }
+    if (!response.ok) {
+      throw new StorageError(
+        "DERIVATIVE_WRITE_FAILED",
+        `Derivative write failed with status ${response.status}.`,
+        502,
+      );
+    }
+    const version = response.headers.get("x-amz-version-id");
+    if (!version) {
+      throw new StorageError(
+        "OBJECT_VERSION_REQUIRED",
+        "Derivative storage did not return an immutable version.",
+        502,
+      );
+    }
+    return {
+      key: objectKey,
+      version,
+      checksumSha256: digest,
+      contentType,
+      contentLength: value.byteLength,
+    };
+  }
+
   #presign(
-    method: "PUT" | "HEAD",
+    method: "PUT" | "HEAD" | "GET",
     objectKey: string,
     headers: Readonly<Record<string, string>>,
     expiresInSeconds: number,
     now: Date,
+    additionalQuery: Readonly<Record<string, string>> = {},
   ): string {
     const timestamp = amzDate(now);
     const shortDate = timestamp.slice(0, 8);
@@ -237,6 +354,7 @@ export class S3ObjectStorage implements ObjectStorage {
       .map((name) => `${name}:${normalizedHeaderValue(allHeaders[name]!)}`)
       .join("\n");
     const parameters = {
+      ...additionalQuery,
       "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
       "X-Amz-Credential": `${this.#accessKey}/${scope}`,
       "X-Amz-Date": timestamp,
