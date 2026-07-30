@@ -13,12 +13,14 @@
     "toolchain:check": "node scripts/check-toolchain.mjs",
     "lint": "eslint scripts tests eslint.config.mjs --max-warnings=0 && turbo run lint",
     "typecheck": "turbo run typecheck",
-    "unit": "turbo run unit && vitest run tests/workspace/quality-scripts.spec.mjs tests/workspace/toolchain-guard.spec.mjs tests/workspace/all-tests-workflow.spec.mjs",
+    "unit": "turbo run unit && vitest run tests/workspace/quality-scripts.spec.mjs tests/workspace/toolchain-guard.spec.mjs tests/workspace/all-tests-workflow.spec.mjs tests/workspace/required-cases.spec.mjs",
     "test:integration": "vitest run tests/config tests/contracts tests/infra tests/milestones",
+    "test:cases:verify": "node scripts/verify-required-cases.mjs",
+    "test:cases:required": "node scripts/run-required-cases.mjs",
     "test:visual": "pnpm --filter @on-the-road/maplibre-spike run test:e2e && pnpm --filter @on-the-road/maplibre-spike run test:visual && pnpm --filter @on-the-road/pdf-spike run test:visual",
     "test:all:dev": "pnpm run unit && pnpm run test:integration && pnpm run test:visual && pnpm run ci:smoke",
     "build": "turbo run build",
-    "quality": "pnpm run lint && pnpm run typecheck && pnpm run unit && pnpm run build",
+    "quality": "pnpm run test:cases:verify && pnpm run lint && pnpm run typecheck && pnpm run unit && pnpm run build",
     "ci:smoke": "vitest run tests/workspace/clean-install.spec.mjs"
   },
   "devDependencies": {

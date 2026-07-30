@@ -28,6 +28,7 @@ export default [
         document: "readonly",
         process: "readonly",
         setTimeout: "readonly",
+        structuredClone: "readonly",
       },
       sourceType: "module",
     },

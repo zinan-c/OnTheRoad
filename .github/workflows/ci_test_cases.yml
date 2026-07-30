@@ -38,7 +38,34 @@ jobs:
           pnpm exec playwright install --with-deps chromium
           sudo apt-get update
           sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
-      - name: Run every development test case
-        run: pnpm run test:all:dev
+      - name: Start pinned integration dependencies
+        run: bash scripts/dev-up.sh --track compose
+      - name: Run every required M0-M2 case without skips
+        env:
+          RUN_COMPOSE_INTEGRATION: "1"
+          OTR_RUN_CLAMAV_INTEGRATION: "1"
+          OTR_REQUIRED_CASE_REPORT: test-results/m0-m2-required.json
+        run: |
+          set -a
+          source infra/local-stack.env
+          set +a
+          export OTR_TRIP_DATABASE_URL="$DATABASE_URL"
+          export OTR_M1_DATABASE_URL="$DATABASE_URL"
+          export OTR_C03_DATABASE_URL="$DATABASE_URL"
+          export OTR_D01_DATABASE_URL="$DATABASE_URL"
+          export OTR_D02_DATABASE_URL="$DATABASE_URL"
+          export OTR_D04_DATABASE_URL="$DATABASE_URL"
+          export OTR_E02_DATABASE_URL="$DATABASE_URL"
+          pnpm run test:cases:required
+      - name: Upload required-case result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m0-m2-required-case-result
+          path: test-results/m0-m2-required.json
+          if-no-files-found: error
+      - name: Stop integration dependencies
+        if: always()
+        run: bash scripts/dev-down.sh --track compose
       - name: Verify tests did not change tracked sources
         run: git diff --exit-code

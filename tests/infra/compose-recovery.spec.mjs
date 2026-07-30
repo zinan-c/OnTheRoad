@@ -72,13 +72,18 @@ describe("TC-A02-02 restart and degraded scanner", () => {
       assert.match(retained.stdout, /kept/);
 
       assert.equal(run("docker", [...composeArgs, "stop", "clamav"]).status, 0);
-      const degraded = run("bash", [
-        "scripts/dev-up-health.sh",
-        "--track",
-        "compose",
-      ]);
-      assert.notEqual(degraded.status, 0);
-      assert.match(combinedOutput(degraded), /clamav.*not ready/is);
+      try {
+        const degraded = run("bash", [
+          "scripts/dev-up-health.sh",
+          "--track",
+          "compose",
+        ]);
+        assert.notEqual(degraded.status, 0);
+        assert.match(combinedOutput(degraded), /clamav.*not ready/is);
+      } finally {
+        const restored = run("docker", [...composeArgs, "start", "clamav"]);
+        assert.equal(restored.status, 0, combinedOutput(restored));
+      }
     },
     180_000,
   );
