@@ -3,7 +3,7 @@ import {
   type CoordinateAdjustmentService,
   type CoordinateInputMode,
   type Wgs84Point,
-} from "../../../../../packages/application/src/location/adjust-coordinates.js";
+} from "@on-the-road/application/location";
 
 function parseIfMatch(value: string | undefined): number {
   const match = value?.match(/^(?:W\/)?"([1-9][0-9]*)"$/u);

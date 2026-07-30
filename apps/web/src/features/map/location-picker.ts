@@ -1,7 +1,7 @@
 import type {
   CoordinateInputMode,
   Wgs84Point,
-} from "../../../../../packages/application/src/location/adjust-coordinates.js";
+} from "@on-the-road/application/location";
 
 type LocationView = {
   readonly version: number;

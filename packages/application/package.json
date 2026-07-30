@@ -1,0 +1,21 @@
+{
+  "name": "@on-the-road/application",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./idempotency": {
+      "types": "./src/idempotency/index.ts",
+      "default": "./dist/idempotency/index.js"
+    },
+    "./location": {
+      "types": "./src/location/adjust-coordinates.ts",
+      "default": "./dist/location/adjust-coordinates.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc6 -p tsconfig.json",
+    "typecheck": "tsc6 -p tsconfig.json",
+    "unit": "vitest run --passWithNoTests",
+    "build": "tsc6 -p tsconfig.build.json"
+  }
+}
