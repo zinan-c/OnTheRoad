@@ -4,3 +4,7 @@ export {
   createConfiguredLocationSearchApi,
   createLocationSearchApi,
 } from "./search.js";
+export {
+  PostgresCoordinateRepository,
+} from "./coordinates-postgres.mjs";
+export { LocationCoordinatesApi } from "./coordinates.js";

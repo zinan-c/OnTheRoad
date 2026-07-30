@@ -35,6 +35,21 @@ export async function prepareLocationDatabase(ownerId) {
       maxBuffer: 2 * 1024 * 1024,
     },
   );
+  await execFileAsync(
+    process.env.PSQL_BIN || "psql",
+    [
+      locationDatabaseUrl,
+      "-X",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-f",
+      "packages/database/src/migrations/0012_location_coordinate_audit.sql",
+    ],
+    {
+      cwd: new URL("../../../..", import.meta.url),
+      maxBuffer: 2 * 1024 * 1024,
+    },
+  );
   const tripId = randomUUID();
   await psql(`INSERT INTO trip (
     id, owner_id, name, start_date, end_date, travelers,

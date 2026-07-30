@@ -82,6 +82,50 @@ export class PostgresLocationRepository {
     );
   }
 
+  adjustCoordinates(ownerId, locationId, expectedVersion, payload, audit) {
+    return this.#json(
+      `SELECT adjust_location_coordinates(
+        ${jsonExpression([ownerId])}->>0,
+        (${jsonExpression([locationId])}->>0)::uuid,
+        (${jsonExpression([expectedVersion])}->>0)::integer,
+        ${jsonExpression(payload)},
+        ${jsonExpression(audit)}
+      )::text`,
+    );
+  }
+
+  listCoordinateAudits(ownerId, locationId) {
+    return this.#json(
+      `SELECT COALESCE(
+        jsonb_agg(
+          jsonb_build_object(
+            'locationId', audit.location_id,
+            'ownerId', audit.owner_id,
+            'action', audit.action,
+            'fromVersion', audit.from_version,
+            'toVersion', audit.to_version,
+            'point', jsonb_build_object(
+              'longitude', ST_X(audit.point),
+              'latitude', ST_Y(audit.point),
+              'crs', 'WGS84'
+            ),
+            'inputMode', audit.input_mode,
+            'reverseStatus', audit.reverse_status,
+            'occurredAt', to_char(
+              audit.occurred_at AT TIME ZONE 'UTC',
+              'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+            )
+          )
+          ORDER BY audit.audit_id
+        ),
+        '[]'::jsonb
+      )::text
+      FROM location_coordinate_audit audit
+      WHERE audit.owner_id = ${jsonExpression([ownerId])}->>0
+        AND audit.location_id = (${jsonExpression([locationId])}->>0)::uuid`,
+    );
+  }
+
   createJob(input) {
     return this.#json(
       `WITH inserted AS (
