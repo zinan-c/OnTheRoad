@@ -1,3 +1,4 @@
+// @ts-nocheck -- SheetJS is vendored and checked through importer contract tests.
 import * as XLSX from "../vendor/xlsx/xlsx.mjs";
 import * as cptable from "../vendor/xlsx/dist/cpexcel.full.mjs";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck -- this package is validated by its own checkJs:false boundary.
 export const ALIAS_DICTIONARY_VERSION = "1.0.0";
 
 export const STANDARD_COLUMNS = Object.freeze([

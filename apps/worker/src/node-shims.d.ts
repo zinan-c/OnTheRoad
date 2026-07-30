@@ -36,3 +36,13 @@ declare module "node:path" {
 declare module "node:util" {
   export const promisify: any;
 }
+
+declare module "node:worker_threads" {
+  export const parentPort: any;
+  export const workerData: any;
+  export class Worker {
+    constructor(filename: URL, options?: any);
+    once(event: string, listener: (...arguments_: any[]) => void): this;
+    terminate(): Promise<number>;
+  }
+}
