@@ -1,18 +1,9 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
 import { TransportModeDomainError } from "../../../../../packages/domain/src/transport-mode/index.mjs";
-
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function jsonExpression(value) {
-  return `convert_from(decode('${encode(value)}', 'base64'), 'utf8')::jsonb`;
-}
+import {
+  PostgresExecutor,
+  postgresErrorIdentity,
+} from "@on-the-road/database/postgres";
 
 function notFound() {
   return new TransportModeDomainError(
@@ -31,10 +22,10 @@ function versionConflict() {
 }
 
 function mapDatabaseError(error) {
-  const message = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
+  const { constraint, message } = postgresErrorIdentity(error);
   if (
-    message.includes("TRANSPORT_MODE_CODE_CONFLICT")
-    || message.includes("custom_transport_mode_trip_id_code_key")
+    message === "TRANSPORT_MODE_CODE_CONFLICT"
+    || constraint === "custom_transport_mode_trip_id_code_key"
   ) {
     return new TransportModeDomainError(
       "TRANSPORT_MODE_CODE_CONFLICT",
@@ -69,20 +60,23 @@ function modeJson(alias) {
 }
 
 export class PostgresTransportModeRepository {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor } = {}) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "api",
+    });
   }
 
   async assertTripOwned(ownerId, tripId) {
     const owned = await this.#json(
       `SELECT to_jsonb(EXISTS (
         SELECT 1 FROM trip
-        WHERE id = (${jsonExpression([tripId])}->>0)::uuid
-          AND owner_id = ${jsonExpression([ownerId])}->>0
+        WHERE id = $1::uuid
+          AND owner_id = $2
           AND deleted_at IS NULL
       ))::text`,
+      [tripId, ownerId],
     );
     if (!owned) throw notFound();
   }
@@ -95,8 +89,9 @@ export class PostgresTransportModeRepository {
         '[]'::jsonb
       )::text
       FROM custom_transport_mode m
-      WHERE m.trip_id = (${jsonExpression([tripId])}->>0)::uuid
-        AND m.owner_id = ${jsonExpression([ownerId])}->>0`,
+      WHERE m.trip_id = $1::uuid
+        AND m.owner_id = $2`,
+      [tripId, ownerId],
     );
   }
 
@@ -108,17 +103,18 @@ export class PostgresTransportModeRepository {
           trip_id, owner_id, code, label, icon, color, line_style
         )
         VALUES (
-          (${jsonExpression([tripId])}->>0)::uuid,
-          ${jsonExpression([ownerId])}->>0,
-          ${jsonExpression([input.code])}->>0,
-          ${jsonExpression([input.label])}->>0,
-          ${jsonExpression([input.icon])}->>0,
-          ${jsonExpression([input.color])}->>0,
-          ${jsonExpression([input.lineStyle])}->>0
+          $1::uuid,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7
         )
         RETURNING *
       )
       SELECT ${modeJson("m")}::text FROM inserted m`,
+      [tripId, ownerId, input.code, input.label, input.icon, input.color, input.lineStyle],
     );
   }
 
@@ -133,19 +129,29 @@ export class PostgresTransportModeRepository {
       `WITH updated AS (
         UPDATE custom_transport_mode
         SET
-          label = ${jsonExpression([merged.label])}->>0,
-          icon = ${jsonExpression([merged.icon])}->>0,
-          color = ${jsonExpression([merged.color])}->>0,
-          line_style = ${jsonExpression([merged.lineStyle])}->>0,
+          label = $1,
+          icon = $2,
+          color = $3,
+          line_style = $4,
           version = version + 1,
           updated_at = clock_timestamp()
-        WHERE id = (${jsonExpression([modeId])}->>0)::uuid
-          AND trip_id = (${jsonExpression([tripId])}->>0)::uuid
-          AND owner_id = ${jsonExpression([ownerId])}->>0
-          AND version = (${jsonExpression([expectedVersion])}->>0)::integer
+        WHERE id = $5::uuid
+          AND trip_id = $6::uuid
+          AND owner_id = $7
+          AND version = $8::integer
         RETURNING *
       )
       SELECT ${modeJson("m")}::text FROM updated m`,
+      [
+        merged.label,
+        merged.icon,
+        merged.color,
+        merged.lineStyle,
+        modeId,
+        tripId,
+        ownerId,
+        expectedVersion,
+      ],
     );
     if (!updated) throw versionConflict();
     return updated;
@@ -162,13 +168,14 @@ export class PostgresTransportModeRepository {
       `WITH updated AS (
         UPDATE custom_transport_mode
         SET enabled = false, version = version + 1, updated_at = clock_timestamp()
-        WHERE id = (${jsonExpression([modeId])}->>0)::uuid
-          AND trip_id = (${jsonExpression([tripId])}->>0)::uuid
-          AND owner_id = ${jsonExpression([ownerId])}->>0
-          AND version = (${jsonExpression([expectedVersion])}->>0)::integer
+        WHERE id = $1::uuid
+          AND trip_id = $2::uuid
+          AND owner_id = $3
+          AND version = $4::integer
         RETURNING *
       )
       SELECT ${modeJson("m")}::text FROM updated m`,
+      [modeId, tripId, ownerId, expectedVersion],
     );
     if (!updated) throw versionConflict();
     return updated;
@@ -178,10 +185,11 @@ export class PostgresTransportModeRepository {
     return this.#json(
       `SELECT to_jsonb(EXISTS (
         SELECT 1 FROM itinerary_item
-        WHERE trip_id = (${jsonExpression([tripId])}->>0)::uuid
-          AND transport_mode_code = ${jsonExpression([code])}->>0
+        WHERE trip_id = $1::uuid
+          AND transport_mode_code = $2
           AND deleted_at IS NULL
       ))::text`,
+      [tripId, code],
     );
   }
 
@@ -191,25 +199,25 @@ export class PostgresTransportModeRepository {
         (
           SELECT ${modeJson("m")}
           FROM custom_transport_mode m
-          WHERE m.id = (${jsonExpression([modeId])}->>0)::uuid
-            AND m.trip_id = (${jsonExpression([tripId])}->>0)::uuid
-            AND m.owner_id = ${jsonExpression([ownerId])}->>0
+          WHERE m.id = $1::uuid
+            AND m.trip_id = $2::uuid
+            AND m.owner_id = $3
         ),
         'null'::jsonb
       )::text`,
+      [modeId, tripId, ownerId],
     );
     if (!mode) throw notFound();
     return mode;
   }
 
-  async #json(sql) {
+  close() {
+    return this.database.close();
+  }
+
+  async #json(sql, values = []) {
     try {
-      const { stdout } = await execFileAsync(
-        this.psqlBin,
-        [this.databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
-        { maxBuffer: 2 * 1024 * 1024 },
-      );
-      return JSON.parse(stdout.trim() || "null");
+      return await this.database.json(sql, values);
     } catch (error) {
       throw mapDatabaseError(error);
     }

@@ -1,33 +1,16 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
 import { ExpenseDomainError } from "../../../../../packages/domain/src/expense/index.mjs";
-
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function json(value) {
-  return `convert_from(decode('${encode(value)}', 'base64'), 'utf8')::jsonb`;
-}
-
-function text(value) {
-  return `${json([value])}->>0`;
-}
-
-function nullableUuid(value) {
-  return value ? `(${text(value)})::uuid` : "NULL";
-}
+import {
+  PostgresExecutor,
+  postgresErrorIdentity,
+} from "@on-the-road/database/postgres";
 
 function mapDatabaseError(error) {
-  const message = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
+  const { code, constraint, message } = postgresErrorIdentity(error);
   if (
-    message.includes("expense_")
-    || message.includes("exchange_rate_")
-    || message.includes("violates foreign key constraint")
+    code === "23503"
+    || constraint?.startsWith("expense_")
+    || constraint?.startsWith("exchange_rate_")
   ) {
     return new ExpenseDomainError(
       "EXPENSE_REFERENCE_MISMATCH",
@@ -36,8 +19,9 @@ function mapDatabaseError(error) {
     );
   }
   if (
-    message.includes("violates check constraint")
-    || message.includes("invalid input syntax")
+    code === "23514"
+    || code === "22P02"
+    || message === "EXPENSE_REFERENCE_MISMATCH"
   ) {
     return new ExpenseDomainError(
       "EXPENSE_INVALID",
@@ -49,10 +33,12 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresExpenseRepository {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor } = {}) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "api",
+    });
   }
 
   async getTrip(ownerId, tripId) {
@@ -64,10 +50,11 @@ export class PostgresExpenseRepository {
           'defaultCurrency', default_currency
         )
         FROM trip
-        WHERE id = (${text(tripId)})::uuid
-          AND owner_id = ${text(ownerId)}
+        WHERE id = $1::uuid
+          AND owner_id = $2
           AND status <> 'deleted'
       ), 'null'::jsonb)::text`,
+      [tripId, ownerId],
     );
     if (!trip) {
       throw new ExpenseDomainError(
@@ -89,8 +76,9 @@ export class PostgresExpenseRepository {
           'tripDayId', trip_day_id
         )
         FROM itinerary_item
-        WHERE id = (${text(itemId)})::uuid
+        WHERE id = $1::uuid
       ), 'null'::jsonb)::text`,
+      [itemId],
     );
   }
 
@@ -100,11 +88,11 @@ export class PostgresExpenseRepository {
         trip_id, owner_id, from_currency, to_currency, rate
       )
       VALUES (
-        (${text(tripId)})::uuid,
-        ${text(ownerId)},
-        ${text(rate.fromCurrency)},
-        ${text(rate.toCurrency)},
-        (${text(rate.rate)})::numeric
+        $1::uuid,
+        $2,
+        $3,
+        $4,
+        $5::numeric
       )
       ON CONFLICT (trip_id, from_currency, to_currency)
       DO UPDATE SET
@@ -121,6 +109,7 @@ export class PostgresExpenseRepository {
         'rate', to_char(rate, 'FM9999999999999990.000000000000'),
         'version', version
       )::text`,
+      [tripId, ownerId, rate.fromCurrency, rate.toCurrency, rate.rate],
     );
   }
 
@@ -132,10 +121,11 @@ export class PostgresExpenseRepository {
           'version', version
         )
         FROM trip_exchange_rate
-        WHERE trip_id = (${text(tripId)})::uuid
-          AND from_currency = ${text(fromCurrency)}
-          AND to_currency = ${text(toCurrency)}
+        WHERE trip_id = $1::uuid
+          AND from_currency = $2
+          AND to_currency = $3
       ), 'null'::jsonb)::text`,
+      [tripId, fromCurrency, toCurrency],
     );
   }
 
@@ -148,22 +138,38 @@ export class PostgresExpenseRepository {
         settlement_currency, exchange_rate_snapshot, source
       )
       VALUES (
-        (${text(expense.id)})::uuid,
-        (${text(expense.tripId)})::uuid,
-        ${text(expense.ownerId)},
-        ${nullableUuid(expense.tripDayId)},
-        ${nullableUuid(expense.itineraryItemId)},
-        ${nullableUuid(expense.destinationId)},
-        ${text(expense.categoryCode)},
-        ${expense.transportModeCode ? text(expense.transportModeCode) : "NULL"},
-        (${text(expense.originalAmount)})::numeric,
-        ${text(expense.currency)},
-        ${expense.settledAmount ? `(${text(expense.settledAmount)})::numeric` : "NULL"},
-        ${text(expense.settlementCurrency)},
-        ${expense.exchangeRate ? `(${text(expense.exchangeRate)})::numeric` : "NULL"},
-        ${text(expense.source)}
+        $1::uuid,
+        $2::uuid,
+        $3,
+        $4::uuid,
+        $5::uuid,
+        $6::uuid,
+        $7,
+        $8,
+        $9::numeric,
+        $10,
+        $11::numeric,
+        $12,
+        $13::numeric,
+        $14
       )
       RETURNING ${this.#expenseJson()}::text`,
+      [
+        expense.id,
+        expense.tripId,
+        expense.ownerId,
+        expense.tripDayId ?? null,
+        expense.itineraryItemId ?? null,
+        expense.destinationId ?? null,
+        expense.categoryCode,
+        expense.transportModeCode ?? null,
+        expense.originalAmount,
+        expense.currency,
+        expense.settledAmount ?? null,
+        expense.settlementCurrency,
+        expense.exchangeRate ?? null,
+        expense.source,
+      ],
     );
   }
 
@@ -174,7 +180,8 @@ export class PostgresExpenseRepository {
         '[]'::jsonb
       )::text
       FROM expense
-      WHERE trip_id = (${text(tripId)})::uuid`,
+      WHERE trip_id = $1::uuid`,
+      [tripId],
     );
   }
 
@@ -202,14 +209,13 @@ export class PostgresExpenseRepository {
     )`;
   }
 
-  async #json(sql) {
+  close() {
+    return this.database.close();
+  }
+
+  async #json(sql, values = []) {
     try {
-      const { stdout } = await execFileAsync(
-        this.psqlBin,
-        [this.databaseUrl, "-X", "-q", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
-        { maxBuffer: 4 * 1024 * 1024 },
-      );
-      return JSON.parse(stdout.trim() || "null");
+      return await this.database.json(sql, values);
     } catch (error) {
       throw mapDatabaseError(error);
     }

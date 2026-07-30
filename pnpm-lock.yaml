@@ -44,6 +44,9 @@ importers:
       '@on-the-road/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@on-the-road/database':
+        specifier: workspace:*
+        version: link:../../packages/database
 
   apps/pdf-worker:
     dependencies:
@@ -77,6 +80,9 @@ importers:
       '@on-the-road/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@on-the-road/database':
+        specifier: workspace:*
+        version: link:../../packages/database
 
   packages/application: {}
 

@@ -1,29 +1,21 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function text(value) {
-  return `convert_from(decode('${encode([value])}', 'base64'), 'utf8')::jsonb->>0`;
-}
+import {
+  PostgresExecutor,
+  postgresErrorIdentity,
+} from "@on-the-road/database/postgres";
 
 function mapError(error) {
-  const message = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
-  if (message.includes("VERSION_CONFLICT")) {
+  const { message } = postgresErrorIdentity(error);
+  if (message === "VERSION_CONFLICT") {
     return Object.assign(new Error("Trip version does not match If-Match"), {
       code: "VERSION_CONFLICT",
       status: 409,
     });
   }
-  if (message.includes("TRIP_NOT_FOUND")) {
+  if (message === "TRIP_NOT_FOUND") {
     return Object.assign(new Error("Trip not found"), { code: "TRIP_NOT_FOUND", status: 404 });
   }
-  if (message.includes("DATE_CHANGE_CONFIRMATION_REQUIRED")) {
+  if (message === "DATE_CHANGE_CONFIRMATION_REQUIRED") {
     return Object.assign(new Error("Date change requires confirmation"), {
       code: "DATE_CHANGE_CONFIRMATION_REQUIRED",
       status: 409,
@@ -33,15 +25,18 @@ function mapError(error) {
 }
 
 export class PostgresTripDayRepository {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor }) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "api",
+    });
   }
 
   loadDateContext(ownerId, tripId) {
     return this.#json(
-      `SELECT trip_date_context(${text(ownerId)}, (${text(tripId)})::uuid)::text`,
+      "SELECT trip_date_context($1, $2::uuid)",
+      [ownerId, tripId],
     );
   }
 
@@ -53,24 +48,24 @@ export class PostgresTripDayRepository {
   }) {
     return this.#json(
       `SELECT apply_trip_date_range(
-        ${text(ownerId)},
-        (${text(tripId)})::uuid,
-        ${Number(expectedVersion)},
-        (${text(startDate)})::date,
-        (${text(endDate)})::date,
-        ${confirmDestructive ? "true" : "false"}
-      )::text`,
+        $1,
+        $2::uuid,
+        $3::integer,
+        $4::date,
+        $5::date,
+        $6::boolean
+      )`,
+      [ownerId, tripId, expectedVersion, startDate, endDate, confirmDestructive],
     );
   }
 
-  async #json(sql) {
+  close() {
+    return this.database.close();
+  }
+
+  async #json(sql, values = []) {
     try {
-      const { stdout } = await execFileAsync(
-        this.psqlBin,
-        [this.databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
-        { maxBuffer: 2 * 1024 * 1024 },
-      );
-      return JSON.parse(stdout.trim() || "null");
+      return await this.database.json(sql, values);
     } catch (error) {
       throw mapError(error);
     }

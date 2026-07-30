@@ -1,21 +1,12 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
 import { LocationDomainError } from "../../../../../packages/domain/src/location/index.mjs";
-
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function jsonExpression(value) {
-  return `convert_from(decode('${encode(value)}', 'base64'), 'utf8')::jsonb`;
-}
+import {
+  PostgresExecutor,
+  postgresErrorIdentity,
+} from "@on-the-road/database/postgres";
 
 function mapDatabaseError(error) {
-  const message = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
+  const { message } = postgresErrorIdentity(error);
   const mappings = [
     ["LOCATION_NOT_FOUND", 404],
     ["LOCATION_VERSION_CONFLICT", 409],
@@ -26,7 +17,7 @@ function mapDatabaseError(error) {
     ["RESOLVED_POINT_REQUIRED", 400],
   ];
   for (const [code, status] of mappings) {
-    if (message.includes(code)) {
+    if (message === code) {
       return new LocationDomainError(
         code,
         code.replaceAll("_", " ").toLowerCase(),
@@ -38,14 +29,18 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresLocationRepository {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor } = {}) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "api",
+    });
   }
 
   create(input) {
-    return this.#json(`SELECT create_location(${jsonExpression(input)})::text`);
+    return this.#json("SELECT create_location($1::jsonb)::text", [
+      JSON.stringify(input),
+    ]);
   }
 
   async getOwned(ownerId, locationId) {
@@ -54,11 +49,12 @@ export class PostgresLocationRepository {
         (
           SELECT location_as_json(l.id)
           FROM location l
-          WHERE l.id = (${jsonExpression([locationId])}->>0)::uuid
-            AND l.owner_id = ${jsonExpression([ownerId])}->>0
+          WHERE l.id = $1::uuid
+            AND l.owner_id = $2
         ),
         'null'::jsonb
       )::text`,
+      [locationId, ownerId],
     );
     if (!result) {
       throw new LocationDomainError(
@@ -73,24 +69,32 @@ export class PostgresLocationRepository {
   transition(ownerId, locationId, expectedVersion, target, payload = {}) {
     return this.#json(
       `SELECT transition_location(
-        ${jsonExpression([ownerId])}->>0,
-        (${jsonExpression([locationId])}->>0)::uuid,
-        (${jsonExpression([expectedVersion])}->>0)::integer,
-        ${jsonExpression([target])}->>0,
-        ${jsonExpression(payload)}
+        $1,
+        $2::uuid,
+        $3::integer,
+        $4,
+        $5::jsonb
       )::text`,
+      [ownerId, locationId, expectedVersion, target, JSON.stringify(payload)],
     );
   }
 
   adjustCoordinates(ownerId, locationId, expectedVersion, payload, audit) {
     return this.#json(
       `SELECT adjust_location_coordinates(
-        ${jsonExpression([ownerId])}->>0,
-        (${jsonExpression([locationId])}->>0)::uuid,
-        (${jsonExpression([expectedVersion])}->>0)::integer,
-        ${jsonExpression(payload)},
-        ${jsonExpression(audit)}
+        $1,
+        $2::uuid,
+        $3::integer,
+        $4::jsonb,
+        $5::jsonb
       )::text`,
+      [
+        ownerId,
+        locationId,
+        expectedVersion,
+        JSON.stringify(payload),
+        JSON.stringify(audit),
+      ],
     );
   }
 
@@ -121,8 +125,9 @@ export class PostgresLocationRepository {
         '[]'::jsonb
       )::text
       FROM location_coordinate_audit audit
-      WHERE audit.owner_id = ${jsonExpression([ownerId])}->>0
-        AND audit.location_id = (${jsonExpression([locationId])}->>0)::uuid`,
+      WHERE audit.owner_id = $1
+        AND audit.location_id = $2::uuid`,
+      [ownerId, locationId],
     );
   }
 
@@ -134,12 +139,12 @@ export class PostgresLocationRepository {
           input_location_version, status
         )
         VALUES (
-          (${jsonExpression([input.tripId])}->>0)::uuid,
-          (${jsonExpression([input.locationId])}->>0)::uuid,
-          ${jsonExpression([input.provider])}->>0,
-          ${jsonExpression([input.query])}->>0,
-          ${jsonExpression(input.context ?? {})},
-          (${jsonExpression([input.inputLocationVersion])}->>0)::integer,
+          $1::uuid,
+          $2::uuid,
+          $3,
+          $4,
+          $5::jsonb,
+          $6::integer,
           'queued'
         )
         RETURNING *
@@ -155,6 +160,14 @@ export class PostgresLocationRepository {
         'candidates', i.candidates
       )::text
       FROM inserted i`,
+      [
+        input.tripId,
+        input.locationId,
+        input.provider,
+        input.query,
+        JSON.stringify(input.context ?? {}),
+        input.inputLocationVersion,
+      ],
     );
   }
 
@@ -174,11 +187,12 @@ export class PostgresLocationRepository {
           )
           FROM geocoding_job j
           JOIN trip t ON t.id = j.trip_id
-          WHERE j.id = (${jsonExpression([jobId])}->>0)::uuid
-            AND t.owner_id = ${jsonExpression([ownerId])}->>0
+          WHERE j.id = $1::uuid
+            AND t.owner_id = $2
         ),
         'null'::jsonb
       )::text`,
+      [jobId, ownerId],
     );
     if (!result) {
       throw new LocationDomainError(
@@ -195,12 +209,12 @@ export class PostgresLocationRepository {
       `WITH updated AS (
         UPDATE geocoding_job
         SET
-          status = ${jsonExpression([status])}->>0,
-          candidates = ${candidates === null ? "NULL" : jsonExpression(candidates)},
-          error_code = ${jsonExpression([errorCode])}->>0,
+          status = $1,
+          candidates = $2::jsonb,
+          error_code = $3,
           completed_at = clock_timestamp(),
           updated_at = clock_timestamp()
-        WHERE id = (${jsonExpression([jobId])}->>0)::uuid
+        WHERE id = $4::uuid
         RETURNING *
       )
       SELECT jsonb_build_object(
@@ -215,17 +229,22 @@ export class PostgresLocationRepository {
         'errorCode', u.error_code
       )::text
       FROM updated u`,
+      [
+        status,
+        candidates === null ? null : JSON.stringify(candidates),
+        errorCode,
+        jobId,
+      ],
     );
   }
 
-  async #json(sql) {
+  close() {
+    return this.database.close();
+  }
+
+  async #json(sql, values = []) {
     try {
-      const { stdout } = await execFileAsync(
-        this.psqlBin,
-        [this.databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
-        { maxBuffer: 2 * 1024 * 1024 },
-      );
-      return JSON.parse(stdout.trim() || "null");
+      return await this.database.json(sql, values);
     } catch (error) {
       throw mapDatabaseError(error);
     }

@@ -1,6 +1,8 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import {
+  PostgresExecutor,
+  postgresErrorIdentity,
+} from "@on-the-road/database/postgres";
 
 import {
   IdempotencyKeyReusedError,
@@ -8,39 +10,32 @@ import {
   TripVersionConflictError,
 } from "../../../../../packages/domain/src/trip/index.mjs";
 
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function jsonExpression(value) {
-  return `convert_from(decode('${encode(value)}', 'base64'), 'utf8')::jsonb`;
-}
-
 function mapDatabaseError(error) {
-  const message = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
-  if (message.includes("VERSION_CONFLICT")) return new TripVersionConflictError();
-  if (message.includes("TRIP_NOT_FOUND")) return new TripNotFoundError();
-  if (message.includes("IDEMPOTENCY_KEY_REUSED")) return new IdempotencyKeyReusedError();
+  const { message } = postgresErrorIdentity(error);
+  if (message === "VERSION_CONFLICT") return new TripVersionConflictError();
+  if (message === "TRIP_NOT_FOUND") return new TripNotFoundError();
+  if (message === "IDEMPOTENCY_KEY_REUSED") return new IdempotencyKeyReusedError();
   return error;
 }
 
 export class PostgresTripRepository {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor }) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "api",
+    });
   }
 
   async create(ownerId, idempotencyKey, requestHash, input) {
     return this.#json(
       `SELECT create_trip(
-        ${jsonExpression([ownerId])}->>0,
-        ${jsonExpression([idempotencyKey])}->>0,
-        ${jsonExpression([requestHash])}->>0,
-        ${jsonExpression(input)}
-      )::text`,
+        $1,
+        $2,
+        $3,
+        $4::jsonb
+      )`,
+      [ownerId, idempotencyKey, requestHash, JSON.stringify(input)],
     );
   }
 
@@ -50,12 +45,13 @@ export class PostgresTripRepository {
         (
           SELECT trip_as_json(t.id)
           FROM trip t
-          WHERE t.id = (${jsonExpression([tripId])}->>0)::uuid
-            AND t.owner_id = ${jsonExpression([ownerId])}->>0
+          WHERE t.id = $2::uuid
+            AND t.owner_id = $1
             ${includeDeleted ? "" : "AND t.status <> 'deleted'"}
         ),
         'null'::jsonb
-      )::text`,
+      )`,
+      [ownerId, tripId],
     );
     if (result === null) throw new TripNotFoundError();
     return result;
@@ -63,60 +59,63 @@ export class PostgresTripRepository {
 
   async list(ownerId, filters) {
     return this.#json(
-      `WITH criteria AS (SELECT ${jsonExpression({
-        ownerId,
-        search: filters.search ?? "",
-        currency: filters.currency ?? "",
-        status: filters.status ?? "active",
-      })} AS value),
-      matching AS (
+      `WITH matching AS (
         SELECT t.*
-        FROM trip t, criteria c
-        WHERE t.owner_id = c.value->>'ownerId'
-          AND t.status = COALESCE(NULLIF(c.value->>'status', ''), 'active')
+        FROM trip t
+        WHERE t.owner_id = $1
+          AND t.status = COALESCE(NULLIF($4, ''), 'active')
           AND (
-            NULLIF(c.value->>'currency', '') IS NULL
-            OR t.default_currency = c.value->>'currency'
+            NULLIF($3, '') IS NULL
+            OR t.default_currency = $3
           )
           AND (
-            NULLIF(c.value->>'search', '') IS NULL
-            OR t.name ILIKE '%' || (c.value->>'search') || '%'
+            NULLIF($2, '') IS NULL
+            OR t.name ILIKE '%' || $2 || '%'
             OR EXISTS (
               SELECT 1 FROM destination d
               WHERE d.trip_id = t.id
-                AND d.name ILIKE '%' || (c.value->>'search') || '%'
+                AND d.name ILIKE '%' || $2 || '%'
             )
         )
         ORDER BY t.updated_at DESC, t.id
-        LIMIT ${filters.limit ?? 20}
+        LIMIT $5::integer
       )
       SELECT jsonb_build_object(
         'items', COALESCE(jsonb_agg(trip_as_json(m.id) ORDER BY m.updated_at DESC, m.id), '[]'::jsonb),
         'nextCursor', NULL
-      )::text
+      )
       FROM matching m`,
+      [
+        ownerId,
+        filters.search ?? "",
+        filters.currency ?? "",
+        filters.status ?? "active",
+        filters.limit ?? 20,
+      ],
     );
   }
 
   async update(ownerId, tripId, expectedVersion, patch) {
     return this.#json(
       `SELECT update_trip(
-        ${jsonExpression([ownerId])}->>0,
-        (${jsonExpression([tripId])}->>0)::uuid,
-        (${jsonExpression([expectedVersion])}->>0)::integer,
-        ${jsonExpression(patch)}
-      )::text`,
+        $1,
+        $2::uuid,
+        $3::integer,
+        $4::jsonb
+      )`,
+      [ownerId, tripId, expectedVersion, JSON.stringify(patch)],
     );
   }
 
   async transition(ownerId, tripId, expectedVersion, targetStatus) {
     return this.#json(
       `SELECT transition_trip(
-        ${jsonExpression([ownerId])}->>0,
-        (${jsonExpression([tripId])}->>0)::uuid,
-        (${jsonExpression([expectedVersion])}->>0)::integer,
-        ${jsonExpression([targetStatus])}->>0
-      )::text`,
+        $1,
+        $2::uuid,
+        $3::integer,
+        $4
+      )`,
+      [ownerId, tripId, expectedVersion, targetStatus],
     );
   }
 
@@ -136,22 +135,21 @@ export class PostgresTripRepository {
           ORDER BY a.audit_id
         ),
         '[]'::jsonb
-      )::text
+      )
       FROM trip_audit a
-      WHERE a.owner_id = ${jsonExpression([ownerId])}->>0
-        AND a.trip_id = (${jsonExpression([tripId])}->>0)::uuid`,
+      WHERE a.owner_id = $1
+        AND a.trip_id = $2::uuid`,
+      [ownerId, tripId],
     );
   }
 
-  async #json(sql) {
-    const args = [this.databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-At"];
-    args.push("-c", sql);
+  close() {
+    return this.database.close();
+  }
+
+  async #json(sql, values = []) {
     try {
-      const { stdout } = await execFileAsync(this.psqlBin, args, {
-        maxBuffer: 2 * 1024 * 1024,
-      });
-      const output = stdout.trim();
-      return JSON.parse(output || "null");
+      return await this.database.json(sql, values);
     } catch (error) {
       throw mapDatabaseError(error);
     }

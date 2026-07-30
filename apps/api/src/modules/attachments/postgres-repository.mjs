@@ -1,21 +1,13 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import {
+  PostgresExecutor,
+  postgresErrorIdentity,
+} from "@on-the-road/database/postgres";
 
 import { AttachmentUploadError } from "./upload-session.mjs";
 
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function jsonExpression(value) {
-  return `convert_from(decode('${encode(value)}', 'base64'), 'utf8')::jsonb`;
-}
-
 function mapDatabaseError(error) {
-  const message = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
+  const { message } = postgresErrorIdentity(error);
   const mappings = [
     ["ATTACHMENT_NOT_FOUND", 404],
     ["ATTACHMENT_VERSION_CONFLICT", 409],
@@ -24,7 +16,7 @@ function mapDatabaseError(error) {
     ["UPLOADED_OBJECT_MISMATCH", 409],
   ];
   for (const [code, status] of mappings) {
-    if (message.includes(code)) {
+    if (message === code) {
       return new AttachmentUploadError(code, code.replaceAll("_", " ").toLowerCase(), status);
     }
   }
@@ -32,44 +24,49 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresAttachmentRepository {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor }) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "api",
+    });
   }
 
   insertPending(attachment) {
-    return this.#json(`SELECT create_attachment(${jsonExpression(attachment)})::text`);
+    return this.#json("SELECT create_attachment($1::jsonb)", [
+      JSON.stringify(attachment),
+    ]);
   }
 
   findById(id) {
     return this.#json(
       `SELECT COALESCE(
-        attachment_as_json((${jsonExpression([id])}->>0)::uuid),
+        attachment_as_json($1::uuid),
         'null'::jsonb
-      )::text`,
+      )`,
+      [id],
     );
   }
 
   complete(id, expectedVersion, metadata) {
     return this.#json(
       `SELECT complete_attachment(
-        ${jsonExpression([metadata.ownerId])}->>0,
-        (${jsonExpression([id])}->>0)::uuid,
-        (${jsonExpression([expectedVersion])}->>0)::integer,
-        ${jsonExpression(metadata)}
-      )::text`,
+        $1,
+        $2::uuid,
+        $3::integer,
+        $4::jsonb
+      )`,
+      [metadata.ownerId, id, expectedVersion, JSON.stringify(metadata)],
     );
   }
 
-  async #json(sql) {
+  close() {
+    return this.database.close();
+  }
+
+  async #json(sql, values = []) {
     try {
-      const { stdout } = await execFileAsync(
-        this.psqlBin,
-        [this.databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
-        { maxBuffer: 2 * 1024 * 1024 },
-      );
-      return JSON.parse(stdout.trim() || "null");
+      return await this.database.json(sql, values);
     } catch (error) {
       throw mapDatabaseError(error);
     }

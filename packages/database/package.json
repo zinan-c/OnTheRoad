@@ -10,6 +10,10 @@
     "./migration": {
       "types": "./src/migration/index.ts",
       "default": "./dist/migration/index.js"
+    },
+    "./postgres": {
+      "types": "./src/postgres/index.ts",
+      "default": "./dist/postgres/index.js"
     }
   },
   "bin": {

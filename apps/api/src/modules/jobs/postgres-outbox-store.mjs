@@ -1,39 +1,35 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function text(value) {
-  return `convert_from(decode('${encode([value])}', 'base64'), 'utf8')::jsonb->>0`;
-}
+import { PostgresExecutor } from "@on-the-road/database/postgres";
 
 export class PostgresOutboxStore {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor } = {}) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "api",
+    });
   }
 
   async appendOutboxEvent(event) {
-    await this.#run(`
+    await this.database.query(`
       INSERT INTO job_outbox (
         event_id, event_type, aggregate_type, aggregate_id,
         aggregate_version, schema_version
       ) VALUES (
-        ${text(event.eventId)}, ${text(event.eventType)},
-        ${text(event.aggregateType)}, ${text(event.aggregateId)},
-        ${Number(event.aggregateVersion)}, ${Number(event.schemaVersion)}
+        $1, $2, $3, $4, $5, $6
       )
-    `);
+    `, [
+      event.eventId,
+      event.eventType,
+      event.aggregateType,
+      event.aggregateId,
+      event.aggregateVersion,
+      event.schemaVersion,
+    ]);
   }
 
   async listRecoverableOutbox() {
-    const output = await this.#run(`
+    return this.database.json(`
       SELECT COALESCE(
         jsonb_agg(
           jsonb_build_object(
@@ -52,28 +48,24 @@ export class PostgresOutboxStore {
       WHERE handled_at IS NULL
         AND next_attempt_at <= now()
     `);
-    return JSON.parse(output || "[]");
   }
 
   async markPublished(eventId) {
-    await this.#run(`
+    await this.database.query(`
       UPDATE job_outbox
       SET published_at = COALESCE(published_at, now()),
           publish_attempts = publish_attempts + 1
-      WHERE event_id = ${text(eventId)}
-    `);
+      WHERE event_id = $1
+    `, [eventId]);
   }
 
   async remove(eventId) {
-    await this.#run(`DELETE FROM job_outbox WHERE event_id = ${text(eventId)}`);
+    await this.database.query("DELETE FROM job_outbox WHERE event_id = $1", [
+      eventId,
+    ]);
   }
 
-  async #run(sql) {
-    const { stdout } = await execFileAsync(
-      this.psqlBin,
-      [this.databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
-      { maxBuffer: 2 * 1024 * 1024 },
-    );
-    return stdout.trim();
+  close() {
+    return this.database.close();
   }
 }

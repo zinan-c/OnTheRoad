@@ -1,23 +1,14 @@
 // @ts-nocheck
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
 import { MediaPipelineError } from "./media-pipeline.js";
-
-const execFileAsync = promisify(execFile);
-
-function encode(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
-}
-
-function jsonExpression(value) {
-  return `convert_from(decode('${encode(value)}', 'base64'), 'utf8')::jsonb`;
-}
+import {
+  PostgresExecutor,
+  postgresErrorIdentity,
+} from "@on-the-road/database/postgres";
 
 function mapDatabaseError(error) {
-  const message = `${error?.stderr ?? ""}\n${error?.message ?? ""}`;
+  const { message } = postgresErrorIdentity(error);
   for (const code of ["MEDIA_NOT_CLAIMABLE", "MEDIA_VERSION_CONFLICT"]) {
-    if (message.includes(code)) {
+    if (message === code) {
       return new MediaPipelineError(
         code,
         code === "MEDIA_VERSION_CONFLICT"
@@ -31,46 +22,50 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresMediaRepository {
-  constructor({ databaseUrl, psqlBin = process.env.PSQL_BIN || "psql" }) {
-    if (!databaseUrl) throw new TypeError("databaseUrl is required");
-    this.databaseUrl = databaseUrl;
-    this.psqlBin = psqlBin;
+  constructor({ databaseUrl, pool, executor } = {}) {
+    this.database = executor ?? new PostgresExecutor({
+      databaseUrl,
+      pool,
+      role: "worker",
+    });
   }
 
   claim(id) {
     return this.#json(
-      `SELECT claim_attachment_processing((${jsonExpression([id])}->>0)::uuid)::text`,
+      "SELECT claim_attachment_processing($1::uuid)::text",
+      [id],
     );
   }
 
   markReady(id, expectedVersion, metadata) {
     return this.#json(
       `SELECT mark_attachment_ready(
-        (${jsonExpression([id])}->>0)::uuid,
-        (${jsonExpression([expectedVersion])}->>0)::integer,
-        ${jsonExpression(metadata)}
+        $1::uuid,
+        $2::integer,
+        $3::jsonb
       )::text`,
+      [id, expectedVersion, JSON.stringify(metadata)],
     );
   }
 
   markFailed(id, expectedVersion, errorCode) {
     return this.#json(
       `SELECT mark_attachment_failed(
-        (${jsonExpression([id])}->>0)::uuid,
-        (${jsonExpression([expectedVersion])}->>0)::integer,
-        ${jsonExpression([errorCode])}->>0
+        $1::uuid,
+        $2::integer,
+        $3
       )::text`,
+      [id, expectedVersion, errorCode],
     );
   }
 
-  async #json(sql) {
+  close() {
+    return this.database.close();
+  }
+
+  async #json(sql, values = []) {
     try {
-      const { stdout } = await execFileAsync(
-        this.psqlBin,
-        [this.databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
-        { maxBuffer: 2 * 1024 * 1024 },
-      );
-      return JSON.parse(stdout.trim());
+      return await this.database.json(sql, values);
     } catch (error) {
       throw mapDatabaseError(error);
     }

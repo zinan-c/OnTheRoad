@@ -4,7 +4,8 @@
   "type": "module",
   "dependencies": {
     "@on-the-road/application": "workspace:*",
-    "@on-the-road/config": "workspace:*"
+    "@on-the-road/config": "workspace:*",
+    "@on-the-road/database": "workspace:*"
   },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
