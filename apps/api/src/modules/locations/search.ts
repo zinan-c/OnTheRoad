@@ -1,8 +1,11 @@
 import {
+  createAmapGeocoder,
   createFixtureGeocoder,
   createHereGeocoder,
+  createHybridGeocoder,
   GeocoderError,
   type Geocoder,
+  type GeocodingFetch,
   type GeocodingContext,
 } from "@on-the-road/providers/geocoding";
 
@@ -42,7 +45,7 @@ export interface LocationSearchCandidateView {
   readonly confidence: number;
   readonly attribution: string;
   readonly selected: false;
-  readonly provider: "here" | "fixture";
+  readonly provider: "here" | "amap" | "fixture";
   readonly mapProfile: ExternalMapProfile | string;
 }
 
@@ -89,7 +92,13 @@ export function createLocationSearchApi(options: {
         provider: geocoder.provider,
         mapProfile: reportedMapProfile,
         attribution: candidates[0]?.attribution
-          ?? (geocoder.provider === "here" ? "© HERE" : "On The Road fixture"),
+          ?? (geocoder.provider === "amap"
+            ? "© 高德地图"
+            : geocoder.provider === "here"
+              ? "© HERE"
+              : geocoder.provider === "hybrid"
+                ? "© HERE / © 高德地图"
+                : "On The Road fixture"),
         candidates: candidates.map((candidate): LocationSearchCandidateView => ({
           label: candidate.label,
           formattedAddress: candidate.formattedAddress ?? candidate.label,
@@ -111,7 +120,7 @@ export function createConfiguredLocationSearchApi(
   environment: Readonly<Record<string, string | undefined>>,
   options: {
     readonly logger?: LocationSearchLogger;
-    readonly fetch?: Parameters<typeof createHereGeocoder>[0]["fetch"];
+    readonly fetch?: GeocodingFetch;
   } = {},
 ) {
   const profile = environment.MAP_PROFILE;
@@ -134,11 +143,38 @@ export function createConfiguredLocationSearchApi(
       ...(options.logger ? { logger: options.logger } : {}),
     });
   }
-  if (profile === "cn_primary" || profile === "hybrid") {
-    throw new GeocoderError(
-      "PROVIDER_PROFILE_UNSUPPORTED",
-      `${profile} geocoding is not implemented`,
-    );
+  if (profile === "cn_primary") {
+    return createLocationSearchApi({
+      geocoder: createAmapGeocoder({
+        profile: "cn-primary",
+        apiKey: environment.AMAP_API_KEY ?? "",
+        language: environment.MAP_LANGUAGE ?? "zh-CN",
+        ...(options.fetch ? { fetch: options.fetch } : {}),
+      }),
+      mapProfile: profile,
+      ...(options.logger ? { logger: options.logger } : {}),
+    });
+  }
+  if (profile === "hybrid") {
+    const fetchOption = options.fetch ? { fetch: options.fetch } : {};
+    return createLocationSearchApi({
+      geocoder: createHybridGeocoder({
+        amap: createAmapGeocoder({
+          profile: "cn-primary",
+          apiKey: environment.AMAP_API_KEY ?? "",
+          language: environment.MAP_LANGUAGE ?? "zh-CN",
+          ...fetchOption,
+        }),
+        here: createHereGeocoder({
+          profile: "commercial-required",
+          apiKey: environment.OTR_HERE_API_KEY ?? "",
+          language: environment.MAP_LANGUAGE ?? "en",
+          ...fetchOption,
+        }),
+      }),
+      mapProfile: profile,
+      ...(options.logger ? { logger: options.logger } : {}),
+    });
   }
   throw new GeocoderError(
     "PROVIDER_RESPONSE_INVALID",

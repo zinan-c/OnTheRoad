@@ -25,6 +25,23 @@ compatible with `@playwright/test`; CI installs it in the relevant job. To use
 an existing local browser, set `OTR_A11_CHROMIUM_PATH`. Never commit a
 developer-machine absolute path to source code.
 
+### Map profiles
+
+`MAP_PROFILE=fixture` is the key-free development default. The API constructs
+the selected online profile during startup and fails closed when its required
+credentials are absent:
+
+- `cn_primary` uses AMAP (`AMAP_API_KEY`) and converts AMAP GCJ-02 coordinates
+  to the WGS84 domain model.
+- `international_primary` uses HERE (`OTR_HERE_API_KEY`).
+- `hybrid` requires both keys. It routes searches with `CN`/`CHN` country
+  context and coordinates inside mainland-China bounds to AMAP; all other
+  requests use HERE. Provider failures are returned as-is and never trigger
+  silent fallback or rewrite the Trip profile.
+
+Keys remain server-side. CI and normal local tests use in-process provider
+fixtures and do not call public map services.
+
 ### Requirements delivery index
 
 | # | Deliverable | Location |

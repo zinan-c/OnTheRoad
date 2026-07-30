@@ -320,7 +320,6 @@ export function loadProcessConfig(
   }
   if (
     profile === "cn_primary"
-    && (autocomplete || explicitSearch)
     && !amapKey
   ) {
     issue(
@@ -332,7 +331,6 @@ export function loadProcessConfig(
   }
   if (
     profile === "international_primary"
-    && (autocomplete || explicitSearch)
     && !hereKey
   ) {
     issue(

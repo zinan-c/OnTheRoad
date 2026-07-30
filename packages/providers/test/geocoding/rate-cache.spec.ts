@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  createAmapGeocoder,
   createHereGeocoder,
+  createHybridGeocoder,
   GeocoderError,
   InMemoryGeocodingStateStore,
   PolicyGeocoder,
@@ -124,5 +126,84 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
       code: "PROVIDER_TIMEOUT",
       retryable: true,
     });
+  });
+
+  test("normalizes AMAP failures and hybrid never falls back to HERE", async () => {
+    expect(() => createAmapGeocoder({
+      profile: "cn-primary",
+      apiKey: "",
+      language: "zh-CN",
+    })).toThrowError(expect.objectContaining({
+      code: "PROVIDER_CREDENTIALS_MISSING",
+      provider: "amap",
+    }));
+
+    const amap = createAmapGeocoder({
+      profile: "cn-primary",
+      apiKey: "rejected-amap-key",
+      language: "zh-CN",
+      fetch: async () => Response.json({
+        status: "0",
+        info: "INVALID_USER_KEY",
+        infocode: "10001",
+      }),
+    });
+    let hereCalls = 0;
+    const here = createHereGeocoder({
+      profile: "commercial-required",
+      apiKey: "here-key",
+      language: "en",
+      fetch: async () => {
+        hereCalls += 1;
+        return Response.json({ items: [] });
+      },
+    });
+    const hybrid = createHybridGeocoder({ amap, here });
+
+    await expect(hybrid.search({
+      query: "上海",
+      context: { countryCodes: ["CHN"] },
+    })).rejects.toMatchObject({
+      code: "PROVIDER_CREDENTIALS_INVALID",
+      provider: "amap",
+      retryable: false,
+    });
+    expect(hereCalls).toBe(0);
+  });
+
+  test("hybrid cache keys isolate deterministic AMAP and HERE routing contexts", async () => {
+    let amapCalls = 0;
+    let hereCalls = 0;
+    const hybrid = createHybridGeocoder({
+      amap: createAmapGeocoder({
+        profile: "cn-primary",
+        apiKey: "amap-key",
+        language: "zh-CN",
+        fetch: async () => {
+          amapCalls += 1;
+          return Response.json({ status: "1", pois: [] });
+        },
+      }),
+      here: createHereGeocoder({
+        profile: "commercial-required",
+        apiKey: "here-key",
+        language: "en",
+        fetch: async () => {
+          hereCalls += 1;
+          return Response.json({ items: [] });
+        },
+      }),
+    });
+    const cached = new PolicyGeocoder(hybrid, {
+      store: new InMemoryGeocodingStateStore(),
+      cacheTtlSeconds: 60,
+      bucket: { capacity: 10, refillPerSecond: 10 },
+    });
+
+    await cached.search({ query: "Central", context: { countryCodes: ["CHN"] } });
+    await cached.search({ query: "Central", context: { countryCodes: ["chn"] } });
+    await cached.search({ query: "Central", context: { countryCodes: ["USA"] } });
+    await cached.search({ query: "Central", context: { countryCodes: ["usa"] } });
+    expect({ amapCalls, hereCalls }).toEqual({ amapCalls: 1, hereCalls: 1 });
   });
 });

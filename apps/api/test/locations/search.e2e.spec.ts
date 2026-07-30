@@ -36,19 +36,26 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
     expect(result.candidates[0]).not.toHaveProperty("providerPlaceId");
   });
 
-  test("rejects autocomplete and never silently changes the configured provider", async () => {
+  test("rejects missing credentials at construction and never silently changes provider", async () => {
     expect(() => createConfiguredLocationSearchApi({
       MAP_PROFILE: "international_primary",
       OTR_HERE_API_KEY: "",
     })).toThrowError(GeocoderError);
-    for (const profile of ["cn_primary", "hybrid"]) {
-      expect(() => createConfiguredLocationSearchApi({
-        MAP_PROFILE: profile,
-        OTR_HERE_API_KEY: "must-not-trigger-fallback",
-      })).toThrowError(expect.objectContaining({
-        code: "PROVIDER_PROFILE_UNSUPPORTED",
-      }));
-    }
+    expect(() => createConfiguredLocationSearchApi({
+      MAP_PROFILE: "cn_primary",
+      AMAP_API_KEY: "",
+    })).toThrowError(expect.objectContaining({
+      code: "PROVIDER_CREDENTIALS_MISSING",
+      provider: "amap",
+    }));
+    expect(() => createConfiguredLocationSearchApi({
+      MAP_PROFILE: "hybrid",
+      AMAP_API_KEY: "amap-present",
+      OTR_HERE_API_KEY: "",
+    })).toThrowError(expect.objectContaining({
+      code: "PROVIDER_CREDENTIALS_MISSING",
+      provider: "here",
+    }));
 
     const api = createLocationSearchApi({
       geocoder: createFixtureGeocoder({ profile: "fixture-global" }),
@@ -57,6 +64,66 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
       query: "Shanghai",
       trigger: "autocomplete",
     })).rejects.toMatchObject({ code: "PROVIDER_TRIGGER_UNSUPPORTED" });
+  });
+
+  test("constructs cn_primary and deterministically routes hybrid without fallback", async () => {
+    const hosts: string[] = [];
+    const fetch = async (url: URL) => {
+      hosts.push(url.hostname);
+      if (url.hostname === "restapi.amap.com") {
+        return Response.json({
+          status: "1",
+          pois: [{
+            id: "amap:shanghai",
+            name: "上海",
+            location: "121.478223,31.228457",
+          }],
+        });
+      }
+      return Response.json({
+        items: [{
+          id: "here:new-york",
+          title: "New York",
+          position: { lat: 40.7128, lng: -74.006 },
+          address: { countryCode: "USA", city: "New York" },
+        }],
+      });
+    };
+    const cn = createConfiguredLocationSearchApi({
+      MAP_PROFILE: "cn_primary",
+      AMAP_API_KEY: "fixture-amap-key",
+    }, { fetch });
+    const cnResult = await cn.search({
+      query: "上海",
+      context: { countryCodes: ["CHN"] },
+    });
+    expect(cnResult).toMatchObject({
+      provider: "amap",
+      mapProfile: "cn_primary",
+    });
+    expect(cnResult.candidates[0]).toMatchObject({
+      provider: "amap",
+      point: { crs: "WGS84" },
+    });
+
+    const hybrid = createConfiguredLocationSearchApi({
+      MAP_PROFILE: "hybrid",
+      AMAP_API_KEY: "fixture-amap-key",
+      OTR_HERE_API_KEY: "fixture-here-key",
+    }, { fetch });
+    await hybrid.search({
+      query: "上海",
+      context: { countryCodes: ["CHN"] },
+    });
+    await hybrid.search({
+      query: "New York",
+      context: { countryCodes: ["USA"] },
+    });
+    expect(hosts).toEqual([
+      "restapi.amap.com",
+      "restapi.amap.com",
+      "geocode.search.hereapi.com",
+    ]);
   });
 
   test("uses only OTR_HERE_API_KEY in a controlled in-process HERE smoke", async () => {

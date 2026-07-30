@@ -9,8 +9,6 @@ export type GeocoderErrorCode =
   | "PROVIDER_TRIGGER_UNSUPPORTED";
 
 export class GeocoderError extends Error {
-  readonly provider = "here";
-
   constructor(
     readonly code: GeocoderErrorCode,
     message: string,
@@ -19,10 +17,15 @@ export class GeocoderError extends Error {
       readonly retryAfterSeconds?: number;
       readonly status?: number;
       readonly source?: "provider" | "client";
+      readonly provider?: "here" | "amap" | "hybrid" | "fixture";
     } = {},
   ) {
     super(message);
     this.name = "GeocoderError";
+  }
+
+  get provider(): "here" | "amap" | "hybrid" | "fixture" {
+    return this.details.provider ?? "here";
   }
 
   get retryable(): boolean {

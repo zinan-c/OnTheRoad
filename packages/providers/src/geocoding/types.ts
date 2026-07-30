@@ -18,7 +18,7 @@ export interface NormalizedCandidate extends PlaceCandidate {
   readonly city?: string;
   readonly type?: string;
   readonly selected: false;
-  readonly provider: "here" | "fixture";
+  readonly provider: "here" | "amap" | "fixture";
   readonly mapProfile: string;
 }
 
@@ -30,7 +30,7 @@ export interface GeocoderCapabilities {
 }
 
 export interface Geocoder {
-  readonly provider: "here" | "fixture";
+  readonly provider: "here" | "amap" | "hybrid" | "fixture";
   readonly profile: string;
   capabilities(): GeocoderCapabilities;
   search(request: GeocodingSearchRequest): Promise<NormalizedCandidate[]>;

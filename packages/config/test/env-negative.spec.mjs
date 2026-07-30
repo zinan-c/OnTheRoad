@@ -48,6 +48,14 @@ describe("TC-A03-02 secret and error redaction", () => {
       "MAP_PROFILE",
     ],
     [
+      "China profile without AMAP key",
+      {
+        MAP_PROFILE: "cn_primary",
+        MAP_EXPLICIT_SEARCH_ENABLED: "false",
+      },
+      "AMAP_API_KEY",
+    ],
+    [
       "HERE search without key",
       {
         MAP_PROFILE: "international_primary",
