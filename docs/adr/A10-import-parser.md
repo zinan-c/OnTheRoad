@@ -7,7 +7,11 @@
 
 ## 决策
 
-M0 在 `spikes/importer/vendor/xlsx` 固定官方 SheetJS 0.20.3 运行文件，解析路径实际调用 `XLSX.read` 与 `XLSX.utils.sheet_to_json`。官方 tarball SHA-256 为 `8dc73fc3b00203e72d176e85b50938627c7b086e607c682e8d3c22c02bb99fe8`，文件和 Apache-2.0 许可记录见 `spikes/importer/vendor/README.md`。
+M0 固定的官方 SheetJS 0.20.3 运行文件已在 E01 提升到正式
+`packages/importer/vendor/xlsx`，Spike 与正式 importer 共用同一份只读 vendor。
+解析路径实际调用 `XLSX.read` 与 `XLSX.utils.sheet_to_json`。官方 tarball
+SHA-256 为 `8dc73fc3b00203e72d176e85b50938627c7b086e607c682e8d3c22c02bb99fe8`，
+文件和 Apache-2.0 许可记录见 `packages/importer/vendor/README.md`。
 
 支持：
 

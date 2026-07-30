@@ -1,7 +1,7 @@
 import { deflateRawSync } from "node:zlib";
 
-import * as XLSX from "./vendor/xlsx/xlsx.mjs";
-import * as cptable from "./vendor/xlsx/dist/cpexcel.full.mjs";
+import * as XLSX from "../../packages/importer/vendor/xlsx/xlsx.mjs";
+import * as cptable from "../../packages/importer/vendor/xlsx/dist/cpexcel.full.mjs";
 
 XLSX.set_cptable(cptable);
 

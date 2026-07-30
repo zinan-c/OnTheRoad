@@ -60,6 +60,8 @@ importers:
 
   packages/domain: {}
 
+  packages/importer: {}
+
   packages/observability: {}
 
   packages/providers: {}
