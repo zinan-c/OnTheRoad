@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { downloadStandardTemplate } from "../../src/modules/imports/template.mjs";
-import { STANDARD_COLUMNS, inspectTemplate } from "../../../../packages/importer/src/index.mjs";
+import { STANDARD_COLUMNS, inspectTemplate } from "@on-the-road/importer";
 
 describe("TC-E01-03 standard template self-import", () => {
   test("downloads an Excel-readable template mapped to its own standard fields", () => {

@@ -7,7 +7,7 @@ import {
   ImportAuditStore,
   ImportUploadService,
 } from "../../api/src/modules/imports/upload.mjs";
-import { inspectWorkbook } from "../../../packages/importer/src/workbook-inspector.mjs";
+import { inspectWorkbook } from "@on-the-road/importer/workbook-inspector";
 import { ImportInspectProcessor } from "../../worker/src/processors/import/inspect.js";
 import { IsolatedWorkbookInspector } from "../../worker/src/processors/import/isolated-inspector.js";
 import { WorkbookSourceScanProcessor } from "../../worker/src/processors/import/source-scan.js";

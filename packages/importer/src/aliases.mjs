@@ -1,4 +1,3 @@
-// @ts-nocheck -- this package is validated by its own checkJs:false boundary.
 export const ALIAS_DICTIONARY_VERSION = "1.0.0";
 
 export const STANDARD_COLUMNS = Object.freeze([
@@ -65,11 +64,13 @@ const LOOKUP = new Map(
     aliases.map((alias) => [alias.trim().toLocaleLowerCase("en-US"), column])),
 );
 
+/** @param {unknown} value */
 export function canonicalColumn(value) {
   if (typeof value !== "string") return undefined;
   return LOOKUP.get(value.trim().toLocaleLowerCase("en-US"));
 }
 
+/** @param {unknown} value */
 export function normalizeCurrencyAlias(value) {
   if (typeof value !== "string") return value;
   const normalized = value.trim();
@@ -77,6 +78,7 @@ export function normalizeCurrencyAlias(value) {
   return normalized;
 }
 
+/** @param {unknown} value */
 export function safeSpreadsheetText(value) {
   const text = String(value ?? "");
   return /^[=+\-@]/u.test(text) ? `'${text}` : text;

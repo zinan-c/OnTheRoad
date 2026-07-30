@@ -1,4 +1,3 @@
-// @ts-nocheck -- runtime contract is covered by upload-to-inspect tests.
 import { createHash, randomUUID } from "node:crypto";
 
 const MAXIMUM_SOURCE_BYTES = 20 * 1024 * 1024;
@@ -9,6 +8,7 @@ const CONTENT_TYPES = Object.freeze({
 });
 
 export class ImportUploadError extends Error {
+  /** @param {string} code @param {string} message @param {number} [status] */
   constructor(code, message, status = 400) {
     super(message);
     this.name = "ImportUploadError";
@@ -19,11 +19,13 @@ export class ImportUploadError extends Error {
 }
 
 export class ImportUploadService {
+  /** @param {{store: any, idFactory?: () => string}} options */
   constructor({ store, idFactory = randomUUID }) {
     this.store = store;
     this.idFactory = idFactory;
   }
 
+  /** @param {Record<string, any>} request */
   createUpload(request) {
     const format = validateUploadRequest(request);
     return this.store.createAttachment({
@@ -37,6 +39,7 @@ export class ImportUploadService {
     });
   }
 
+  /** @param {{ownerId: string, attachmentId: string}} input */
   queueInspection({ ownerId, attachmentId }) {
     const attachment = this.store.getAttachment(attachmentId);
     if (attachment.ownerId !== ownerId) {
@@ -60,6 +63,7 @@ export class ImportUploadService {
     });
   }
 
+  /** @param {{ownerId: string, jobId: string}} input */
   getJob({ ownerId, jobId }) {
     const job = this.store.getJob(jobId);
     if (job.ownerId !== ownerId) {
@@ -74,10 +78,14 @@ export class ImportUploadService {
 }
 
 export class ImportAuditStore {
+  /** @type {Map<string, Record<string, any>>} */
   #attachments = new Map();
+  /** @type {Map<string, Record<string, any>>} */
   #jobs = new Map();
+  /** @type {Map<string, Buffer>} */
   #objects = new Map();
 
+  /** @param {{id: string} & Record<string, any>} input */
   createAttachment(input) {
     const attachment = {
       ...structuredClone(input),
@@ -89,6 +97,7 @@ export class ImportAuditStore {
     return structuredClone(attachment);
   }
 
+  /** @param {string} attachmentId @param {Buffer | Uint8Array} body */
   upload(attachmentId, body) {
     const attachment = this.#requireAttachment(attachmentId);
     if (attachment.status !== "pending") {
@@ -120,6 +129,7 @@ export class ImportAuditStore {
     return structuredClone(attachment);
   }
 
+  /** @param {string} attachmentId @param {Record<string, any>} evidence */
   recordCleanScan(attachmentId, evidence) {
     const attachment = this.#requireAttachment(attachmentId);
     if (attachment.status !== "uploaded") {
@@ -149,6 +159,7 @@ export class ImportAuditStore {
     return structuredClone(attachment);
   }
 
+  /** @param {string} attachmentId @param {string} errorCode */
   markAttachmentFailed(attachmentId, errorCode) {
     const attachment = this.#requireAttachment(attachmentId);
     if (attachment.status !== "uploaded") {
@@ -164,6 +175,7 @@ export class ImportAuditStore {
     return structuredClone(attachment);
   }
 
+  /** @param {{id: string, ownerId: string, attachmentId: string}} input */
   createJob({ id, ownerId, attachmentId }) {
     const job = {
       id,
@@ -178,6 +190,7 @@ export class ImportAuditStore {
     return structuredClone(job);
   }
 
+  /** @param {string} id */
   claimJob(id) {
     const job = this.#requireJob(id);
     if (job.status !== "queued") {
@@ -193,14 +206,17 @@ export class ImportAuditStore {
     return structuredClone(job);
   }
 
+  /** @param {string} id */
   getAttachment(id) {
     return structuredClone(this.#requireAttachment(id));
   }
 
+  /** @param {string} id */
   getJob(id) {
     return structuredClone(this.#requireJob(id));
   }
 
+  /** @param {string} id @param {unknown} inspection */
   markSucceeded(id, inspection) {
     const job = this.#requireJob(id);
     job.status = "succeeded";
@@ -212,6 +228,7 @@ export class ImportAuditStore {
     return structuredClone(job);
   }
 
+  /** @param {string} id @param {{code: string, message: string, retryable: boolean}} error */
   markFailed(id, error) {
     const job = this.#requireJob(id);
     job.status = "failed";
@@ -222,6 +239,7 @@ export class ImportAuditStore {
     return structuredClone(job);
   }
 
+  /** @param {string} objectKey @param {string} objectVersion */
   async readImmutable(objectKey, objectVersion) {
     const body = this.#objects.get(objectIdentity(objectKey, objectVersion));
     if (!body) {
@@ -234,6 +252,7 @@ export class ImportAuditStore {
     return Buffer.from(body);
   }
 
+  /** @param {string} id */
   #requireAttachment(id) {
     const attachment = this.#attachments.get(id);
     if (!attachment) {
@@ -246,6 +265,7 @@ export class ImportAuditStore {
     return attachment;
   }
 
+  /** @param {string} id */
   #requireJob(id) {
     const job = this.#jobs.get(id);
     if (!job) {
@@ -259,18 +279,20 @@ export class ImportAuditStore {
   }
 }
 
+/** @param {Record<string, any>} request */
 function validateUploadRequest(request) {
   if (!request.ownerId?.trim()) {
     throw new ImportUploadError("IMPORT_OWNER_REQUIRED", "Owner is required.");
   }
-  const extension = request.filename?.toLocaleLowerCase("en-US").split(".").pop();
-  if (!CONTENT_TYPES[extension]) {
+  const extension = request.filename?.toLocaleLowerCase("en-US").split(".").pop() ?? "";
+  const contentTypes = /** @type {Record<string, string>} */ (CONTENT_TYPES);
+  if (!contentTypes[extension]) {
     throw new ImportUploadError(
       "WORKBOOK_FORMAT_UNSUPPORTED",
       "Only xlsx, xls, and csv uploads are supported.",
     );
   }
-  if (request.contentType !== CONTENT_TYPES[extension]) {
+  if (request.contentType !== contentTypes[extension]) {
     throw new ImportUploadError(
       "WORKBOOK_CONTENT_TYPE_MISMATCH",
       "Workbook content type does not match the filename.",
@@ -295,10 +317,12 @@ function validateUploadRequest(request) {
   return extension;
 }
 
+/** @param {Buffer | Uint8Array} body */
 function checksum(body) {
   return createHash("sha256").update(body).digest("base64");
 }
 
+/** @param {string} key @param {string} version */
 function objectIdentity(key, version) {
   return `${key}\u0000${version}`;
 }

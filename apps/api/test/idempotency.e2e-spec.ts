@@ -4,7 +4,7 @@ import {
   IdempotencyConflictError,
   InMemoryIdempotencyRepository,
   IdempotencyService,
-} from "../../../packages/application/src/idempotency/index.js";
+} from "@on-the-road/application/idempotency";
 
 describe("TC-A06-03 HTTP idempotency integration", () => {
   test("same key and body replays the original response without rerunning the action", async () => {

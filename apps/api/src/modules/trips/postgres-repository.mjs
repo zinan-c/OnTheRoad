@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   PostgresExecutor,
   postgresErrorIdentity,
@@ -8,8 +7,9 @@ import {
   IdempotencyKeyReusedError,
   TripNotFoundError,
   TripVersionConflictError,
-} from "../../../../../packages/domain/src/trip/index.mjs";
+} from "@on-the-road/domain/trip";
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { message } = postgresErrorIdentity(error);
   if (message === "VERSION_CONFLICT") return new TripVersionConflictError();
@@ -19,6 +19,13 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresTripRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} options
+   */
   constructor({ databaseUrl, pool, executor }) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -27,6 +34,7 @@ export class PostgresTripRepository {
     });
   }
 
+  /** @param {string} ownerId @param {string} idempotencyKey @param {string} requestHash @param {Record<string, unknown>} input */
   async create(ownerId, idempotencyKey, requestHash, input) {
     return this.#json(
       `SELECT create_trip(
@@ -39,6 +47,7 @@ export class PostgresTripRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {{includeDeleted?: boolean}} [options] */
   async get(ownerId, tripId, { includeDeleted = false } = {}) {
     const result = await this.#json(
       `SELECT COALESCE(
@@ -57,6 +66,7 @@ export class PostgresTripRepository {
     return result;
   }
 
+  /** @param {string} ownerId @param {{search?: string, currency?: string, status?: string, limit?: number}} filters */
   async list(ownerId, filters) {
     return this.#json(
       `WITH matching AS (
@@ -95,6 +105,7 @@ export class PostgresTripRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {number} expectedVersion @param {Record<string, unknown>} patch */
   async update(ownerId, tripId, expectedVersion, patch) {
     return this.#json(
       `SELECT update_trip(
@@ -107,6 +118,7 @@ export class PostgresTripRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {number} expectedVersion @param {string} targetStatus */
   async transition(ownerId, tripId, expectedVersion, targetStatus) {
     return this.#json(
       `SELECT transition_trip(
@@ -119,6 +131,7 @@ export class PostgresTripRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId */
   async listAudit(ownerId, tripId) {
     return this.#json(
       `SELECT COALESCE(
@@ -147,6 +160,7 @@ export class PostgresTripRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

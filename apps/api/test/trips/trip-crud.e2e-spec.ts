@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect } from "vitest";
 
 import { PostgresTripRepository } from "../../src/modules/trips/postgres-repository.mjs";
 import { TripService } from "../../src/modules/trips/service.mjs";
-import { parseTripResponse } from "../../../../packages/contracts/src/generated/index.mjs";
+import { parseTripResponse } from "@on-the-road/contracts";
 import {
   cleanOwner,
   liveTripTest,

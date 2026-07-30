@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { createHash } from "node:crypto";
-import { currencies, normalizeCurrencyCode } from "../../../config/src/reference-data.mjs";
+import { currencies, normalizeCurrencyCode } from "@on-the-road/config/reference-data";
 
 export * from "./date-range.mjs";
 
@@ -10,6 +9,7 @@ const COUNTRY_PATTERN = /^[A-Z]{2}$/u;
 const MAP_PROFILES = new Set(["cn_primary", "international_primary", "hybrid"]);
 
 export class TripValidationError extends Error {
+  /** @param {string} field @param {string} message */
   constructor(field, message) {
     super(message);
     this.name = "TripValidationError";
@@ -46,6 +46,7 @@ export class IdempotencyKeyReusedError extends Error {
   }
 }
 
+/** @param {unknown} value @param {string} field @param {number} maxLength */
 function requiredString(value, field, maxLength) {
   if (typeof value !== "string" || !value.trim() || value.trim().length > maxLength) {
     throw new TripValidationError(field, `${field} must contain 1 to ${maxLength} characters`);
@@ -53,11 +54,13 @@ function requiredString(value, field, maxLength) {
   return value.trim();
 }
 
+/** @param {unknown} value @param {string} field @param {number} maxLength */
 function optionalString(value, field, maxLength) {
   if (value === undefined || value === null || value === "") return undefined;
   return requiredString(value, field, maxLength);
 }
 
+/** @param {unknown} value @param {string} field */
 function localDate(value, field) {
   if (typeof value !== "string" || !LOCAL_DATE_PATTERN.test(value)) {
     throw new TripValidationError(field, `${field} must be YYYY-MM-DD`);
@@ -69,6 +72,7 @@ function localDate(value, field) {
   return value;
 }
 
+/** @param {unknown} value */
 function timezone(value) {
   const normalized = requiredString(value, "timezone", 255);
   try {
@@ -79,6 +83,7 @@ function timezone(value) {
   return normalized;
 }
 
+/** @param {unknown} value */
 function budget(value) {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value !== "string" || !MONEY_PATTERN.test(value)) {
@@ -87,6 +92,7 @@ function budget(value) {
   return `${value.includes(".") ? value.padEnd(value.indexOf(".") + 3, "0") : `${value}.00`}`;
 }
 
+/** @param {unknown} value */
 function destinations(value) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 100) {
     throw new TripValidationError("destinations", "destinations must contain 1 to 100 entries");
@@ -95,7 +101,8 @@ function destinations(value) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       throw new TripValidationError(`destinations.${index}`, "destination must be an object");
     }
-    const countryCode = optionalString(entry.countryCode, `destinations.${index}.countryCode`, 2);
+    const candidate = /** @type {Record<string, unknown>} */ (entry);
+    const countryCode = optionalString(candidate.countryCode, `destinations.${index}.countryCode`, 2);
     if (countryCode && !COUNTRY_PATTERN.test(countryCode)) {
       throw new TripValidationError(
         `destinations.${index}.countryCode`,
@@ -103,56 +110,64 @@ function destinations(value) {
       );
     }
     return {
-      name: requiredString(entry.name, `destinations.${index}.name`, 160),
+      name: requiredString(candidate.name, `destinations.${index}.name`, 160),
       ...(countryCode ? { countryCode } : {}),
-      ...(optionalString(entry.city, `destinations.${index}.city`, 160)
-        ? { city: optionalString(entry.city, `destinations.${index}.city`, 160) }
+      ...(optionalString(candidate.city, `destinations.${index}.city`, 160)
+        ? { city: optionalString(candidate.city, `destinations.${index}.city`, 160) }
         : {}),
-      ...(optionalString(entry.region, `destinations.${index}.region`, 160)
-        ? { region: optionalString(entry.region, `destinations.${index}.region`, 160) }
+      ...(optionalString(candidate.region, `destinations.${index}.region`, 160)
+        ? { region: optionalString(candidate.region, `destinations.${index}.region`, 160) }
         : {}),
     };
   });
 }
 
+/** @param {unknown} input */
 export function normalizeTripInput(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new TripValidationError("body", "trip input must be an object");
   }
-  const startDate = localDate(input.startDate, "startDate");
-  const endDate = localDate(input.endDate, "endDate");
+  const candidate = /** @type {Record<string, unknown>} */ (input);
+  const startDate = localDate(candidate.startDate, "startDate");
+  const endDate = localDate(candidate.endDate, "endDate");
   if (endDate < startDate) {
     throw new TripValidationError("endDate", "endDate must be on or after startDate");
   }
-  if (!Number.isInteger(input.travelers) || input.travelers < 1 || input.travelers > 999) {
+  if (
+    typeof candidate.travelers !== "number"
+    || !Number.isInteger(candidate.travelers)
+    || candidate.travelers < 1
+    || candidate.travelers > 999
+  ) {
     throw new TripValidationError("travelers", "travelers must be an integer from 1 to 999");
   }
   const defaultCurrency = normalizeCurrencyCode(
-    requiredString(input.defaultCurrency, "defaultCurrency", 3),
+    requiredString(candidate.defaultCurrency, "defaultCurrency", 3),
   );
   if (!currencies.some(({ code }) => code === defaultCurrency)) {
     throw new TripValidationError("defaultCurrency", "defaultCurrency is unsupported");
   }
-  const mapProfile = requiredString(input.mapProfile, "mapProfile", 64);
+  const mapProfile = requiredString(candidate.mapProfile, "mapProfile", 64);
   if (!MAP_PROFILES.has(mapProfile)) {
     throw new TripValidationError("mapProfile", "mapProfile is unsupported");
   }
   return {
-    name: requiredString(input.name, "name", 160),
+    name: requiredString(candidate.name, "name", 160),
     startDate,
     endDate,
-    travelers: input.travelers,
+    travelers: candidate.travelers,
     defaultCurrency,
-    ...(budget(input.budget) ? { budget: budget(input.budget) } : {}),
-    timezone: timezone(input.timezone),
+    ...(budget(candidate.budget) ? { budget: budget(candidate.budget) } : {}),
+    timezone: timezone(candidate.timezone),
     mapProfile,
-    ...(optionalString(input.description, "description", 5000)
-      ? { description: optionalString(input.description, "description", 5000) }
+    ...(optionalString(candidate.description, "description", 5000)
+      ? { description: optionalString(candidate.description, "description", 5000) }
       : {}),
-    destinations: destinations(input.destinations),
+    destinations: destinations(candidate.destinations),
   };
 }
 
+/** @param {unknown} patch */
 export function normalizeTripPatch(patch) {
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
     throw new TripValidationError("body", "trip patch must be an object");
@@ -161,57 +176,72 @@ export function normalizeTripPatch(patch) {
     "name", "startDate", "endDate", "travelers", "defaultCurrency",
     "budget", "timezone", "mapProfile", "description", "destinations",
   ]);
-  const unexpected = Object.keys(patch).filter((key) => !allowed.has(key));
-  if (unexpected.length || Object.keys(patch).length === 0) {
+  const candidate = /** @type {Record<string, unknown>} */ (patch);
+  const unexpected = Object.keys(candidate).filter((key) => !allowed.has(key));
+  if (unexpected.length || Object.keys(candidate).length === 0) {
     throw new TripValidationError("body", "trip patch is empty or contains unsupported fields");
   }
+  /** @type {Record<string, unknown>} */
   const normalized = {};
-  if ("name" in patch) normalized.name = requiredString(patch.name, "name", 160);
-  if ("startDate" in patch) normalized.startDate = localDate(patch.startDate, "startDate");
-  if ("endDate" in patch) normalized.endDate = localDate(patch.endDate, "endDate");
-  if ("travelers" in patch) {
-    if (!Number.isInteger(patch.travelers) || patch.travelers < 1 || patch.travelers > 999) {
+  if ("name" in candidate) normalized.name = requiredString(candidate.name, "name", 160);
+  if ("startDate" in candidate) normalized.startDate = localDate(candidate.startDate, "startDate");
+  if ("endDate" in candidate) normalized.endDate = localDate(candidate.endDate, "endDate");
+  if ("travelers" in candidate) {
+    if (
+      typeof candidate.travelers !== "number"
+      || !Number.isInteger(candidate.travelers)
+      || candidate.travelers < 1
+      || candidate.travelers > 999
+    ) {
       throw new TripValidationError("travelers", "travelers must be an integer from 1 to 999");
     }
-    normalized.travelers = patch.travelers;
+    normalized.travelers = candidate.travelers;
   }
-  if ("defaultCurrency" in patch) {
+  if ("defaultCurrency" in candidate) {
     normalized.defaultCurrency = normalizeCurrencyCode(
-      requiredString(patch.defaultCurrency, "defaultCurrency", 3),
+      requiredString(candidate.defaultCurrency, "defaultCurrency", 3),
     );
   }
-  if ("budget" in patch) normalized.budget = budget(patch.budget) ?? "";
-  if ("timezone" in patch) normalized.timezone = timezone(patch.timezone);
-  if ("mapProfile" in patch) {
-    const profile = requiredString(patch.mapProfile, "mapProfile", 64);
+  if ("budget" in candidate) normalized.budget = budget(candidate.budget) ?? "";
+  if ("timezone" in candidate) normalized.timezone = timezone(candidate.timezone);
+  if ("mapProfile" in candidate) {
+    const profile = requiredString(candidate.mapProfile, "mapProfile", 64);
     if (!MAP_PROFILES.has(profile)) {
       throw new TripValidationError("mapProfile", "mapProfile is unsupported");
     }
     normalized.mapProfile = profile;
   }
-  if ("description" in patch) normalized.description = optionalString(patch.description, "description", 5000) ?? "";
-  if ("destinations" in patch) normalized.destinations = destinations(patch.destinations);
-  if (normalized.startDate && normalized.endDate && normalized.endDate < normalized.startDate) {
+  if ("description" in candidate) normalized.description = optionalString(candidate.description, "description", 5000) ?? "";
+  if ("destinations" in candidate) normalized.destinations = destinations(candidate.destinations);
+  if (
+    typeof normalized.startDate === "string"
+    && typeof normalized.endDate === "string"
+    && normalized.endDate < normalized.startDate
+  ) {
     throw new TripValidationError("endDate", "endDate must be on or after startDate");
   }
   return normalized;
 }
 
+/** @param {unknown} ownerId */
 export function assertOwnerId(ownerId) {
   return requiredString(ownerId, "ownerId", 255);
 }
 
+/** @param {unknown} version */
 export function assertVersion(version) {
-  if (!Number.isSafeInteger(version) || version < 1) {
+  if (typeof version !== "number" || !Number.isSafeInteger(version) || version < 1) {
     throw new TripValidationError("If-Match", "If-Match must contain a positive version");
   }
   return version;
 }
 
+/** @param {unknown} key */
 export function assertIdempotencyKey(key) {
   return requiredString(key, "Idempotency-Key", 255);
 }
 
+/** @param {unknown} input */
 export function tripRequestHash(input) {
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }

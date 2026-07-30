@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { test } from "vitest";
 
-import { currencies } from "../../../../packages/config/src/reference-data.mjs";
+import { currencies } from "@on-the-road/config/reference-data";
 
 const execFileAsync = promisify(execFile);
 

@@ -1,14 +1,14 @@
-// @ts-nocheck
 import {
   ItineraryDomainError,
   ItineraryNotFoundError,
   ItineraryVersionConflictError,
-} from "../../../../../packages/domain/src/itinerary/index.mjs";
+} from "@on-the-road/domain/itinerary";
 import {
   PostgresExecutor,
   postgresErrorIdentity,
 } from "@on-the-road/database/postgres";
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { code, constraint, message } = postgresErrorIdentity(error);
   if (message === "ITINERARY_NOT_FOUND") {
@@ -44,6 +44,13 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresItineraryRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} [options]
+   */
   constructor({ databaseUrl, pool, executor } = {}) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -52,6 +59,7 @@ export class PostgresItineraryRepository {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {Record<string, unknown>} input */
   create(ownerId, tripId, input) {
     return this.#json(
       `SELECT create_itinerary_item(
@@ -63,6 +71,7 @@ export class PostgresItineraryRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} itemId @param {{includeDeleted?: boolean}} [options] */
   async get(ownerId, tripId, itemId, { includeDeleted = false } = {}) {
     const item = await this.#json(
       `SELECT COALESCE(
@@ -82,6 +91,7 @@ export class PostgresItineraryRepository {
     return item;
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} tripDayId */
   listDay(ownerId, tripId, tripDayId) {
     return this.#json(
       `SELECT COALESCE(
@@ -100,6 +110,7 @@ export class PostgresItineraryRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} itemId @param {number} expectedVersion @param {Record<string, unknown>} input */
   update(ownerId, tripId, itemId, expectedVersion, input) {
     return this.#json(
       `SELECT update_itinerary_item(
@@ -113,6 +124,7 @@ export class PostgresItineraryRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} itemId @param {number} expectedVersion */
   delete(ownerId, tripId, itemId, expectedVersion) {
     return this.#json(
       `SELECT delete_itinerary_item(
@@ -125,6 +137,7 @@ export class PostgresItineraryRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} itemId @param {string} targetTripDayId */
   copy(ownerId, tripId, itemId, targetTripDayId) {
     return this.#json(
       `SELECT copy_itinerary_item(
@@ -141,6 +154,7 @@ export class PostgresItineraryRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

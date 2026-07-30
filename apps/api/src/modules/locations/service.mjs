@@ -1,16 +1,17 @@
-// @ts-nocheck
 import {
   assertLocationTransition,
   assertWgs84Point,
   LocationDomainError,
-} from "../../../../../packages/domain/src/location/index.mjs";
+} from "@on-the-road/domain/location";
 
 export class LocationService {
+  /** @param {{repository: any, candidateSigner: any}} options */
   constructor({ repository, candidateSigner }) {
     this.repository = repository;
     this.candidateSigner = candidateSigner;
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {{inputText: string, name?: string}} input */
   create(ownerId, tripId, input) {
     if (!ownerId?.trim() || !tripId?.trim()) {
       throw new LocationDomainError(
@@ -26,19 +27,23 @@ export class LocationService {
     });
   }
 
+  /** @param {string} ownerId @param {string} locationId */
   get(ownerId, locationId) {
     return this.repository.getOwned(ownerId, locationId);
   }
 
+  /** @param {string} ownerId @param {string} locationId @param {number} expectedVersion @param {{provider: string, query?: string, context?: Record<string, unknown>}} options */
   async beginResolving(ownerId, locationId, expectedVersion, options) {
-    const current = await this.repository.getOwned(ownerId, locationId);
+    const current = /** @type {Record<string, any>} */ (
+      await this.repository.getOwned(ownerId, locationId)
+    );
     assertLocationTransition(current.status, "resolving");
-    const location = await this.repository.transition(
+    const location = /** @type {Record<string, any>} */ (await this.repository.transition(
       ownerId,
       locationId,
       expectedVersion,
       "resolving",
-    );
+    ));
     const job = await this.repository.createJob({
       tripId: location.tripId,
       locationId,
@@ -50,8 +55,11 @@ export class LocationService {
     return { location, job };
   }
 
+  /** @param {string} ownerId @param {string} jobId @param {Record<string, any>} result */
   async applyResult(ownerId, jobId, result) {
-    const job = await this.repository.getJobOwned(ownerId, jobId);
+    const job = /** @type {Record<string, any>} */ (
+      await this.repository.getJobOwned(ownerId, jobId)
+    );
     if (!["queued", "running"].includes(job.status)) {
       throw new LocationDomainError(
         "GEOCODING_JOB_ALREADY_FINISHED",
@@ -102,8 +110,11 @@ export class LocationService {
     return { location, job: completedJob };
   }
 
+  /** @param {string} ownerId @param {string} jobId @param {string} token @param {number} expectedVersion */
   async selectCandidate(ownerId, jobId, token, expectedVersion) {
-    const job = await this.repository.getJobOwned(ownerId, jobId);
+    const job = /** @type {Record<string, any>} */ (
+      await this.repository.getJobOwned(ownerId, jobId)
+    );
     if (job.status !== "ambiguous" || !job.candidates?.includes(token)) {
       throw new LocationDomainError(
         "CANDIDATE_NOT_AVAILABLE",
@@ -126,8 +137,11 @@ export class LocationService {
     );
   }
 
+  /** @param {string} ownerId @param {string} locationId @param {number} expectedVersion @param {unknown} point @param {Record<string, unknown>} [input] */
   async manuallyAdjust(ownerId, locationId, expectedVersion, point, input = {}) {
-    const current = await this.repository.getOwned(ownerId, locationId);
+    const current = /** @type {Record<string, any>} */ (
+      await this.repository.getOwned(ownerId, locationId)
+    );
     const normalizedPoint = assertWgs84Point(point);
     assertLocationTransition(current.status, "resolved", {
       point: normalizedPoint,
@@ -148,6 +162,7 @@ export class LocationService {
     );
   }
 
+  /** @param {Record<string, any>} candidate @param {{longitude: number, latitude: number, crs: "WGS84"}} point @param {string} provider */
   #candidatePayload(candidate, point, provider) {
     return {
       name: candidate.label,

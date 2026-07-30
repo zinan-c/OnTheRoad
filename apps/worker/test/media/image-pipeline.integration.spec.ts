@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { S3ObjectStorage } from "../../../../packages/storage/src/index.js";
+import { S3ObjectStorage } from "@on-the-road/storage";
 import {
   startNativeMinio,
   type NativeMinio,

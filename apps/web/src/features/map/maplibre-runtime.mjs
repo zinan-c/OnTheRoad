@@ -1,4 +1,4 @@
-// @ts-nocheck -- this optional adapter is checked once the approved MapLibre dependency exists.
+// @ts-nocheck -- owner: Web Maps; reason: MapLibre browser adapter isolation; remove after its runtime facade is converted to TypeScript.
 // The host loads this adapter only after its approved MapLibre dependency is available.
 // Keeping the import dynamic lets the fixture/neutral-grid path work without WebGL.
 export async function loadMapLibreRuntime() {

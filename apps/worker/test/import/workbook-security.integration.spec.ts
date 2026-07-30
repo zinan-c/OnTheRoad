@@ -6,7 +6,7 @@ import * as XLSX from "../../../../packages/importer/vendor/xlsx/xlsx.mjs";
 import {
   WorkbookInspectError,
   inspectWorkbook,
-} from "../../../../packages/importer/src/workbook-inspector.mjs";
+} from "@on-the-road/importer/workbook-inspector";
 import {
   ImportInspectProcessor,
   InMemoryImportInspectRepository,

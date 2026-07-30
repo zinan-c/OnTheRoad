@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { InMemoryJobStore } from "../../../packages/database/src/schema/jobs.js";
+import { InMemoryJobStore } from "@on-the-road/database/jobs";
 import { InboxConsumer } from "../src/processors/maintenance/inbox-consumer.js";
 
 describe("TC-A06-01 outbox/inbox once-only effect", () => {

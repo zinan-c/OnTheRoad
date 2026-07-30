@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
 import { createReferenceDataResponse } from "../../src/modules/system/reference-data.mjs";
-import { parseReferenceDataResponse } from "../../../../packages/contracts/src/generated/index.mjs";
+import { parseReferenceDataResponse } from "@on-the-road/contracts";
 
 test("TC-B01-03 reference API round-trips through the generated client parser", () => {
   const response = createReferenceDataResponse();

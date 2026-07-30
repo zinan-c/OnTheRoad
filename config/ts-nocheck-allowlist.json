@@ -1,0 +1,12 @@
+{
+  "apps/web/src/features/map/maplibre-runtime.mjs": {
+    "owner": "Web Maps",
+    "reason": "MapLibre browser adapter isolates a third-party runtime surface.",
+    "removalCondition": "Remove when the MapLibre runtime facade is converted to TypeScript."
+  },
+  "packages/importer/src/vendor/sheetjs-adapter.mjs": {
+    "owner": "Import",
+    "reason": "Vendored SheetJS has no compatible TypeScript declarations.",
+    "removalCondition": "Remove when SheetJS is replaced or the vendored API receives maintained declarations."
+  }
+}

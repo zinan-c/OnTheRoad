@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { InMemoryJobStore } from "../../../packages/database/src/schema/jobs.js";
+import { InMemoryJobStore } from "@on-the-road/database/jobs";
 import {
   assertJobTransition,
   canTransitionJob,
-} from "../../../packages/database/src/schema/job-status.js";
+} from "@on-the-road/database/job-status";
 import {
   InMemoryJobQueue,
   OutboxReconciler,

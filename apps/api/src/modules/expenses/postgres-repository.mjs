@@ -1,10 +1,10 @@
-// @ts-nocheck
-import { ExpenseDomainError } from "../../../../../packages/domain/src/expense/index.mjs";
+import { ExpenseDomainError } from "@on-the-road/domain/expense";
 import {
   PostgresExecutor,
   postgresErrorIdentity,
 } from "@on-the-road/database/postgres";
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { code, constraint, message } = postgresErrorIdentity(error);
   if (
@@ -33,6 +33,13 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresExpenseRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} [options]
+   */
   constructor({ databaseUrl, pool, executor } = {}) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -41,8 +48,9 @@ export class PostgresExpenseRepository {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId */
   async getTrip(ownerId, tripId) {
-    const trip = await this.#json(
+    const trip = /** @type {{id: string, ownerId: string, defaultCurrency: string} | null} */ (await this.#json(
       `SELECT COALESCE((
         SELECT jsonb_build_object(
           'id', id,
@@ -55,7 +63,7 @@ export class PostgresExpenseRepository {
           AND status <> 'deleted'
       ), 'null'::jsonb)::text`,
       [tripId, ownerId],
-    );
+    ));
     if (!trip) {
       throw new ExpenseDomainError(
         "EXPENSE_TRIP_NOT_FOUND",
@@ -66,6 +74,7 @@ export class PostgresExpenseRepository {
     return trip;
   }
 
+  /** @param {string} itemId */
   getItem(itemId) {
     return this.#json(
       `SELECT COALESCE((
@@ -82,6 +91,7 @@ export class PostgresExpenseRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {{fromCurrency: string, toCurrency: string, rate: string}} rate */
   setRate(ownerId, tripId, rate) {
     return this.#json(
       `INSERT INTO trip_exchange_rate (
@@ -113,6 +123,7 @@ export class PostgresExpenseRepository {
     );
   }
 
+  /** @param {string} tripId @param {string} fromCurrency @param {string} toCurrency */
   getRate(tripId, fromCurrency, toCurrency) {
     return this.#json(
       `SELECT COALESCE((
@@ -129,6 +140,7 @@ export class PostgresExpenseRepository {
     );
   }
 
+  /** @param {Record<string, any>} expense */
   create(expense) {
     return this.#json(
       `INSERT INTO expense (
@@ -173,6 +185,7 @@ export class PostgresExpenseRepository {
     );
   }
 
+  /** @param {string} tripId */
   list(tripId) {
     return this.#json(
       `SELECT COALESCE(
@@ -213,6 +226,7 @@ export class PostgresExpenseRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

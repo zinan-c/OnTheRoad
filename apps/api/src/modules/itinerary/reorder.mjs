@@ -1,20 +1,20 @@
-// @ts-nocheck
 import {
   assertCompleteDayOrder,
   assertBaseDayVersion,
   ItineraryOrderDayNotFoundError,
   ItineraryOrderError,
   ItineraryOrderVersionConflictError,
-} from "../../../../../packages/domain/src/itinerary/order.mjs";
+} from "@on-the-road/domain/itinerary/order";
 import {
   assertItineraryId,
   assertItineraryOwner,
-} from "../../../../../packages/domain/src/itinerary/index.mjs";
+} from "@on-the-road/domain/itinerary";
 import {
   PostgresExecutor,
   postgresErrorIdentity,
 } from "@on-the-road/database/postgres";
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { message } = postgresErrorIdentity(error);
   if (message === "ITINERARY_ORDER_VERSION_CONFLICT") {
@@ -34,6 +34,13 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresItineraryOrderRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} [options]
+   */
   constructor({ databaseUrl, pool, executor } = {}) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -42,6 +49,7 @@ export class PostgresItineraryOrderRepository {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} tripDayId @param {number} baseVersion @param {readonly string[]} orderedIds */
   async reorder(ownerId, tripId, tripDayId, baseVersion, orderedIds) {
     try {
       return await this.database.json(
@@ -65,6 +73,7 @@ export class PostgresItineraryOrderRepository {
 }
 
 export class ItineraryOrderService {
+  /** @param {{reorder: Function}} repository */
   constructor(repository) {
     if (!repository || typeof repository.reorder !== "function") {
       throw new TypeError("repository.reorder is required");
@@ -72,6 +81,7 @@ export class ItineraryOrderService {
     this.repository = repository;
   }
 
+  /** @param {unknown} ownerId @param {unknown} tripId @param {unknown} tripDayId @param {unknown} input */
   reorder(ownerId, tripId, tripDayId, input) {
     if (!input || typeof input !== "object" || Array.isArray(input)) {
       throw new ItineraryOrderError(
@@ -80,15 +90,16 @@ export class ItineraryOrderService {
         422,
       );
     }
+    const candidate = /** @type {Record<string, unknown>} */ (input);
     const orderedIds = assertCompleteDayOrder(
-      input.orderedIds,
-      input.orderedIds,
+      candidate.orderedIds,
+      candidate.orderedIds,
     );
     return this.repository.reorder(
       assertItineraryOwner(ownerId),
       assertItineraryId(tripId, "tripId"),
       assertItineraryId(tripDayId, "tripDayId"),
-      assertBaseDayVersion(input.baseVersion),
+      assertBaseDayVersion(candidate.baseVersion),
       orderedIds,
     );
   }

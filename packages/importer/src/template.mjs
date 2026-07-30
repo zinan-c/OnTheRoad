@@ -1,6 +1,4 @@
-// @ts-nocheck -- SheetJS is vendored and checked through importer contract tests.
-import * as XLSX from "../vendor/xlsx/xlsx.mjs";
-import * as cptable from "../vendor/xlsx/dist/cpexcel.full.mjs";
+import { XLSX } from "./vendor/sheetjs-adapter.mjs";
 
 import {
   ALIAS_DICTIONARY_VERSION,
@@ -8,8 +6,6 @@ import {
   STANDARD_COLUMNS,
   safeSpreadsheetText,
 } from "./aliases.mjs";
-
-XLSX.set_cptable(cptable);
 
 export const TEMPLATE_VERSION = "1.0.0";
 
@@ -38,6 +34,7 @@ const EXAMPLE_ROW = Object.freeze({
   ImageURLs: "",
 });
 
+/** @param {Array<readonly unknown[]>} values */
 function textMatrix(values) {
   return values.map((row) => row.map((value) =>
     typeof value === "string" ? safeSpreadsheetText(value) : value));
@@ -55,7 +52,8 @@ export function generateStandardTemplate() {
 
   const itinerary = XLSX.utils.aoa_to_sheet(textMatrix([
     STANDARD_COLUMNS,
-    STANDARD_COLUMNS.map((column) => EXAMPLE_ROW[column]),
+    STANDARD_COLUMNS.map((column) =>
+      /** @type {Record<string, unknown>} */ (EXAMPLE_ROW)[column]),
   ]));
   itinerary["!cols"] = STANDARD_COLUMNS.map((column) => ({
     wch: Math.max(12, column.length + 2),
@@ -76,7 +74,7 @@ export function generateStandardTemplate() {
     ["CanonicalColumn", "AcceptedAliases"],
     ...STANDARD_COLUMNS.map((column) => [
       column,
-      COLUMN_ALIASES[column].join(" | "),
+      (COLUMN_ALIASES[column] ?? []).join(" | "),
     ]),
   ]));
   XLSX.utils.book_append_sheet(workbook, aliases, "Aliases");
@@ -90,6 +88,7 @@ export function generateStandardTemplate() {
   });
 }
 
+/** @param {Buffer | Uint8Array} buffer */
 export function inspectTemplate(buffer) {
   const workbook = XLSX.read(buffer, {
     type: "buffer",
@@ -114,7 +113,7 @@ export function inspectTemplate(buffer) {
     ? XLSX.utils.sheet_to_json(instructions, { header: 1, raw: true })
     : [];
   const templateVersionRow = instructionRows.find(
-    (row) => row[0] === "TemplateVersion",
+    (/** @type {unknown[]} */ row) => row[0] === "TemplateVersion",
   );
   return {
     templateVersion: templateVersionRow?.[1],

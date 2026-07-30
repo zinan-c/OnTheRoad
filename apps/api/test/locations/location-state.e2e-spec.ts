@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe } from "vitest";
 
-import { CandidateTokenSigner } from "../../../../packages/domain/src/location/index.mjs";
+import { CandidateTokenSigner } from "@on-the-road/domain/location";
 import {
   LocationService,
   PostgresLocationRepository,

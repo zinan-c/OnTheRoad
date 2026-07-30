@@ -1,12 +1,13 @@
-// @ts-nocheck
-import { LocationDomainError } from "../../../../../packages/domain/src/location/index.mjs";
+import { LocationDomainError } from "@on-the-road/domain/location";
 import {
   PostgresExecutor,
   postgresErrorIdentity,
 } from "@on-the-road/database/postgres";
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { message } = postgresErrorIdentity(error);
+  /** @type {Array<[string, number]>} */
   const mappings = [
     ["LOCATION_NOT_FOUND", 404],
     ["LOCATION_VERSION_CONFLICT", 409],
@@ -29,6 +30,13 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresLocationRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} [options]
+   */
   constructor({ databaseUrl, pool, executor } = {}) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -37,12 +45,14 @@ export class PostgresLocationRepository {
     });
   }
 
+  /** @param {Record<string, unknown>} input */
   create(input) {
     return this.#json("SELECT create_location($1::jsonb)::text", [
       JSON.stringify(input),
     ]);
   }
 
+  /** @param {string} ownerId @param {string} locationId */
   async getOwned(ownerId, locationId) {
     const result = await this.#json(
       `SELECT COALESCE(
@@ -66,6 +76,7 @@ export class PostgresLocationRepository {
     return result;
   }
 
+  /** @param {string} ownerId @param {string} locationId @param {number} expectedVersion @param {string} target @param {Record<string, unknown>} [payload] */
   transition(ownerId, locationId, expectedVersion, target, payload = {}) {
     return this.#json(
       `SELECT transition_location(
@@ -79,6 +90,7 @@ export class PostgresLocationRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} locationId @param {number} expectedVersion @param {Record<string, unknown>} payload @param {Record<string, unknown>} audit */
   adjustCoordinates(ownerId, locationId, expectedVersion, payload, audit) {
     return this.#json(
       `SELECT adjust_location_coordinates(
@@ -98,6 +110,7 @@ export class PostgresLocationRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} locationId */
   listCoordinateAudits(ownerId, locationId) {
     return this.#json(
       `SELECT COALESCE(
@@ -131,6 +144,7 @@ export class PostgresLocationRepository {
     );
   }
 
+  /** @param {{tripId: string, locationId: string, provider: string, query: string, context?: Record<string, unknown>, inputLocationVersion: number}} input */
   createJob(input) {
     return this.#json(
       `WITH inserted AS (
@@ -171,6 +185,7 @@ export class PostgresLocationRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} jobId */
   async getJobOwned(ownerId, jobId) {
     const result = await this.#json(
       `SELECT COALESCE(
@@ -204,6 +219,7 @@ export class PostgresLocationRepository {
     return result;
   }
 
+  /** @param {string} jobId @param {string} status @param {unknown[] | null} [candidates] @param {string | null} [errorCode] */
   finishJob(jobId, status, candidates = null, errorCode = null) {
     return this.#json(
       `WITH updated AS (
@@ -242,6 +258,7 @@ export class PostgresLocationRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

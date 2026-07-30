@@ -1,10 +1,10 @@
-// @ts-nocheck
 import { MediaPipelineError } from "./media-pipeline.js";
 import {
   PostgresExecutor,
   postgresErrorIdentity,
 } from "@on-the-road/database/postgres";
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { message } = postgresErrorIdentity(error);
   for (const code of ["MEDIA_NOT_CLAIMABLE", "MEDIA_VERSION_CONFLICT"]) {
@@ -22,6 +22,13 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresMediaRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} [options]
+   */
   constructor({ databaseUrl, pool, executor } = {}) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -30,6 +37,7 @@ export class PostgresMediaRepository {
     });
   }
 
+  /** @param {string} id */
   claim(id) {
     return this.#json(
       "SELECT claim_attachment_processing($1::uuid)::text",
@@ -37,6 +45,7 @@ export class PostgresMediaRepository {
     );
   }
 
+  /** @param {string} id @param {number} expectedVersion @param {Record<string, unknown>} metadata */
   markReady(id, expectedVersion, metadata) {
     return this.#json(
       `SELECT mark_attachment_ready(
@@ -48,6 +57,7 @@ export class PostgresMediaRepository {
     );
   }
 
+  /** @param {string} id @param {number} expectedVersion @param {string} errorCode */
   markFailed(id, expectedVersion, errorCode) {
     return this.#json(
       `SELECT mark_attachment_failed(
@@ -63,6 +73,7 @@ export class PostgresMediaRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

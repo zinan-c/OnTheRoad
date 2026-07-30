@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   createHmac,
   timingSafeEqual,
@@ -21,6 +20,7 @@ const TRANSITIONS = Object.freeze({
 });
 
 export class LocationDomainError extends Error {
+  /** @param {string} code @param {string} message @param {number} [status] */
   constructor(code, message, status = 400) {
     super(message);
     this.name = "LocationDomainError";
@@ -29,14 +29,25 @@ export class LocationDomainError extends Error {
   }
 }
 
+/**
+ * @param {unknown} current
+ * @param {unknown} target
+ * @param {{manual?: boolean, point?: unknown}} [options]
+ */
 export function assertLocationTransition(current, target, options = {}) {
-  if (!LOCATION_STATUSES.includes(current) || !LOCATION_STATUSES.includes(target)) {
+  if (
+    typeof current !== "string"
+    || typeof target !== "string"
+    || !LOCATION_STATUSES.includes(current)
+    || !LOCATION_STATUSES.includes(target)
+  ) {
     throw new LocationDomainError(
       "LOCATION_STATUS_INVALID",
       "Location status is invalid.",
     );
   }
-  if (!TRANSITIONS[current].has(target)) {
+  const allowed = /** @type {Record<string, Set<string>>} */ (TRANSITIONS);
+  if (!allowed[current]?.has(target)) {
     throw new LocationDomainError(
       "INVALID_LOCATION_TRANSITION",
       `Location cannot transition from ${current} to ${target}.`,
@@ -65,16 +76,19 @@ export function assertLocationTransition(current, target, options = {}) {
   return target;
 }
 
+/** @param {unknown} point */
 export function assertWgs84Point(point) {
+  const candidate = isRecord(point) ? point : {};
   if (
-    !point
-    || point.crs !== "WGS84"
-    || !Number.isFinite(point.latitude)
-    || !Number.isFinite(point.longitude)
-    || point.latitude < -90
-    || point.latitude > 90
-    || point.longitude < -180
-    || point.longitude > 180
+    candidate.crs !== "WGS84"
+    || typeof candidate.latitude !== "number"
+    || typeof candidate.longitude !== "number"
+    || !Number.isFinite(candidate.latitude)
+    || !Number.isFinite(candidate.longitude)
+    || candidate.latitude < -90
+    || candidate.latitude > 90
+    || candidate.longitude < -180
+    || candidate.longitude > 180
   ) {
     throw new LocationDomainError(
       "WGS84_POINT_INVALID",
@@ -82,12 +96,18 @@ export function assertWgs84Point(point) {
     );
   }
   return Object.freeze({
-    longitude: point.longitude,
-    latitude: point.latitude,
+    longitude: candidate.longitude,
+    latitude: candidate.latitude,
     crs: "WGS84",
   });
 }
 
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/** @param {unknown} value @returns {unknown} */
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === "object") {
@@ -100,15 +120,20 @@ function canonicalize(value) {
   return value;
 }
 
+/** @param {string} value */
 function encode(value) {
   return Buffer.from(value, "utf8").toString("base64url");
 }
 
+/** @param {string} value */
 function decode(value) {
   return Buffer.from(value, "base64url").toString("utf8");
 }
 
 export class CandidateTokenSigner {
+  /**
+   * @param {{secret: string, clock?: () => number, ttlMs?: number}} options
+   */
   constructor({ secret, clock = () => Date.now(), ttlMs = 5 * 60_000 }) {
     if (typeof secret !== "string" || secret.length < 32) {
       throw new TypeError("Candidate token secret must contain at least 32 characters.");
@@ -118,6 +143,21 @@ export class CandidateTokenSigner {
     this.ttlMs = ttlMs;
   }
 
+  /**
+   * @param {{
+   *   ownerId: string,
+   *   tripId: string,
+   *   locationId: string,
+   *   locationVersion: number,
+   *   candidate: {
+   *     attribution: string,
+   *     countryCode?: string | null,
+   *     label: string,
+   *     point: unknown,
+   *     providerPlaceId: string
+   *   }
+   * }} input
+   */
   sign({ ownerId, tripId, locationId, locationVersion, candidate }) {
     const point = assertWgs84Point(candidate.point);
     const payload = canonicalize({
@@ -141,6 +181,10 @@ export class CandidateTokenSigner {
     return `${body}.${signature}`;
   }
 
+  /**
+   * @param {unknown} token
+   * @param {{ownerId: string, tripId: string, locationId: string, locationVersion: number}} context
+   */
   verify(token, context) {
     const [body, suppliedSignature, extra] = String(token).split(".");
     if (!body || !suppliedSignature || extra) {
@@ -167,16 +211,19 @@ export class CandidateTokenSigner {
         "Candidate token signature is invalid.",
       );
     }
+    /** @type {Record<string, unknown>} */
     let payload;
     try {
-      payload = JSON.parse(decode(body));
+      const parsed = JSON.parse(decode(body));
+      if (!isRecord(parsed)) throw new TypeError("payload");
+      payload = parsed;
     } catch {
       throw new LocationDomainError(
         "CANDIDATE_TOKEN_INVALID",
         "Candidate token payload is invalid.",
       );
     }
-    if (payload.expiresAt < this.clock()) {
+    if (typeof payload.expiresAt !== "number" || payload.expiresAt < this.clock()) {
       throw new LocationDomainError(
         "CANDIDATE_TOKEN_EXPIRED",
         "Candidate token expired.",
@@ -184,13 +231,20 @@ export class CandidateTokenSigner {
       );
     }
     for (const field of ["ownerId", "tripId", "locationId", "locationVersion"]) {
-      if (payload[field] !== context[field]) {
+      const expected = /** @type {Record<string, unknown>} */ (context)[field];
+      if (payload[field] !== expected) {
         throw new LocationDomainError(
           "CANDIDATE_TOKEN_CONTEXT_MISMATCH",
           "Candidate token does not belong to this location version.",
           409,
         );
       }
+    }
+    if (!isRecord(payload.candidate)) {
+      throw new LocationDomainError(
+        "CANDIDATE_TOKEN_INVALID",
+        "Candidate token candidate is invalid.",
+      );
     }
     return Object.freeze({
       ...payload.candidate,

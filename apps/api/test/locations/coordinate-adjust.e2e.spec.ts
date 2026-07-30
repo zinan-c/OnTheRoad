@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   CoordinateAdjustmentService,
   InMemoryCoordinateRepository,
-} from "../../../../packages/application/src/location/adjust-coordinates.js";
+} from "@on-the-road/application/location";
 import { LocationCoordinatesApi } from "../../src/modules/locations/coordinates.js";
 
 function fixture() {

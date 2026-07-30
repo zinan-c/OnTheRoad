@@ -14,6 +14,14 @@
     "./postgres": {
       "types": "./src/postgres/index.ts",
       "default": "./dist/postgres/index.js"
+    },
+    "./jobs": {
+      "types": "./src/schema/jobs.ts",
+      "default": "./dist/schema/jobs.js"
+    },
+    "./job-status": {
+      "types": "./src/schema/job-status.ts",
+      "default": "./dist/schema/job-status.js"
     }
   },
   "bin": {

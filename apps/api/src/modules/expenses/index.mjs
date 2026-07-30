@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { randomUUID } from "node:crypto";
 
 import {
@@ -7,16 +6,17 @@ import {
   ExpenseDomainError,
   normalizeMoney,
   normalizeRate,
-} from "../../../../../packages/domain/src/expense/index.mjs";
+} from "@on-the-road/domain/expense";
 import {
   costCategories,
   currencies,
   normalizeCurrencyCode,
-} from "../../../../../packages/config/src/reference-data.mjs";
+} from "@on-the-road/config/reference-data";
 
 const CURRENCY_CODES = new Set(currencies.map(({ code }) => code));
 const CATEGORY_CODES = new Set(costCategories.map(({ code }) => code));
 
+/** @param {unknown} value */
 function currency(value) {
   try {
     return normalizeCurrencyCode(String(value ?? ""));
@@ -28,6 +28,7 @@ function currency(value) {
   }
 }
 
+/** @param {unknown} value */
 function category(value) {
   const code = String(value ?? "").trim().toUpperCase();
   if (!CATEGORY_CODES.has(code)) {
@@ -40,10 +41,12 @@ function category(value) {
 }
 
 export class ExpenseService {
+  /** @param {any} repository */
   constructor(repository) {
     this.repository = repository;
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {Record<string, any>} input */
   async setRate(ownerId, tripId, input) {
     const fromCurrency = currency(input.fromCurrency);
     const toCurrency = currency(input.toCurrency);
@@ -60,8 +63,11 @@ export class ExpenseService {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {Record<string, any>} input */
   async create(ownerId, tripId, input) {
-    const trip = await this.repository.getTrip(ownerId, tripId);
+    const trip = /** @type {Record<string, any>} */ (
+      await this.repository.getTrip(ownerId, tripId)
+    );
     const originalCurrency = currency(input.currency);
     const originalAmount = normalizeMoney(input.amount);
     const categoryCode = category(input.categoryCode);
@@ -109,10 +115,15 @@ export class ExpenseService {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId */
   async summary(ownerId, tripId) {
-    const trip = await this.repository.getTrip(ownerId, tripId);
-    const expenses = (await this.repository.list(tripId))
-      .filter(({ source }) => source === "actual");
+    const trip = /** @type {Record<string, any>} */ (
+      await this.repository.getTrip(ownerId, tripId)
+    );
+    const expenses = /** @type {Record<string, any>[]} */ (
+      await this.repository.list(tripId)
+    ).filter(({ source }) => source === "actual");
+    /** @type {Record<string, string>} */
     const original = {};
     const rateSnapshots = new Map();
     const unconverted = [];
@@ -152,13 +163,17 @@ export class ExpenseService {
 }
 
 export class InMemoryExpenseRepository {
+  /** @param {{trips?: Record<string, any>[], items?: Record<string, any>[]}} [options] */
   constructor({ trips = [], items = [] } = {}) {
     this.trips = new Map(trips.map((trip) => [trip.id, { ...trip }]));
     this.items = new Map(items.map((item) => [item.id, { ...item }]));
+    /** @type {Map<string, Record<string, any>>} */
     this.rates = new Map();
+    /** @type {Record<string, any>[]} */
     this.expenses = [];
   }
 
+  /** @param {string} ownerId @param {string} tripId */
   getTrip(ownerId, tripId) {
     const trip = this.trips.get(tripId);
     if (!trip || trip.ownerId !== ownerId) {
@@ -171,11 +186,13 @@ export class InMemoryExpenseRepository {
     return { ...trip };
   }
 
+  /** @param {string} itemId */
   getItem(itemId) {
     const item = this.items.get(itemId);
     return item ? { ...item } : undefined;
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {Record<string, any>} rate */
   setRate(ownerId, tripId, rate) {
     this.getTrip(ownerId, tripId);
     const stored = { ...rate, ownerId, tripId, version: 1 };
@@ -183,11 +200,13 @@ export class InMemoryExpenseRepository {
     return { ...stored };
   }
 
+  /** @param {string} tripId @param {string} fromCurrency @param {string} toCurrency */
   getRate(tripId, fromCurrency, toCurrency) {
     const rate = this.rates.get(`${tripId}:${fromCurrency}:${toCurrency}`);
     return rate ? { ...rate } : null;
   }
 
+  /** @param {Record<string, any>} expense */
   create(expense) {
     if (!CURRENCY_CODES.has(expense.currency)) {
       throw new ExpenseDomainError(
@@ -199,6 +218,7 @@ export class InMemoryExpenseRepository {
     return { ...expense };
   }
 
+  /** @param {string} tripId */
   list(tripId) {
     return this.expenses
       .filter((expense) => expense.tripId === tripId)

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createHash } from "node:crypto";
 import { pkceChallenge, randomValue, signPayload, verifyPayload } from "./crypto.mjs";
 import {
@@ -12,6 +11,18 @@ const SESSION_COOKIE = "__Host-otr_session";
 const TRANSACTION_COOKIE = "__Host-otr_oidc";
 const SUBJECT_PATTERN = /^[A-Za-z0-9._:@/-]{1,255}$/u;
 
+/**
+ * @typedef {{id: string, issuer: string, subject: string}} Principal
+ * @typedef {{id: string, secret: string}} SigningKey
+ * @typedef {{active: SigningKey, previous?: SigningKey}} SigningKeys
+ * @typedef {{
+ *  issuer: string,
+ *  authorizationUrl(input: {state: string, nonce: string, codeChallenge: string}): string,
+ *  exchangeCode(input: {code: string, codeVerifier: string}): Promise<{issuer: string, subject: string, nonce: string}>
+ * }} OidcProvider
+ */
+
+/** @param {{issuer: string, subject: string}} input */
 function createPrincipal({ issuer, subject }) {
   const issuerUrl = new URL(issuer);
   if (issuerUrl.protocol !== "https:" || issuerUrl.search || issuerUrl.hash) {
@@ -30,26 +41,45 @@ function createPrincipal({ issuer, subject }) {
   });
 }
 
+/** @param {string} name @param {string} value @param {number} maxAgeSeconds */
 function hardenedCookie(name, value, maxAgeSeconds) {
   return `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 }
 
+/** @param {string} actual @param {string} expected */
 function assertOrigin(actual, expected) {
   if (actual !== expected) {
     throw new OidcFlowError("ORIGIN_REJECTED", "Request origin is not allowed");
   }
 }
 
+/** @param {string} value */
 function fingerprint(value) {
   return createHash("sha256").update(value).digest("base64url").slice(0, 12);
 }
 
 export class IdentityService {
+  /** @type {(event: Record<string, unknown>) => void} */
   #audit;
+  /** @type {() => number} */
   #clock;
+  /** @type {Map<string, {principal: Principal, expiresAt: number}>} */
   #sessions = new Map();
+  /** @type {Map<string, {state: string, nonce: string, codeVerifier: string, expiresAt: number, providerIssuer: string}>} */
   #transactions = new Map();
 
+  /**
+   * @param {{
+   *  environment: string,
+   *  developmentIdentityEnabled: boolean,
+   *  appOrigin: string,
+   *  signingKeys: SigningKeys,
+   *  sessionTtlMs?: number,
+   *  transactionTtlMs?: number,
+   *  clock?: () => number,
+   *  audit?: (event: Record<string, unknown>) => void
+   * }} options
+   */
   constructor({
     environment,
     developmentIdentityEnabled,
@@ -88,10 +118,12 @@ export class IdentityService {
     this.#audit = audit;
   }
 
+  /** @param {() => number} clock */
   setClock(clock) {
     this.#clock = clock;
   }
 
+  /** @param {SigningKeys} signingKeys */
   rotateSigningKey(signingKeys) {
     if (
       signingKeys.active.secret.length < 32
@@ -110,6 +142,7 @@ export class IdentityService {
     });
   }
 
+  /** @param {{subject: string, origin: string}} input */
   loginWithDevelopmentIdentity({ subject, origin }) {
     assertOrigin(origin, this.appOrigin);
     if (!this.developmentIdentityEnabled || this.environment !== "development") {
@@ -121,6 +154,7 @@ export class IdentityService {
     return this.#createSession(createPrincipal({ issuer: DEV_ISSUER, subject }), "development");
   }
 
+  /** @param {{provider: OidcProvider}} input */
   beginOidcAuthorization({ provider }) {
     const state = randomValue();
     const nonce = randomValue();
@@ -149,6 +183,7 @@ export class IdentityService {
     };
   }
 
+  /** @param {{provider: OidcProvider, code: string, state: string, transactionCookie: string, origin: string}} input */
   async completeOidcAuthorization({
     provider,
     code,
@@ -185,11 +220,16 @@ export class IdentityService {
     };
   }
 
+  /** @param {string} token */
   authenticate(token) {
-    const payload = verifyPayload(
+    const rawPayload = verifyPayload(
       token,
-      [this.signingKeys.active, this.signingKeys.previous].filter(Boolean),
+      [this.signingKeys.active, this.signingKeys.previous]
+        .filter((key) => key !== undefined),
     );
+    const payload = rawPayload && typeof rawPayload === "object"
+      ? /** @type {Record<string, unknown>} */ (rawPayload)
+      : null;
     if (
       !payload
       || typeof payload.sessionId !== "string"
@@ -205,22 +245,31 @@ export class IdentityService {
     return session.principal;
   }
 
+  /** @param {{token: string, origin: string}} input */
   logout({ token, origin }) {
     assertOrigin(origin, this.appOrigin);
-    const payload = verifyPayload(
+    const rawPayload = verifyPayload(
       token,
-      [this.signingKeys.active, this.signingKeys.previous].filter(Boolean),
+      [this.signingKeys.active, this.signingKeys.previous]
+        .filter((key) => key !== undefined),
     );
-    if (payload?.sessionId) this.#sessions.delete(payload.sessionId);
+    const payload = rawPayload && typeof rawPayload === "object"
+      ? /** @type {Record<string, unknown>} */ (rawPayload)
+      : null;
+    const sessionId = typeof payload?.sessionId === "string"
+      ? payload.sessionId
+      : null;
+    if (sessionId) this.#sessions.delete(sessionId);
     this.#audit({
       action: "identity.session.logged-out",
-      session: payload?.sessionId ? fingerprint(payload.sessionId) : "invalid",
+      session: sessionId ? fingerprint(sessionId) : "invalid",
     });
     return {
       setCookie: hardenedCookie(SESSION_COOKIE, "", 0),
     };
   }
 
+  /** @param {Principal} principal @param {"development" | "oidc"} method */
   #createSession(principal, method) {
     const sessionId = randomValue();
     const expiresAt = this.#clock() + this.sessionTtlMs;

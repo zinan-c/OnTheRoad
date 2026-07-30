@@ -8,6 +8,8 @@
     "@dnd-kit/utilities": "3.2.2",
     "@on-the-road/application": "workspace:*",
     "@on-the-road/config": "workspace:*",
+    "@on-the-road/domain": "workspace:*",
+    "@on-the-road/importer": "workspace:*",
     "maplibre-gl": "6.0.0"
   },
   "scripts": {

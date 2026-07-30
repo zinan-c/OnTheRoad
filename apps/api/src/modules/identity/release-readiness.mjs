@@ -1,4 +1,3 @@
-// @ts-nocheck
 const REQUIRED_STAGING_FIELDS = [
   "OTR_OIDC_ISSUER",
   "OTR_OIDC_CLIENT_ID",
@@ -7,6 +6,7 @@ const REQUIRED_STAGING_FIELDS = [
   "OTR_OIDC_POST_LOGOUT_REDIRECT_URL",
 ];
 
+/** @param {Readonly<Record<string, string | undefined>>} environment */
 export function inspectStagingIdentityReadiness(environment) {
   const missing = REQUIRED_STAGING_FIELDS.filter(
     (field) => !environment[field]?.trim(),

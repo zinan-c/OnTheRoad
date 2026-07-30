@@ -1,12 +1,12 @@
-// @ts-nocheck
 import {
   assertItineraryId,
   assertItineraryOwner,
   assertItineraryVersion,
   normalizeItineraryCreate,
   normalizeItineraryPatch,
-} from "../../../../../packages/domain/src/itinerary/index.mjs";
+} from "@on-the-road/domain/itinerary";
 
+/** @param {any} cipher @param {unknown} value @param {string} context @param {string} prefix */
 function encryptValue(cipher, value, context, prefix) {
   const encrypted = cipher.encrypt(value, context);
   return {
@@ -16,6 +16,7 @@ function encryptValue(cipher, value, context, prefix) {
 }
 
 export class ItineraryService {
+  /** @param {any} repository @param {any} cipher */
   constructor(repository, cipher) {
     if (!repository || typeof repository !== "object") {
       throw new TypeError("repository is required");
@@ -25,10 +26,12 @@ export class ItineraryService {
     this.cipher = cipher;
   }
 
+  /** @param {unknown} input */
   normalizeCreate(input) {
     return normalizeItineraryCreate(input);
   }
 
+  /** @param {unknown} ownerId @param {unknown} tripId @param {unknown} input */
   async create(ownerId, tripId, input) {
     const owner = assertItineraryOwner(ownerId);
     const trip = assertItineraryId(tripId, "tripId");
@@ -41,6 +44,7 @@ export class ItineraryService {
     return this.#decryptRecord(stored);
   }
 
+  /** @param {unknown} ownerId @param {unknown} tripId @param {unknown} itemId @param {{includeDeleted?: boolean}} [options] */
   async get(ownerId, tripId, itemId, options = {}) {
     const stored = await this.repository.get(
       assertItineraryOwner(ownerId),
@@ -51,21 +55,25 @@ export class ItineraryService {
     return this.#decryptRecord(stored);
   }
 
+  /** @param {unknown} ownerId @param {unknown} tripId @param {unknown} tripDayId */
   async listDay(ownerId, tripId, tripDayId) {
-    const stored = await this.repository.listDay(
+    const stored = /** @type {Record<string, any>[]} */ (await this.repository.listDay(
       assertItineraryOwner(ownerId),
       assertItineraryId(tripId, "tripId"),
       assertItineraryId(tripDayId, "tripDayId"),
-    );
+    ));
     return stored.map((item) => this.#decryptRecord(item));
   }
 
+  /** @param {unknown} ownerId @param {unknown} tripId @param {unknown} itemId @param {unknown} patch @param {{expectedVersion: unknown}} options */
   async update(ownerId, tripId, itemId, patch, { expectedVersion }) {
     const owner = assertItineraryOwner(ownerId);
     const trip = assertItineraryId(tripId, "tripId");
     const item = assertItineraryId(itemId);
     const version = assertItineraryVersion(expectedVersion);
-    const current = await this.get(owner, trip, item);
+    const current = /** @type {Record<string, any>} */ (
+      await this.get(owner, trip, item)
+    );
     const normalizedPatch = normalizeItineraryPatch(patch);
     const merged = normalizeItineraryCreate({
       ...current,
@@ -82,6 +90,7 @@ export class ItineraryService {
     return this.#decryptRecord(stored);
   }
 
+  /** @param {unknown} ownerId @param {unknown} tripId @param {unknown} itemId @param {{expectedVersion: unknown}} options */
   async delete(ownerId, tripId, itemId, { expectedVersion }) {
     const stored = await this.repository.delete(
       assertItineraryOwner(ownerId),
@@ -92,6 +101,7 @@ export class ItineraryService {
     return this.#decryptRecord(stored);
   }
 
+  /** @param {unknown} ownerId @param {unknown} tripId @param {unknown} itemId @param {unknown} targetTripDayId */
   async copy(ownerId, tripId, itemId, targetTripDayId) {
     const stored = await this.repository.copy(
       assertItineraryOwner(ownerId),
@@ -102,6 +112,7 @@ export class ItineraryService {
     return this.#decryptRecord(stored);
   }
 
+  /** @param {Record<string, any>} input */
   #encryptInput(input) {
     const accommodation = input.accommodation
       ? {
@@ -124,7 +135,7 @@ export class ItineraryService {
       delete accommodation.bookingInfo;
       delete accommodation.contactInfo;
     }
-    const encrypted = {
+    const encrypted = /** @type {Record<string, any>} */ ({
       ...input,
       ...encryptValue(
         this.cipher,
@@ -139,12 +150,13 @@ export class ItineraryService {
         "contactInfo",
       ),
       accommodation,
-    };
+    });
     delete encrypted.bookingInfo;
     delete encrypted.contactInfo;
     return encrypted;
   }
 
+  /** @param {Record<string, any>} stored */
   #decryptRecord(stored) {
     const {
       bookingInfoCiphertext,
@@ -172,6 +184,7 @@ export class ItineraryService {
     };
   }
 
+  /** @param {Record<string, any>} stored */
   #decryptAccommodation(stored) {
     const {
       bookingInfoCiphertext,

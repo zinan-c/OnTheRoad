@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import {
   currencies,
   transportModes,
-} from "../../../../packages/config/src/reference-data.mjs";
+} from "@on-the-road/config/reference-data";
 
 const execFileAsync = promisify(execFile);
 

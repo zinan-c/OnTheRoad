@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { TransportModeDomainError } from "../../../../../packages/domain/src/transport-mode/index.mjs";
+import { TransportModeDomainError } from "@on-the-road/domain/transport-mode";
 import {
   PostgresExecutor,
   postgresErrorIdentity,
@@ -21,6 +20,7 @@ function versionConflict() {
   );
 }
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { constraint, message } = postgresErrorIdentity(error);
   if (
@@ -37,6 +37,7 @@ function mapDatabaseError(error) {
   return error;
 }
 
+/** @param {string} alias */
 function modeJson(alias) {
   return `jsonb_build_object(
     'id', ${alias}.id,
@@ -60,6 +61,13 @@ function modeJson(alias) {
 }
 
 export class PostgresTransportModeRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} [options]
+   */
   constructor({ databaseUrl, pool, executor } = {}) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -68,6 +76,7 @@ export class PostgresTransportModeRepository {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId */
   async assertTripOwned(ownerId, tripId) {
     const owned = await this.#json(
       `SELECT to_jsonb(EXISTS (
@@ -81,6 +90,7 @@ export class PostgresTransportModeRepository {
     if (!owned) throw notFound();
   }
 
+  /** @param {string} ownerId @param {string} tripId */
   async listCustom(ownerId, tripId) {
     await this.assertTripOwned(ownerId, tripId);
     return this.#json(
@@ -95,6 +105,7 @@ export class PostgresTransportModeRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {{code: string, label: string, icon: string, color: string, lineStyle: string}} input */
   async createCustom(ownerId, tripId, input) {
     await this.assertTripOwned(ownerId, tripId);
     return this.#json(
@@ -118,9 +129,10 @@ export class PostgresTransportModeRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} modeId @param {Record<string, unknown>} patch @param {number} expectedVersion */
   async updateCustom(ownerId, tripId, modeId, patch, expectedVersion) {
     await this.assertTripOwned(ownerId, tripId);
-    const current = await this.#get(ownerId, tripId, modeId);
+    const current = /** @type {Record<string, any>} */ (await this.#get(ownerId, tripId, modeId));
     if (current.version !== expectedVersion) {
       throw versionConflict();
     }
@@ -157,9 +169,10 @@ export class PostgresTransportModeRepository {
     return updated;
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} modeId @param {number} expectedVersion */
   async deactivateCustom(ownerId, tripId, modeId, expectedVersion) {
     await this.assertTripOwned(ownerId, tripId);
-    const current = await this.#get(ownerId, tripId, modeId);
+    const current = /** @type {Record<string, any>} */ (await this.#get(ownerId, tripId, modeId));
     if (current.version !== expectedVersion) {
       throw versionConflict();
     }
@@ -181,6 +194,7 @@ export class PostgresTransportModeRepository {
     return updated;
   }
 
+  /** @param {string} tripId @param {string} code */
   isReferenced(tripId, code) {
     return this.#json(
       `SELECT to_jsonb(EXISTS (
@@ -193,6 +207,7 @@ export class PostgresTransportModeRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} modeId */
   async #get(ownerId, tripId, modeId) {
     const mode = await this.#json(
       `SELECT COALESCE(
@@ -215,6 +230,7 @@ export class PostgresTransportModeRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

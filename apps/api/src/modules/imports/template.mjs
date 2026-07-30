@@ -1,7 +1,7 @@
 import {
   TEMPLATE_VERSION,
   generateStandardTemplate,
-} from "../../../../../packages/importer/src/index.mjs";
+} from "@on-the-road/importer";
 
 export function downloadStandardTemplate() {
   return {

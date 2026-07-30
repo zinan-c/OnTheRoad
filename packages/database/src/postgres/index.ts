@@ -76,8 +76,8 @@ export class PostgresExecutor {
   #closed = false;
 
   constructor(options: {
-    pool?: PgPool;
-    databaseUrl?: string;
+    pool?: PgPool | undefined;
+    databaseUrl?: string | undefined;
     role?: DatabaseProcessRole;
     maxConnections?: number;
     maximumQueuedQueries?: number;

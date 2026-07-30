@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   createHash,
   createHmac,
@@ -6,14 +5,20 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
+/** @param {number} [byteLength] */
 export function randomValue(byteLength = 32) {
   return randomBytes(byteLength).toString("base64url");
 }
 
+/** @param {string} verifier */
 export function pkceChallenge(verifier) {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
+/**
+ * @param {unknown} payload
+ * @param {{id: string, secret: string}} key
+ */
 export function signPayload(payload, key) {
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = createHmac("sha256", key.secret)
@@ -22,6 +27,11 @@ export function signPayload(payload, key) {
   return `${key.id}.${encoded}.${signature}`;
 }
 
+/**
+ * @param {string} token
+ * @param {readonly {id: string, secret: string}[]} keys
+ * @returns {unknown}
+ */
 export function verifyPayload(token, keys) {
   const [keyId, encoded, suppliedSignature, extra] = token.split(".");
   if (!keyId || !encoded || !suppliedSignature || extra) return undefined;

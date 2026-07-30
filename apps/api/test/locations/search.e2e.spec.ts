@@ -7,7 +7,7 @@ import {
 import {
   createFixtureGeocoder,
   GeocoderError,
-} from "../../../../packages/providers/src/geocoding/index.js";
+} from "@on-the-road/providers/geocoding";
 
 describe("TC-C02-03 location search API and controlled offline smoke", () => {
   test("runs fixture search/capability/attribution without a socket", async () => {

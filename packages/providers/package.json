@@ -6,6 +6,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./geocoding": {
+      "types": "./src/geocoding/index.ts",
+      "default": "./dist/geocoding/index.js"
     }
   },
   "scripts": {

@@ -2,6 +2,23 @@
   "name": "@on-the-road/domain",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./expense": "./src/expense/index.mjs",
+    "./identity": "./src/identity/index.mjs",
+    "./itinerary": "./src/itinerary/index.mjs",
+    "./itinerary/order": "./src/itinerary/order.mjs",
+    "./location": "./src/location/index.mjs",
+    "./transport-mode": "./src/transport-mode/index.mjs",
+    "./trip": "./src/trip/index.mjs",
+    "./trip/date-range": "./src/trip/date-range.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1"
+  },
+  "dependencies": {
+    "@on-the-road/config": "workspace:*"
+  },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc6 -p tsconfig.json",

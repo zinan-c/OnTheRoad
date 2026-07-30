@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { createHash } from "node:crypto";
 
 const SUBJECT_PATTERN = /^[A-Za-z0-9._:@/-]{1,255}$/u;
 
 export class InvalidPrincipalError extends Error {
+  /** @param {string} message */
   constructor(message) {
     super(message);
     this.name = "InvalidPrincipalError";
@@ -20,6 +20,12 @@ export class ResourceNotFoundError extends Error {
   }
 }
 
+/**
+ * @typedef {{id: string, issuer: string, subject: string}} Principal
+ * @typedef {{ownerId: string} & Record<string, unknown>} OwnedResource
+ */
+
+/** @param {{issuer: string, subject: string}} input */
 export function createPrincipal({ issuer, subject }) {
   let normalizedIssuer;
   try {
@@ -47,6 +53,12 @@ export function createPrincipal({ issuer, subject }) {
   });
 }
 
+/**
+ * @template {OwnedResource} Resource
+ * @param {Principal | null | undefined} principal
+ * @param {Resource | null | undefined} resource
+ * @returns {Resource}
+ */
 export function assertResourceOwner(principal, resource) {
   if (!principal || !resource || resource.ownerId !== principal.id) {
     throw new ResourceNotFoundError();

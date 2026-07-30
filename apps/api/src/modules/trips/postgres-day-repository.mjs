@@ -1,9 +1,9 @@
-// @ts-nocheck
 import {
   PostgresExecutor,
   postgresErrorIdentity,
 } from "@on-the-road/database/postgres";
 
+/** @param {unknown} error */
 function mapError(error) {
   const { message } = postgresErrorIdentity(error);
   if (message === "VERSION_CONFLICT") {
@@ -25,6 +25,13 @@ function mapError(error) {
 }
 
 export class PostgresTripDayRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} options
+   */
   constructor({ databaseUrl, pool, executor }) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -33,6 +40,7 @@ export class PostgresTripDayRepository {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId */
   loadDateContext(ownerId, tripId) {
     return this.#json(
       "SELECT trip_date_context($1, $2::uuid)",
@@ -40,6 +48,7 @@ export class PostgresTripDayRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {{startDate: string, endDate: string, expectedVersion: number, confirmDestructive: boolean}} input */
   applyDateRange(ownerId, tripId, {
     startDate,
     endDate,
@@ -63,6 +72,7 @@ export class PostgresTripDayRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

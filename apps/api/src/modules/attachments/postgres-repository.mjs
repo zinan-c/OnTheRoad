@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   PostgresExecutor,
   postgresErrorIdentity,
@@ -6,8 +5,10 @@ import {
 
 import { AttachmentUploadError } from "./upload-session.mjs";
 
+/** @param {unknown} error */
 function mapDatabaseError(error) {
   const { message } = postgresErrorIdentity(error);
+  /** @type {Array<[string, number]>} */
   const mappings = [
     ["ATTACHMENT_NOT_FOUND", 404],
     ["ATTACHMENT_VERSION_CONFLICT", 409],
@@ -24,6 +25,13 @@ function mapDatabaseError(error) {
 }
 
 export class PostgresAttachmentRepository {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} options
+   */
   constructor({ databaseUrl, pool, executor }) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -32,12 +40,14 @@ export class PostgresAttachmentRepository {
     });
   }
 
+  /** @param {Record<string, unknown>} attachment */
   insertPending(attachment) {
     return this.#json("SELECT create_attachment($1::jsonb)", [
       JSON.stringify(attachment),
     ]);
   }
 
+  /** @param {string} id */
   findById(id) {
     return this.#json(
       `SELECT COALESCE(
@@ -48,6 +58,7 @@ export class PostgresAttachmentRepository {
     );
   }
 
+  /** @param {string} id @param {number} expectedVersion @param {{ownerId: string} & Record<string, unknown>} metadata */
   complete(id, expectedVersion, metadata) {
     return this.#json(
       `SELECT complete_attachment(
@@ -64,6 +75,7 @@ export class PostgresAttachmentRepository {
     return this.database.close();
   }
 
+  /** @param {string} sql @param {readonly unknown[]} [values] */
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);

@@ -1,10 +1,10 @@
-// @ts-nocheck
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
 export class RedisCliJobQueue {
+  /** @param {{redisUrl: string, namespace?: string, redisCliBin?: string}} options */
   constructor({
     redisUrl,
     namespace = "otr:jobs",
@@ -17,10 +17,12 @@ export class RedisCliJobQueue {
     this.eventsKey = `${namespace}:events`;
   }
 
+  /** @param {string} eventId */
   async has(eventId) {
     return (await this.#run(["SISMEMBER", this.idsKey, eventId])) === "1";
   }
 
+  /** @param {{eventId: string} & Record<string, unknown>} event */
   async add(event) {
     await this.#run([
       "EVAL",
@@ -35,13 +37,16 @@ export class RedisCliJobQueue {
 
   async events() {
     const output = await this.#run(["LRANGE", this.eventsKey, "0", "-1"]);
-    return output ? output.split("\n").map((value) => JSON.parse(value)) : [];
+    return output
+      ? output.split("\n").map((/** @type {string} */ value) => JSON.parse(value))
+      : [];
   }
 
   async clear() {
     await this.#run(["DEL", this.idsKey, this.eventsKey]);
   }
 
+  /** @param {string[]} command */
   async #run(command) {
     const database = this.redisUrl.pathname.replace(/^\//u, "") || "0";
     const connection = [

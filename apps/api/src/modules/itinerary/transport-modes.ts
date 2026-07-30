@@ -7,7 +7,7 @@ import {
   normalizeTransportModeCreate,
   normalizeTransportModePatch,
   systemTransportModeDto,
-} from "../../../../../packages/domain/src/transport-mode/index.mjs";
+} from "@on-the-road/domain/transport-mode";
 
 type TripOwner = { id: string; ownerId: string };
 type LineStyle = "solid" | "dashed" | "dotted" | "arc";

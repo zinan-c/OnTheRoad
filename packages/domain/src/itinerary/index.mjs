@@ -1,4 +1,3 @@
-// @ts-nocheck
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/u;
@@ -25,6 +24,12 @@ const MEAL_TYPES = new Set(["breakfast", "lunch", "dinner", "snack", "other"]);
 export * from "./order.mjs";
 
 export class ItineraryDomainError extends Error {
+  /**
+   * @param {string} code
+   * @param {string} message
+   * @param {number} [status]
+   * @param {string} [field]
+   */
   constructor(code, message, status = 422, field) {
     super(message);
     this.name = "ItineraryDomainError";
@@ -46,6 +51,9 @@ export class ItineraryVersionConflictError extends ItineraryDomainError {
   }
 }
 
+/** @typedef {Record<string, unknown>} UnknownRecord */
+
+/** @param {string} field @param {string} message @returns {never} */
 function invalid(field, message) {
   throw new ItineraryDomainError(
     "ITINERARY_VALIDATION_FAILED",
@@ -55,13 +63,15 @@ function invalid(field, message) {
   );
 }
 
+/** @param {unknown} value @param {string} field @returns {UnknownRecord} */
 function object(value, field) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     invalid(field, `${field} must be an object`);
   }
-  return value;
+  return /** @type {UnknownRecord} */ (value);
 }
 
+/** @param {unknown} value @param {string} field @param {number} maxLength */
 function requiredString(value, field, maxLength) {
   if (typeof value !== "string" || !value.trim() || value.trim().length > maxLength) {
     invalid(field, `${field} must contain 1 to ${maxLength} characters`);
@@ -69,11 +79,13 @@ function requiredString(value, field, maxLength) {
   return value.trim();
 }
 
+/** @param {unknown} value @param {string} field @param {number} maxLength */
 function optionalString(value, field, maxLength) {
   if (value === undefined || value === null || value === "") return null;
   return requiredString(value, field, maxLength);
 }
 
+/** @param {unknown} value @param {string} field */
 function optionalUuid(value, field) {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value !== "string" || !UUID_PATTERN.test(value)) {
@@ -82,12 +94,14 @@ function optionalUuid(value, field) {
   return value;
 }
 
+/** @param {unknown} value @param {string} field */
 function requiredUuid(value, field) {
   const normalized = optionalUuid(value, field);
   if (!normalized) invalid(field, `${field} is required`);
   return normalized;
 }
 
+/** @param {unknown} value @param {string} field */
 function optionalTime(value, field) {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value !== "string" || !TIME_PATTERN.test(value)) {
@@ -96,6 +110,7 @@ function optionalTime(value, field) {
   return value.slice(0, 5);
 }
 
+/** @param {unknown} value @param {string} field */
 function optionalDateTime(value, field) {
   if (value === undefined || value === null || value === "") return null;
   if (
@@ -108,14 +123,21 @@ function optionalDateTime(value, field) {
   return new Date(value).toISOString();
 }
 
+/** @param {unknown} value @param {string} field @param {number} [maximum] */
 function optionalInteger(value, field, maximum = 525_600) {
   if (value === undefined || value === null) return null;
-  if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
+  if (
+    typeof value !== "number"
+    || !Number.isSafeInteger(value)
+    || value < 0
+    || value > maximum
+  ) {
     invalid(field, `${field} must be an integer from 0 to ${maximum}`);
   }
   return value;
 }
 
+/** @param {unknown} value @param {string} field */
 function sensitiveValue(value, field) {
   if (value === undefined || value === null || value === "") return null;
   if (
@@ -129,6 +151,7 @@ function sensitiveValue(value, field) {
   return value;
 }
 
+/** @param {unknown} value */
 function normalizeItemType(value) {
   const aliased = value === "accommodation" ? "hotel" : value;
   if (typeof aliased !== "string" || !ITEM_TYPES.has(aliased)) {
@@ -137,10 +160,9 @@ function normalizeItemType(value) {
   return aliased;
 }
 
+/** @param {UnknownRecord} input */
 function normalizeSchedule(input) {
-  const schedule = input.schedule && typeof input.schedule === "object"
-    ? input.schedule
-    : {};
+  const schedule = objectOrEmpty(input.schedule);
   const startTime = optionalTime(input.startTime ?? schedule.startTime, "startTime");
   const endTime = optionalTime(input.endTime ?? schedule.endTime, "endTime");
   const endDayOffsetValue = input.endDayOffset
@@ -154,7 +176,9 @@ function normalizeSchedule(input) {
       ? "clock"
       : (input.timePeriod ? "period" : "unscheduled");
   const timeKind = input.timeKind ?? inferredKind;
-  if (!TIME_KINDS.has(timeKind)) invalid("timeKind", "timeKind is unsupported");
+  if (typeof timeKind !== "string" || !TIME_KINDS.has(timeKind)) {
+    invalid("timeKind", "timeKind is unsupported");
+  }
   const timePeriod = optionalString(input.timePeriod, "timePeriod", 64);
   if (timePeriod && !TIME_PERIODS.has(timePeriod)) {
     invalid("timePeriod", "timePeriod is unsupported");
@@ -174,6 +198,8 @@ function normalizeSchedule(input) {
   if (
     timeKind === "range"
     && endDayOffsetValue === 0
+    && startTime !== null
+    && endTime !== null
     && endTime < startTime
   ) {
     invalid("endTime", "endTime must not be before startTime unless endDayOffset is 1");
@@ -191,13 +217,23 @@ function normalizeSchedule(input) {
   };
 }
 
-function normalizeSchedulePatch(rawPatch) {
-  const normalized = {};
-  const schedule = rawPatch.schedule && typeof rawPatch.schedule === "object"
-    ? rawPatch.schedule
+/** @param {unknown} value @returns {UnknownRecord} */
+function objectOrEmpty(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {UnknownRecord} */ (value)
     : {};
+}
+
+/** @param {UnknownRecord} rawPatch */
+function normalizeSchedulePatch(rawPatch) {
+  /** @type {UnknownRecord} */
+  const normalized = {};
+  const schedule = objectOrEmpty(rawPatch.schedule);
   if ("timeKind" in rawPatch) {
-    if (!TIME_KINDS.has(rawPatch.timeKind)) {
+    if (
+      typeof rawPatch.timeKind !== "string"
+      || !TIME_KINDS.has(rawPatch.timeKind)
+    ) {
       invalid("timeKind", "timeKind is unsupported");
     }
     normalized.timeKind = rawPatch.timeKind;
@@ -238,6 +274,7 @@ function normalizeSchedulePatch(rawPatch) {
   return normalized;
 }
 
+/** @param {unknown} value */
 function normalizeDining(value) {
   if (value === undefined || value === null) return null;
   const dining = object(value, "dining");
@@ -253,6 +290,7 @@ function normalizeDining(value) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeAccommodation(value) {
   if (value === undefined || value === null) return null;
   const accommodation = object(value, "accommodation");
@@ -280,17 +318,12 @@ function normalizeAccommodation(value) {
   };
 }
 
+/** @param {UnknownRecord} input @returns {UnknownRecord} */
 function compatibilityShape(input) {
-  const hospitality = input.hospitality && typeof input.hospitality === "object"
-    ? input.hospitality
-    : {};
-  const location = input.location && typeof input.location === "object"
-    ? input.location
-    : {};
-  const transport = input.transport && typeof input.transport === "object"
-    ? input.transport
-    : {};
-  return {
+  const hospitality = objectOrEmpty(input.hospitality);
+  const location = objectOrEmpty(input.location);
+  const transport = objectOrEmpty(input.transport);
+  return /** @type {UnknownRecord} */ ({
     ...input,
     itemType: input.itemType ?? input.kind,
     locationId: input.locationId ?? location.locationId,
@@ -308,9 +341,10 @@ function compatibilityShape(input) {
           : undefined
       ),
     remark: input.remark ?? input.notes,
-  };
+  });
 }
 
+/** @param {unknown} rawInput */
 export function normalizeItineraryCreate(rawInput) {
   const input = compatibilityShape(object(rawInput, "body"));
   const itemType = normalizeItemType(input.itemType);
@@ -359,19 +393,14 @@ export function normalizeItineraryCreate(rawInput) {
   };
 }
 
+/** @param {unknown} rawPatch */
 export function normalizeItineraryPatch(rawPatch) {
-  const patch = compatibilityShape(object(rawPatch, "body"));
-  const rawHospitality = rawPatch.hospitality
-    && typeof rawPatch.hospitality === "object"
-    ? rawPatch.hospitality
-    : {};
-  const rawLocation = rawPatch.location && typeof rawPatch.location === "object"
-    ? rawPatch.location
-    : {};
-  const rawTransport = rawPatch.transport && typeof rawPatch.transport === "object"
-    ? rawPatch.transport
-    : {};
-  if (Object.keys(rawPatch).length === 0) invalid("body", "patch must not be empty");
+  const raw = object(rawPatch, "body");
+  const patch = compatibilityShape(raw);
+  const rawHospitality = objectOrEmpty(raw.hospitality);
+  const rawLocation = objectOrEmpty(raw.location);
+  const rawTransport = objectOrEmpty(raw.transport);
+  if (Object.keys(raw).length === 0) invalid("body", "patch must not be empty");
   const allowed = new Set([
     "itemType", "kind", "timeKind", "startTime", "endTime", "endDayOffset",
     "timeZone", "timePeriod", "target", "description", "durationMinutes",
@@ -380,19 +409,21 @@ export function normalizeItineraryPatch(rawPatch) {
     "externalSource", "externalId", "dining", "accommodation", "schedule",
     "location", "transport", "hospitality", "notes",
   ]);
-  const unexpected = Object.keys(rawPatch).filter((key) => !allowed.has(key));
+  const unexpected = Object.keys(raw).filter((key) => !allowed.has(key));
   if (unexpected.length) invalid("body", `unsupported fields: ${unexpected.join(", ")}`);
+  /** @type {UnknownRecord} */
   const normalized = {};
-  if ("itemType" in rawPatch || "kind" in rawPatch) {
+  if ("itemType" in raw || "kind" in raw) {
     normalized.itemType = normalizeItemType(patch.itemType);
   }
   const scheduleFields = [
     "timeKind", "startTime", "endTime", "endDayOffset",
     "timePeriod", "durationMinutes", "schedule",
   ];
-  if (scheduleFields.some((field) => field in rawPatch)) {
-    Object.assign(normalized, normalizeSchedulePatch(rawPatch));
+  if (scheduleFields.some((field) => field in raw)) {
+    Object.assign(normalized, normalizeSchedulePatch(raw));
   }
+  /** @type {Array<[string, number]>} */
   const stringFields = [
     ["timeZone", 255],
     ["target", 500],
@@ -402,7 +433,7 @@ export function normalizeItineraryPatch(rawPatch) {
     ["externalId", 500],
   ];
   for (const [field, maxLength] of stringFields) {
-    if (field in rawPatch || (field === "remark" && "notes" in rawPatch)) {
+    if (field in raw || (field === "remark" && "notes" in raw)) {
       normalized[field] = optionalString(patch[field], field, maxLength);
     }
   }
@@ -410,51 +441,58 @@ export function normalizeItineraryPatch(rawPatch) {
     "destinationId", "locationId", "startLocationId", "endLocationId",
   ]) {
     if (
-      field in rawPatch
+      field in raw
       || (field === "locationId" && "locationId" in rawLocation)
     ) {
       normalized[field] = optionalUuid(patch[field], field);
     }
   }
-  if ("transportModeCode" in rawPatch || "modeId" in rawTransport) {
+  if ("transportModeCode" in raw || "modeId" in rawTransport) {
     normalized.transportModeCode =
       optionalString(patch.transportModeCode, "transportModeCode", 100)?.toUpperCase()
       ?? null;
   }
   if (
-    "bookingInfo" in rawPatch
+    "bookingInfo" in raw
     || "bookingInfo" in rawHospitality
     || "reservationReference" in rawHospitality
   ) {
     normalized.bookingInfo = sensitiveValue(patch.bookingInfo, "bookingInfo");
   }
   if (
-    "contactInfo" in rawPatch
+    "contactInfo" in raw
     || "contactInfo" in rawHospitality
     || "contactName" in rawHospitality
     || "contactPhone" in rawHospitality
   ) {
     normalized.contactInfo = sensitiveValue(patch.contactInfo, "contactInfo");
   }
-  if ("dining" in rawPatch || "dining" in rawHospitality) {
+  if ("dining" in raw || "dining" in rawHospitality) {
     normalized.dining = normalizeDining(patch.dining);
   }
-  if ("accommodation" in rawPatch || "accommodation" in rawHospitality) {
+  if ("accommodation" in raw || "accommodation" in rawHospitality) {
     normalized.accommodation = normalizeAccommodation(patch.accommodation);
   }
   return normalized;
 }
 
+/** @param {unknown} ownerId */
 export function assertItineraryOwner(ownerId) {
   return requiredString(ownerId, "ownerId", 255);
 }
 
+/** @param {unknown} id @param {string} [field] */
 export function assertItineraryId(id, field = "itemId") {
   return requiredUuid(id, field);
 }
 
+/** @param {unknown} version */
 export function assertItineraryVersion(version) {
-  if (!Number.isSafeInteger(version) || version < 1) {
+  if (
+    typeof version !== "number"
+    || !Number.isSafeInteger(version)
+    || version < 1
+  ) {
     invalid("If-Match", "If-Match must contain a positive version");
   }
   return version;

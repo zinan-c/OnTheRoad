@@ -4,7 +4,7 @@ import {
   GeocoderError,
   type Geocoder,
   type GeocodingContext,
-} from "../../../../../packages/providers/src/geocoding/index.js";
+} from "@on-the-road/providers/geocoding";
 
 export interface LocationSearchLogger {
   info(event: string, fields: Readonly<Record<string, unknown>>): void;

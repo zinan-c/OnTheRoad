@@ -1,8 +1,4 @@
-// @ts-nocheck -- SheetJS is vendored and checked through importer security tests.
-import * as XLSX from "../vendor/xlsx/xlsx.mjs";
-import * as cptable from "../vendor/xlsx/dist/cpexcel.full.mjs";
-
-XLSX.set_cptable(cptable);
+import { XLSX } from "./vendor/sheetjs-adapter.mjs";
 
 const DEFAULT_LIMITS = Object.freeze({
   maximumBytes: 20 * 1024 * 1024,
@@ -16,6 +12,12 @@ const DEFAULT_LIMITS = Object.freeze({
 });
 
 export class WorkbookInspectError extends Error {
+  /**
+   * @param {string} code
+   * @param {string} message
+   * @param {boolean} [retryable]
+   * @param {unknown} [cause]
+   */
   constructor(code, message, retryable = false, cause) {
     super(message, cause === undefined ? undefined : { cause });
     this.name = "WorkbookInspectError";
@@ -24,6 +26,23 @@ export class WorkbookInspectError extends Error {
   }
 }
 
+/**
+ * @typedef {{
+ *  maximumBytes: number,
+ *  maximumExpandedBytes: number,
+ *  maximumCompressionRatio: number,
+ *  maximumSheets: number,
+ *  maximumRows: number,
+ *  maximumColumns: number,
+ *  maximumCells: number,
+ *  maximumSampleRows: number
+ * }} WorkbookLimits
+ */
+
+/**
+ * @param {Buffer | Uint8Array | string} value
+ * @param {{filename?: string, limits?: Partial<WorkbookLimits>, sampleRows?: number}} [options]
+ */
 export function inspectWorkbook(value, options) {
   const body = Buffer.isBuffer(value) ? value : Buffer.from(value);
   const filename = String(options?.filename ?? "");
@@ -117,6 +136,12 @@ export function inspectWorkbook(value, options) {
   };
 }
 
+/**
+ * @param {Record<string, any>} sheet
+ * @param {string} name
+ * @param {number} sampleRows
+ * @param {WorkbookLimits} limits
+ */
 function inspectSheet(sheet, name, sampleRows, limits) {
   const reference = sheet["!ref"];
   if (!reference) return undefined;
@@ -143,6 +168,7 @@ function inspectSheet(sheet, name, sampleRows, limits) {
     fail("WORKBOOK_CELL_LIMIT", `Sheet ${name} exceeds the cell limit.`);
   }
 
+  /** @type {unknown[][]} */
   const matrix = [];
   for (let row = range.s.r; row <= range.e.r; row += 1) {
     const values = [];
@@ -158,6 +184,7 @@ function inspectSheet(sheet, name, sampleRows, limits) {
   if (matrix.length === 0) return undefined;
 
   const header = matrix[0];
+  if (!header) return undefined;
   if (header[0] !== undefined) {
     header[0] = String(header[0]).replace(/^\uFEFF/u, "");
   }
@@ -179,6 +206,7 @@ function inspectSheet(sheet, name, sampleRows, limits) {
   };
 }
 
+/** @param {any} cell */
 function inertCellValue(cell) {
   if (!cell) return undefined;
   if (typeof cell.f === "string") return `=${cell.f}`;
@@ -187,8 +215,9 @@ function inertCellValue(cell) {
   return cell.v;
 }
 
+/** @param {string} filename @param {Buffer} body */
 function detectWorkbookFormat(filename, body) {
-  const extension = filename.toLocaleLowerCase("en-US").split(".").pop();
+  const extension = filename.toLocaleLowerCase("en-US").split(".").pop() ?? "";
   if (extension === "xlsm" || extension === "xltm") {
     fail("WORKBOOK_MACRO_UNSUPPORTED", "Macro-enabled workbooks are not supported.");
   }
@@ -212,6 +241,7 @@ function detectWorkbookFormat(filename, body) {
   return "csv";
 }
 
+/** @param {Buffer} body @param {WorkbookLimits} limits */
 function inspectZipEnvelope(body, limits) {
   let offset = 0;
   let entries = 0;
@@ -253,11 +283,13 @@ function inspectZipEnvelope(body, limits) {
   }
 }
 
+/** @param {Buffer} body */
 function hasZipMagic(body) {
   return body.length >= 4
     && [0x04034b50, 0x06054b50, 0x08074b50].includes(body.readUInt32LE(0));
 }
 
+/** @param {Buffer} body */
 function hasCfbMagic(body) {
   return body.length >= 8
     && body.subarray(0, 8).equals(
@@ -265,6 +297,7 @@ function hasCfbMagic(body) {
     );
 }
 
+/** @param {WorkbookLimits} limits @param {number} sampleRows */
 function validatePositiveLimits(limits, sampleRows) {
   for (const [name, value] of Object.entries(limits)) {
     if (!Number.isSafeInteger(value) || value < 1) {
@@ -276,6 +309,7 @@ function validatePositiveLimits(limits, sampleRows) {
   }
 }
 
+/** @param {string} code @param {string} message @returns {never} */
 function fail(code, message) {
   throw new WorkbookInspectError(code, message, false);
 }

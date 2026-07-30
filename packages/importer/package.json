@@ -3,7 +3,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.mjs"
+    ".": "./src/index.mjs",
+    "./workbook-inspector": "./src/workbook-inspector.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1"
   },
   "scripts": {
     "lint": "eslint . --max-warnings=0",

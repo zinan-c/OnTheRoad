@@ -2,6 +2,7 @@ declare const Buffer: {
   alloc(size: number): any;
   concat(values: readonly any[]): any;
   from(value: string | Uint8Array | readonly number[], encoding?: string): any;
+  isBuffer(value: unknown): boolean;
 };
 type Buffer = any;
 

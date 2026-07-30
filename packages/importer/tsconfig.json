@@ -1,8 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "checkJs": false,
-    "noEmit": true
+    "checkJs": true,
+    "noEmit": true,
+    "types": ["node"]
   },
   "include": ["src/**/*.mjs"]
 }

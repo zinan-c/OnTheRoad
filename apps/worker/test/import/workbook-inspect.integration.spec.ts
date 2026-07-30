@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import * as XLSX from "../../../../packages/importer/vendor/xlsx/xlsx.mjs";
 
-import { inspectWorkbook } from "../../../../packages/importer/src/workbook-inspector.mjs";
+import { inspectWorkbook } from "@on-the-road/importer/workbook-inspector";
 
 describe("TC-E02-01 workbook inspection", () => {
   test("inspects xlsx with multiple sheets and returns columns plus bounded samples", () => {

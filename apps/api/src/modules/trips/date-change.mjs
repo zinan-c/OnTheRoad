@@ -1,16 +1,19 @@
-// @ts-nocheck
 import {
   DateChangeRequiresConfirmationError,
   previewDateRangeChange,
-} from "../../../../../packages/domain/src/trip/date-range.mjs";
+} from "@on-the-road/domain/trip/date-range";
 
 export class TripDateChangeService {
+  /** @param {{loadDateContext: Function, applyDateRange: Function}} repository */
   constructor(repository) {
     this.repository = repository;
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {{startDate: string, endDate: string}} input */
   async preview(ownerId, tripId, { startDate, endDate }) {
-    const context = await this.repository.loadDateContext(ownerId, tripId);
+    const context = /** @type {{days: any[], contentByDate: Record<string, any>, version: number}} */ (
+      await this.repository.loadDateContext(ownerId, tripId)
+    );
     return previewDateRangeChange({
       current: context.days,
       nextStartDate: startDate,
@@ -19,13 +22,16 @@ export class TripDateChangeService {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {{startDate: string, endDate: string, expectedVersion: number, confirmDestructive?: boolean}} input */
   async apply(ownerId, tripId, {
     startDate,
     endDate,
     expectedVersion,
     confirmDestructive = false,
   }) {
-    const context = await this.repository.loadDateContext(ownerId, tripId);
+    const context = /** @type {{days: any[], contentByDate: Record<string, any>, version: number}} */ (
+      await this.repository.loadDateContext(ownerId, tripId)
+    );
     const preview = previewDateRangeChange({
       current: context.days,
       nextStartDate: startDate,
@@ -33,10 +39,10 @@ export class TripDateChangeService {
       contentByDate: context.contentByDate,
     });
     if (context.version !== expectedVersion) {
-      const error = new Error("Trip version does not match If-Match");
-      error.code = "VERSION_CONFLICT";
-      error.status = 409;
-      throw error;
+      throw Object.assign(
+        new Error("Trip version does not match If-Match"),
+        { code: "VERSION_CONFLICT", status: 409 },
+      );
     }
     if (preview.blockers.length > 0 && !confirmDestructive) {
       throw new DateChangeRequiresConfirmationError(preview);

@@ -1,8 +1,8 @@
-// @ts-nocheck
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export class ItineraryOrderError extends Error {
+  /** @param {string} code @param {string} message @param {number} status */
   constructor(code, message, status) {
     super(message);
     this.name = "ItineraryOrderError";
@@ -31,6 +31,7 @@ export class ItineraryOrderDayNotFoundError extends ItineraryOrderError {
   }
 }
 
+/** @param {string} message @returns {never} */
 function setMismatch(message) {
   throw new ItineraryOrderError(
     "ITINERARY_ORDER_SET_MISMATCH",
@@ -39,6 +40,7 @@ function setMismatch(message) {
   );
 }
 
+/** @param {unknown} value @param {string} field @returns {string[]} */
 function assertUuidArray(value, field) {
   if (!Array.isArray(value)) setMismatch(`${field} must be an array`);
   if (value.length === 0) setMismatch(`${field} must not be empty`);
@@ -47,29 +49,32 @@ function assertUuidArray(value, field) {
       setMismatch(`${field} must contain only UUID values`);
     }
   }
+  return value;
 }
 
+/** @param {unknown} currentIds @param {unknown} orderedIds */
 export function assertCompleteDayOrder(currentIds, orderedIds) {
-  assertUuidArray(currentIds, "currentIds");
-  assertUuidArray(orderedIds, "orderedIds");
-  const current = new Set(currentIds);
-  const ordered = new Set(orderedIds);
-  if (current.size !== currentIds.length) {
+  const currentValues = assertUuidArray(currentIds, "currentIds");
+  const orderedValues = assertUuidArray(orderedIds, "orderedIds");
+  const current = new Set(currentValues);
+  const ordered = new Set(orderedValues);
+  if (current.size !== currentValues.length) {
     setMismatch("current Day contains duplicate IDs");
   }
   if (
-    ordered.size !== orderedIds.length
-    || orderedIds.length !== currentIds.length
+    ordered.size !== orderedValues.length
+    || orderedValues.length !== currentValues.length
     || ordered.size !== current.size
-    || orderedIds.some((id) => !current.has(id))
+    || orderedValues.some((id) => !current.has(id))
   ) {
     setMismatch("orderedIds must be the complete unique ID set for one Day");
   }
-  return [...orderedIds];
+  return [...orderedValues];
 }
 
+/** @param {unknown} value */
 export function assertBaseDayVersion(value) {
-  if (!Number.isSafeInteger(value) || value < 1) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
     throw new ItineraryOrderError(
       "ITINERARY_ORDER_VERSION_INVALID",
       "baseVersion must be a positive integer.",
@@ -79,17 +84,19 @@ export function assertBaseDayVersion(value) {
   return value;
 }
 
+/** @param {unknown} orderedIds @param {number} [step] */
 export function sparseOrderAssignments(orderedIds, step = 1024) {
-  assertUuidArray(orderedIds, "orderedIds");
+  const values = assertUuidArray(orderedIds, "orderedIds");
   if (!Number.isSafeInteger(step) || step < 2) {
     throw new RangeError("step must be an integer greater than 1");
   }
-  return orderedIds.map((id, index) => ({
+  return values.map((id, index) => ({
     id,
     sortOrder: (index + 1) * step,
   }));
 }
 
+/** @param {readonly string[]} orderedIds @param {string} activeId @param {string} overId */
 export function moveOrderedId(orderedIds, activeId, overId) {
   const current = [...orderedIds];
   const from = current.indexOf(activeId);
@@ -99,10 +106,11 @@ export function moveOrderedId(orderedIds, activeId, overId) {
   }
   if (from === to) return current;
   const [moved] = current.splice(from, 1);
-  current.splice(to, 0, moved);
+  if (moved !== undefined) current.splice(to, 0, moved);
   return current;
 }
 
+/** @param {readonly string[]} orderedIds @param {string} activeId @param {-1 | 1} offset */
 export function moveOrderedIdByOffset(orderedIds, activeId, offset) {
   if (offset !== -1 && offset !== 1) {
     throw new RangeError("offset must be -1 or 1");
@@ -113,5 +121,7 @@ export function moveOrderedIdByOffset(orderedIds, activeId, offset) {
     0,
     Math.min(orderedIds.length - 1, index + offset),
   );
-  return moveOrderedId(orderedIds, activeId, orderedIds[targetIndex]);
+  const target = orderedIds[targetIndex];
+  if (target === undefined) setMismatch("target index must belong to the current Day");
+  return moveOrderedId(orderedIds, activeId, target);
 }

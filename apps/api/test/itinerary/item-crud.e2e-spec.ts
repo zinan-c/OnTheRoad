@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { parseItineraryItemResponse } from "../../../../packages/contracts/src/generated/index.mjs";
+import { parseItineraryItemResponse } from "@on-the-road/contracts";
 import {
   ItineraryCipher,
   ItineraryService,

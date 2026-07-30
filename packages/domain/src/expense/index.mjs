@@ -1,8 +1,12 @@
-// @ts-nocheck
 const MONEY_SCALE = 4;
 const RATE_SCALE = 12;
 
 export class ExpenseDomainError extends Error {
+  /**
+   * @param {string} code
+   * @param {string} message
+   * @param {number} [status]
+   */
   constructor(code, message, status = 400) {
     super(message);
     this.name = "ExpenseDomainError";
@@ -11,6 +15,11 @@ export class ExpenseDomainError extends Error {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} scale
+ * @param {{positive?: boolean}} [options]
+ */
 function parseFixed(value, scale, { positive = false } = {}) {
   const text = String(value ?? "").normalize("NFKC").trim();
   const match = /^(\d+)(?:\.(\d+))?$/u.exec(text);
@@ -20,7 +29,7 @@ function parseFixed(value, scale, { positive = false } = {}) {
       `Decimal value must have at most ${scale} fractional digits.`,
     );
   }
-  const whole = match[1].replace(/^0+(?=\d)/u, "");
+  const whole = match[1]?.replace(/^0+(?=\d)/u, "") ?? "0";
   const fraction = (match[2] ?? "").padEnd(scale, "0");
   const units = BigInt(whole) * (10n ** BigInt(scale)) + BigInt(fraction || "0");
   if (positive && units <= 0n) {
@@ -32,6 +41,7 @@ function parseFixed(value, scale, { positive = false } = {}) {
   return units;
 }
 
+/** @param {bigint} units @param {number} scale */
 function formatFixed(units, scale) {
   const factor = 10n ** BigInt(scale);
   const whole = units / factor;
@@ -39,10 +49,12 @@ function formatFixed(units, scale) {
   return `${whole}.${fraction}`;
 }
 
+/** @param {unknown} value */
 export function normalizeMoney(value) {
   return formatFixed(parseFixed(value, MONEY_SCALE), MONEY_SCALE);
 }
 
+/** @param {unknown} value */
 export function normalizeRate(value) {
   return formatFixed(
     parseFixed(value, RATE_SCALE, { positive: true }),
@@ -50,6 +62,7 @@ export function normalizeRate(value) {
   );
 }
 
+/** @param {unknown} amount @param {unknown} rate */
 export function convertMoney(amount, rate) {
   const amountUnits = parseFixed(amount, MONEY_SCALE);
   const rateUnits = parseFixed(rate, RATE_SCALE, { positive: true });
@@ -58,12 +71,9 @@ export function convertMoney(amount, rate) {
   return formatFixed(settledUnits, MONEY_SCALE);
 }
 
+/** @param {readonly unknown[]} values */
 export function addMoney(values) {
-  return formatFixed(
-    values.reduce(
-      (total, value) => total + parseFixed(value, MONEY_SCALE),
-      0n,
-    ),
-    MONEY_SCALE,
-  );
+  let total = 0n;
+  for (const value of values) total += parseFixed(value, MONEY_SCALE);
+  return formatFixed(total, MONEY_SCALE);
 }

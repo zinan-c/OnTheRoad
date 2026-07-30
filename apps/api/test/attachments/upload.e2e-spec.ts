@@ -5,7 +5,7 @@ import {
   AttachmentUploadService,
   PostgresAttachmentRepository,
 } from "../../src/modules/attachments/index.mjs";
-import { S3ObjectStorage } from "../../../../packages/storage/src/index.js";
+import { S3ObjectStorage } from "@on-the-road/storage";
 import {
   startNativeMinio,
   type NativeMinio,

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 import {
   CoordinateAdjustmentService,
   InMemoryCoordinateRepository,
-} from "../../../../packages/application/src/location/adjust-coordinates.js";
+} from "@on-the-road/application/location";
 import {
   PostgresCoordinateRepository,
 } from "../../src/modules/locations/coordinates-postgres.mjs";

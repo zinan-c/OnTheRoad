@@ -1,11 +1,12 @@
-// @ts-nocheck
 import { IdentityService } from "./service.mjs";
 import { IdentityConfigurationError } from "./errors.mjs";
 
+/** @param {unknown} value */
 function enabled(value) {
   return value === "true";
 }
 
+/** @param {Readonly<Record<string, string | undefined>>} environment @param {string} name */
 function required(environment, name) {
   const value = environment[name]?.trim();
   if (!value) {
@@ -17,6 +18,7 @@ function required(environment, name) {
   return value;
 }
 
+/** @param {Readonly<Record<string, string | undefined>>} environment */
 export function createIdentityService(environment) {
   const runtime = environment.NODE_ENV?.trim() || "development";
   return new IdentityService({

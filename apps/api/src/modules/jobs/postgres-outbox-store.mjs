@@ -1,7 +1,13 @@
-// @ts-nocheck
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 
 export class PostgresOutboxStore {
+  /**
+   * @param {{
+   *  databaseUrl?: string,
+   *  pool?: import("@on-the-road/database/postgres").PostgresExecutor["pool"],
+   *  executor?: import("@on-the-road/database/postgres").PostgresExecutor
+   * }} [options]
+   */
   constructor({ databaseUrl, pool, executor } = {}) {
     this.database = executor ?? new PostgresExecutor({
       databaseUrl,
@@ -10,6 +16,7 @@ export class PostgresOutboxStore {
     });
   }
 
+  /** @param {{eventId: string, eventType: string, aggregateType: string, aggregateId: string, aggregateVersion: number, schemaVersion: number}} event */
   async appendOutboxEvent(event) {
     await this.database.query(`
       INSERT INTO job_outbox (
@@ -50,6 +57,7 @@ export class PostgresOutboxStore {
     `);
   }
 
+  /** @param {string} eventId */
   async markPublished(eventId) {
     await this.database.query(`
       UPDATE job_outbox
@@ -59,6 +67,7 @@ export class PostgresOutboxStore {
     `, [eventId]);
   }
 
+  /** @param {string} eventId */
   async remove(eventId) {
     await this.database.query("DELETE FROM job_outbox WHERE event_id = $1", [
       eventId,

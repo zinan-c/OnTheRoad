@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { randomUUID } from "node:crypto";
 
 export class AttachmentUploadError extends Error {
+  /** @param {string} code @param {string} message @param {number} [status] */
   constructor(code, message, status = 400) {
     super(message);
     this.name = "AttachmentUploadError";
@@ -11,8 +11,10 @@ export class AttachmentUploadError extends Error {
 }
 
 export class InMemoryAttachmentRepository {
+  /** @type {Map<string, Record<string, any>>} */
   #attachments = new Map();
 
+  /** @param {{id: string} & Record<string, any>} attachment */
   insertPending(attachment) {
     if (this.#attachments.has(attachment.id)) {
       throw new AttachmentUploadError(
@@ -25,11 +27,13 @@ export class InMemoryAttachmentRepository {
     return { ...attachment };
   }
 
+  /** @param {string} id */
   findById(id) {
     const attachment = this.#attachments.get(id);
     return attachment ? { ...attachment } : undefined;
   }
 
+  /** @param {string} id @param {number} expectedVersion @param {Record<string, any>} metadata */
   complete(id, expectedVersion, metadata) {
     const attachment = this.#attachments.get(id);
     if (!attachment || attachment.version !== expectedVersion) {
@@ -58,11 +62,16 @@ export class InMemoryAttachmentRepository {
 }
 
 export class AttachmentUploadService {
+  /** @type {any} */
   #storage;
+  /** @type {any} */
   #repository;
+  /** @type {() => Date} */
   #clock;
+  /** @type {() => string} */
   #idFactory;
 
+  /** @param {{storage: any, repository: any, clock?: () => Date, idFactory?: () => string}} options */
   constructor({ storage, repository, clock = () => new Date(), idFactory = randomUUID }) {
     this.#storage = storage;
     this.#repository = repository;
@@ -70,6 +79,7 @@ export class AttachmentUploadService {
     this.#idFactory = idFactory;
   }
 
+  /** @param {{ownerId: string, contentType: string, contentLength: number, checksumSha256: string}} input */
   async createSession({ ownerId, contentType, contentLength, checksumSha256 }) {
     if (!ownerId?.trim()) {
       throw new AttachmentUploadError("OWNER_REQUIRED", "An owner is required.");
@@ -97,6 +107,7 @@ export class AttachmentUploadService {
     };
   }
 
+  /** @param {{ownerId: string, attachmentId: string}} input */
   async complete({ ownerId, attachmentId }) {
     const attachment = await this.#ownedAttachment(ownerId, attachmentId);
     if (attachment.status !== "pending") {
@@ -131,10 +142,12 @@ export class AttachmentUploadService {
     });
   }
 
+  /** @param {{ownerId: string, attachmentId: string}} input */
   async get({ ownerId, attachmentId }) {
     return this.#ownedAttachment(ownerId, attachmentId);
   }
 
+  /** @param {string} ownerId @param {string} attachmentId */
   async #ownedAttachment(ownerId, attachmentId) {
     const attachment = await this.#repository.findById(attachmentId);
     if (!attachment || attachment.ownerId !== ownerId) {

@@ -1,13 +1,15 @@
-// @ts-nocheck
 export class PostgresCoordinateRepository {
+  /** @param {{locationRepository: any}} options */
   constructor({ locationRepository }) {
     this.locationRepository = locationRepository;
   }
 
+  /** @param {string} ownerId @param {string} locationId */
   get(ownerId, locationId) {
     return this.locationRepository.getOwned(ownerId, locationId);
   }
 
+  /** @param {Record<string, any>} input */
   async manualAdjust(input) {
     return this.locationRepository.adjustCoordinates(
       input.ownerId,
@@ -30,6 +32,7 @@ export class PostgresCoordinateRepository {
     );
   }
 
+  /** @param {Record<string, any>} input */
   async applyGeocodeIfCurrent(input) {
     try {
       const location = await this.locationRepository.transition(
@@ -47,8 +50,11 @@ export class PostgresCoordinateRepository {
       return { affectedRows: 1, location };
     } catch (error) {
       if (
-        error?.code === "LOCATION_VERSION_CONFLICT"
-        || error?.code === "STALE_GEOCODING_RESULT"
+        (error && typeof error === "object" && "code" in error)
+        && (
+          error.code === "LOCATION_VERSION_CONFLICT"
+          || error.code === "STALE_GEOCODING_RESULT"
+        )
       ) {
         return { affectedRows: 0 };
       }
@@ -58,6 +64,7 @@ export class PostgresCoordinateRepository {
     }
   }
 
+  /** @param {string} ownerId @param {string} locationId */
   audits(ownerId, locationId) {
     return this.locationRepository.listCoordinateAudits(ownerId, locationId);
   }

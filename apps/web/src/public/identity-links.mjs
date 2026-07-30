@@ -1,4 +1,4 @@
-// @ts-nocheck
+/** @param {{apiOrigin: string, returnTo?: string}} options */
 export function createIdentityLinks({ apiOrigin, returnTo = "/" }) {
   const origin = new URL(apiOrigin).origin;
   const login = new URL("/identity/login", origin);

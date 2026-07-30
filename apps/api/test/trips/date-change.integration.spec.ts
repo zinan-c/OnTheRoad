@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { DateChangeRequiresConfirmationError } from "../../../../packages/domain/src/trip/date-range.mjs";
+import { DateChangeRequiresConfirmationError } from "@on-the-road/domain/trip/date-range";
 import { TripDateChangeService } from "../../src/modules/trips/date-change.mjs";
 
 describe("TC-B03-02 shrink-with-content guard", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { CandidateTokenSigner } from "../../../packages/domain/src/location/index.mjs";
+import { CandidateTokenSigner } from "@on-the-road/domain/location";
 import type {
   LocationGateway,
   LocationSearchAdapter,
