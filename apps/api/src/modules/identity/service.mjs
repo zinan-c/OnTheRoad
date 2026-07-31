@@ -5,6 +5,7 @@ import {
   OidcFlowError,
   SessionError,
 } from "./errors.mjs";
+import { MemoryIdentityStore } from "./store.mjs";
 
 const DEV_ISSUER = "https://dev-identity.local";
 const SESSION_COOKIE = "__Host-otr_session";
@@ -63,10 +64,6 @@ export class IdentityService {
   #audit;
   /** @type {() => number} */
   #clock;
-  /** @type {Map<string, {principal: Principal, expiresAt: number}>} */
-  #sessions = new Map();
-  /** @type {Map<string, {state: string, nonce: string, codeVerifier: string, expiresAt: number, providerIssuer: string}>} */
-  #transactions = new Map();
 
   /**
    * @param {{
@@ -77,7 +74,14 @@ export class IdentityService {
    *  sessionTtlMs?: number,
    *  transactionTtlMs?: number,
    *  clock?: () => number,
-   *  audit?: (event: Record<string, unknown>) => void
+   *  audit?: (event: Record<string, unknown>) => void,
+   *  store?: {
+   *    putSession: Function,
+   *    getSession: Function,
+   *    deleteSession: Function,
+   *    putTransaction: Function,
+   *    consumeTransaction: Function
+   *  }
    * }} options
    */
   constructor({
@@ -89,6 +93,7 @@ export class IdentityService {
     transactionTtlMs = 5 * 60 * 1000,
     clock = Date.now,
     audit = () => {},
+    store = new MemoryIdentityStore(),
   }) {
     if (developmentIdentityEnabled && environment !== "development") {
       throw new IdentityConfigurationError(
@@ -116,6 +121,7 @@ export class IdentityService {
     this.transactionTtlMs = transactionTtlMs;
     this.#clock = clock;
     this.#audit = audit;
+    this.store = store;
   }
 
   /** @param {() => number} clock */
@@ -143,7 +149,7 @@ export class IdentityService {
   }
 
   /** @param {{subject: string, origin: string}} input */
-  loginWithDevelopmentIdentity({ subject, origin }) {
+  async loginWithDevelopmentIdentity({ subject, origin }) {
     assertOrigin(origin, this.appOrigin);
     if (!this.developmentIdentityEnabled || this.environment !== "development") {
       throw new IdentityConfigurationError(
@@ -155,20 +161,20 @@ export class IdentityService {
   }
 
   /** @param {{provider: OidcProvider}} input */
-  beginOidcAuthorization({ provider }) {
+  async beginOidcAuthorization({ provider }) {
     const state = randomValue();
     const nonce = randomValue();
     const codeVerifier = randomValue(48);
     const codeChallenge = pkceChallenge(codeVerifier);
     const transactionId = randomValue();
     const expiresAt = this.#clock() + this.transactionTtlMs;
-    this.#transactions.set(transactionId, {
+    await this.store.putTransaction(transactionId, {
       state,
       nonce,
       codeVerifier,
       expiresAt,
       providerIssuer: provider.issuer,
-    });
+    }, this.transactionTtlMs);
     return {
       authorizationUrl: provider.authorizationUrl({ state, nonce, codeChallenge }),
       codeChallenge,
@@ -192,8 +198,7 @@ export class IdentityService {
     origin,
   }) {
     assertOrigin(origin, this.appOrigin);
-    const transaction = this.#transactions.get(transactionCookie);
-    this.#transactions.delete(transactionCookie);
+    const transaction = await this.store.consumeTransaction(transactionCookie);
     if (!transaction || transaction.state !== state) {
       throw new OidcFlowError("OIDC_STATE_REJECTED", "OIDC state is invalid");
     }
@@ -210,7 +215,7 @@ export class IdentityService {
     if (claims.nonce !== transaction.nonce) {
       throw new OidcFlowError("OIDC_NONCE_REJECTED", "OIDC nonce is invalid");
     }
-    const session = this.#createSession(
+    const session = await this.#createSession(
       createPrincipal({ issuer: claims.issuer, subject: claims.subject }),
       "oidc",
     );
@@ -221,7 +226,7 @@ export class IdentityService {
   }
 
   /** @param {string} token */
-  authenticate(token) {
+  async authenticate(token) {
     const rawPayload = verifyPayload(
       token,
       [this.signingKeys.active, this.signingKeys.previous]
@@ -238,7 +243,7 @@ export class IdentityService {
     ) {
       throw new SessionError("SESSION_INVALID");
     }
-    const session = this.#sessions.get(payload.sessionId);
+    const session = await this.store.getSession(payload.sessionId);
     if (!session || session.expiresAt !== payload.expiresAt) {
       throw new SessionError("SESSION_INVALID");
     }
@@ -246,7 +251,7 @@ export class IdentityService {
   }
 
   /** @param {{token: string, origin: string}} input */
-  logout({ token, origin }) {
+  async logout({ token, origin }) {
     assertOrigin(origin, this.appOrigin);
     const rawPayload = verifyPayload(
       token,
@@ -259,7 +264,7 @@ export class IdentityService {
     const sessionId = typeof payload?.sessionId === "string"
       ? payload.sessionId
       : null;
-    if (sessionId) this.#sessions.delete(sessionId);
+    if (sessionId) await this.store.deleteSession(sessionId);
     this.#audit({
       action: "identity.session.logged-out",
       session: sessionId ? fingerprint(sessionId) : "invalid",
@@ -270,10 +275,14 @@ export class IdentityService {
   }
 
   /** @param {Principal} principal @param {"development" | "oidc"} method */
-  #createSession(principal, method) {
+  async #createSession(principal, method) {
     const sessionId = randomValue();
     const expiresAt = this.#clock() + this.sessionTtlMs;
-    this.#sessions.set(sessionId, { principal, expiresAt });
+    await this.store.putSession(
+      sessionId,
+      { principal, expiresAt },
+      this.sessionTtlMs,
+    );
     const token = signPayload({ sessionId, expiresAt }, this.signingKeys.active);
     this.#audit({
       action: "identity.session.created",

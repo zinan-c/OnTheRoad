@@ -28,6 +28,8 @@ describe("TC-A02-01 local stack health", () => {
     }
     assert.ok((compose.match(/mem_limit:/g) ?? []).length >= 4);
     assert.ok((compose.match(/cpus:/g) ?? []).length >= 4);
+    assert.ok((compose.match(/no-new-privileges:true/g) ?? []).length >= 5);
+    assert.match(compose, /minio-init:[\s\S]*?read_only:\s*true/u);
   });
 
   test("PostGIS and the object bucket are initialized idempotently", async () => {

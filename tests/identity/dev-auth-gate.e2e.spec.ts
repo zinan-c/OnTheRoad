@@ -21,7 +21,7 @@ test("TC-A05-03 Dev gate preserves semantics through key rotation and redacts se
     signingKeys: { active: { id: "key-v1", secret: SECRET_V1 } },
     audit: (event) => logs.push(JSON.stringify(event)),
   });
-  const development = service.loginWithDevelopmentIdentity({
+  const development = await service.loginWithDevelopmentIdentity({
     subject: "same-user",
     origin: "https://app.example.test",
   });
@@ -29,7 +29,7 @@ test("TC-A05-03 Dev gate preserves semantics through key rotation and redacts se
     issuer: "https://mock-idp.example.test",
     subjectNamespace: "https://dev-identity.local",
   });
-  const flow = service.beginOidcAuthorization({ provider });
+  const flow = await service.beginOidcAuthorization({ provider });
   const oidc = await service.completeOidcAuthorization({
     provider,
     code: provider.issueCode({
@@ -47,12 +47,12 @@ test("TC-A05-03 Dev gate preserves semantics through key rotation and redacts se
     active: { id: "key-v2", secret: SECRET_V2 },
     previous: { id: "key-v1", secret: SECRET_V1 },
   });
-  assert.equal(service.authenticate(development.token).id, development.principal.id);
-  const afterRotation = service.loginWithDevelopmentIdentity({
+  assert.equal((await service.authenticate(development.token)).id, development.principal.id);
+  const afterRotation = await service.loginWithDevelopmentIdentity({
     subject: "same-user",
     origin: "https://app.example.test",
   });
-  assert.equal(service.authenticate(afterRotation.token).id, development.principal.id);
+  assert.equal((await service.authenticate(afterRotation.token)).id, development.principal.id);
   assert.doesNotMatch(logs.join("\n"), new RegExp(`${SECRET_V1}|${SECRET_V2}`, "u"));
 });
 
@@ -65,6 +65,12 @@ test("TC-A05-03 records an actionable staging handoff when real IdP config is ab
     "OTR_OIDC_CLIENT_SECRET",
     "OTR_OIDC_CALLBACK_URL",
     "OTR_OIDC_POST_LOGOUT_REDIRECT_URL",
+    "OTR_APP_ORIGIN",
+  ]);
+  assert.deepEqual(readiness.invalid, [
+    "OTR_DEV_IDENTITY_ENABLED",
+    "OTR_IDENTITY_STORE",
+    "NODE_ENV",
   ]);
 
   const checklist = await readFile(

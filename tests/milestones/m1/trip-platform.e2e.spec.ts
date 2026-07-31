@@ -17,7 +17,7 @@ const appOrigin = "https://app.example.test";
 let ownerId = "";
 let otherOwnerId = "";
 
-function login(subject: string) {
+async function login(subject: string) {
   const identity = new IdentityService({
     environment: "development",
     developmentIdentityEnabled: true,
@@ -26,14 +26,14 @@ function login(subject: string) {
       active: { id: "m1-gate", secret: "m1-gate-signing-secret-at-least-32-bytes" },
     },
   });
-  return identity.loginWithDevelopmentIdentity({ subject, origin: appOrigin }).principal;
+  return (await identity.loginWithDevelopmentIdentity({ subject, origin: appOrigin })).principal;
 }
 
 describe("TC-M1-INT-01 trip platform integration", () => {
   beforeAll(async () => {
     await prepareTripDatabase();
-    ownerId = login(`m1-owner-${randomUUID()}`).id;
-    otherOwnerId = login(`m1-other-${randomUUID()}`).id;
+    ownerId = (await login(`m1-owner-${randomUUID()}`)).id;
+    otherOwnerId = (await login(`m1-other-${randomUUID()}`)).id;
   });
 
   afterAll(async () => {

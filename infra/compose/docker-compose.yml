@@ -25,6 +25,7 @@ services:
       start_period: 20s
     mem_limit: 1g
     cpus: "1.0"
+    security_opt: ["no-new-privileges:true"]
     networks: [otr-internal]
 
   redis:
@@ -54,6 +55,7 @@ services:
       start_period: 5s
     mem_limit: 384m
     cpus: "0.5"
+    security_opt: ["no-new-privileges:true"]
     networks: [otr-internal]
 
   minio:
@@ -80,6 +82,7 @@ services:
       start_period: 10s
     mem_limit: 768m
     cpus: "0.75"
+    security_opt: ["no-new-privileges:true"]
     networks: [otr-internal]
 
   minio-init:
@@ -92,6 +95,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
+      MC_CONFIG_DIR: /tmp/.mc
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
@@ -101,6 +105,9 @@ services:
         mc stat "local/$${MINIO_BUCKET}"
     mem_limit: 128m
     cpus: "0.25"
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
     networks: [otr-internal]
 
   clamav:
@@ -124,6 +131,7 @@ services:
       start_period: 90s
     mem_limit: 2g
     cpus: "1.0"
+    security_opt: ["no-new-privileges:true"]
     networks: [otr-internal]
 
 networks:

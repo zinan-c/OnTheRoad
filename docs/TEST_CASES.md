@@ -99,7 +99,7 @@
 
 - `TC-A05-01` — Login/session contract；代码：`apps/api/test/identity/session.e2e-spec.ts`。开发身份和 mock OIDC 登录/登出；断言 HttpOnly/Secure/SameSite、state/nonce 和过期行为。
 - `TC-A05-02` — Owner/BOLA and environment boundary；代码：`tests/security/owner-access.e2e.spec.ts`、`apps/api/test/identity/environment-guard.spec.ts`。User B 猜测 User A 的各资源 ID，并分别以 development/staging/production 配置启动开发身份；断言跨 owner 返回 404/403 且无存在性泄露，开发身份在非 development 环境 fail closed。
-- `TC-A05-03` — Dev gate/Staging IdP handoff；代码：`tests/identity/dev-auth-gate.e2e.spec.ts`。运行开发身份和 mock OIDC 完整流程并模拟新旧签名 key 轮换，断言 Principal/Session/owner 语义一致且 Secret 不进日志；随后尝试真实 Staging IdP smoke。环境可用时运行 `tests/identity/oidc-release.e2e.spec.ts` 验证真实回调，环境或配置不可用时断言保存可行动原因且发布 checklist 包含全部强制项。Dev Case 全绿且 handoff 完整即可通过当前 A05，但未完成的 Staging IdP 项继续阻断正式发布。
+- `TC-A05-03` — Dev gate/Staging IdP handoff；代码：`tests/identity/dev-auth-gate.e2e.spec.ts`。运行开发身份和 mock OIDC 完整流程并模拟新旧签名 key 轮换，断言 Principal/Session/owner 语义一致且 Secret 不进日志。真实 Staging IdP 验证由独立的 Release Gates 工作流执行，不计入 M0–M2 required suite；缺少 HTTPS 元数据、外置 Secret、Redis identity store 或 provider driver 时必须失败，不能以 handoff 或 mock 结果替代发布证据。
 
 ### A06
 

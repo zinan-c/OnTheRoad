@@ -1,0 +1,97 @@
+name: "Release Gates"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: "Immutable release candidate identifier"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  compose-parity:
+    name: "A02 Compose parity"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Pull pinned images for the runner architecture
+        run: docker compose --env-file infra/local-stack.env -f infra/compose/docker-compose.yml pull
+      - name: Execute clean-start, probe, persistence, EICAR, and fail-closed checks
+        env:
+          RUN_COMPOSE_INTEGRATION: "1"
+        run: pnpm exec vitest run tests/infra/compose-health.spec.mjs tests/infra/compose-recovery.spec.mjs
+      - name: Capture redacted Compose evidence
+        if: always()
+        run: |
+          mkdir -p test-results/release
+          docker compose --env-file infra/local-stack.env -f infra/compose/docker-compose.yml ps --format json > test-results/release/compose-ps.json
+          docker compose --env-file infra/local-stack.env -f infra/compose/docker-compose.yml images --format json > test-results/release/compose-images.json
+          printf '%s\n' "${{ inputs.release_id }}" > test-results/release/release-id.txt
+          printf '%s\n' "${{ github.sha }}" > test-results/release/commit.txt
+      - name: Stop Compose services
+        if: always()
+        run: bash scripts/dev-down.sh --track compose
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: "release-${{ inputs.release_id }}-a02-compose"
+          path: test-results/release
+          if-no-files-found: error
+
+  staging-identity:
+    name: "A05 real Staging IdP"
+    needs: compose-parity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: staging
+    env:
+      NODE_ENV: staging
+      OTR_DEV_IDENTITY_ENABLED: "false"
+      OTR_IDENTITY_STORE: redis
+      OTR_APP_ORIGIN: ${{ vars.OTR_APP_ORIGIN }}
+      OTR_OIDC_ISSUER: ${{ vars.OTR_OIDC_ISSUER }}
+      OTR_OIDC_CLIENT_ID: ${{ vars.OTR_OIDC_CLIENT_ID }}
+      OTR_OIDC_CLIENT_SECRET: ${{ secrets.OTR_OIDC_CLIENT_SECRET }}
+      OTR_OIDC_CALLBACK_URL: ${{ vars.OTR_OIDC_CALLBACK_URL }}
+      OTR_OIDC_POST_LOGOUT_REDIRECT_URL: ${{ vars.OTR_OIDC_POST_LOGOUT_REDIRECT_URL }}
+      OTR_OIDC_RELEASE_DRIVER: ${{ vars.OTR_OIDC_RELEASE_DRIVER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run provider-specific real Authorization Code + PKCE verification
+        run: pnpm exec vitest run tests/identity/oidc-release.e2e.spec.ts
+      - name: Record non-secret identity evidence metadata
+        if: always()
+        run: |
+          mkdir -p test-results/release
+          printf '%s\n' "${{ inputs.release_id }}" > test-results/release/release-id.txt
+          printf '%s\n' "${{ github.sha }}" > test-results/release/commit.txt
+          printf '%s\n' "${{ vars.OTR_OIDC_ISSUER }}" > test-results/release/issuer.txt
+          printf '%s\n' "${{ vars.OTR_OIDC_CLIENT_ID }}" > test-results/release/client-id.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: "release-${{ inputs.release_id }}-a05-identity"
+          path: test-results/release
+          if-no-files-found: error

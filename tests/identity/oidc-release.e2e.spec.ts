@@ -2,14 +2,29 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { inspectStagingIdentityReadiness } from "../../apps/api/src/modules/identity/index.mjs";
 
-test("TC-A05-03 real Staging IdP release gate is explicit", () => {
+test("RELEASE-A05 real Staging IdP gate fails closed without a provider driver", async () => {
   const readiness = inspectStagingIdentityReadiness(process.env);
   if (readiness.status === "blocked") {
-    assert.ok(readiness.missing.length > 0);
-    return;
+    assert.fail(
+      `Staging identity gate blocked; missing=${readiness.missing.join(",")} invalid=${readiness.invalid.join(",")}`,
+    );
   }
-
-  throw new Error(
-    "Staging IdP configuration is present. Run the approved interactive real-provider smoke before release; this offline suite must not claim it passed.",
-  );
+  const driverPath = process.env.OTR_OIDC_RELEASE_DRIVER?.trim();
+  assert.ok(driverPath, "OTR_OIDC_RELEASE_DRIVER must name the approved provider-specific real-flow driver");
+  const driver = await import(driverPath);
+  assert.equal(typeof driver.runOidcReleaseVerification, "function");
+  const result = await driver.runOidcReleaseVerification(process.env);
+  for (const check of [
+    "authorizationCodePkce",
+    "stateNonceReplay",
+    "httpsCookie",
+    "logout",
+    "rotation",
+    "providerOutage",
+    "invalidSignature",
+    "ownerIsolation",
+    "secretRedaction",
+  ]) {
+    assert.equal(result?.[check], true, `Real Staging IdP check did not pass: ${check}`);
+  }
 });

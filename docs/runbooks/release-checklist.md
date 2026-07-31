@@ -79,6 +79,12 @@ development milestone completed A05 through the Dev Identity/Mock OIDC Track.
 Any unchecked item blocks release. Dev Identity or Mock OIDC evidence cannot
 waive this gate.
 
+Run the manual `Release Gates` workflow for the immutable release candidate.
+The A05 job uses the protected `staging` environment and fails closed unless
+all exact HTTPS metadata, the external client Secret, Redis identity store,
+and a committed provider-specific real-flow driver are configured. A workflow
+run that is skipped, blocked, or failed is not release evidence.
+
 ### Current handoff — 2026-07-29
 
 - Status: deferred to staging/release validation; this does not block the

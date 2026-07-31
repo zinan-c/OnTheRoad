@@ -23,14 +23,14 @@ test.each(["staging", "production"])(
   },
 );
 
-test("TC-A05-02 development identity is explicit and development-only", () => {
+test("TC-A05-02 development identity is explicit and development-only", async () => {
   const disabled = createIdentityService({
     ...base,
     NODE_ENV: "development",
     OTR_DEV_IDENTITY_ENABLED: "false",
   });
-  assert.throws(
-    () =>
+  await assert.rejects(
+    async () =>
       disabled.loginWithDevelopmentIdentity({
         subject: "user-a",
         origin: base.OTR_APP_ORIGIN,

@@ -38,7 +38,7 @@ function cookie(request: FastifyRequest, name: string): string | undefined {
   return value ? decodeURIComponent(value) : undefined;
 }
 
-function owner(runtime: ApiRuntime, request: FastifyRequest): string {
+async function owner(runtime: ApiRuntime, request: FastifyRequest): Promise<string> {
   const token = cookie(request, "__Host-otr_session");
   if (!token) {
     throw new ProblemDetailsError({
@@ -47,7 +47,7 @@ function owner(runtime: ApiRuntime, request: FastifyRequest): string {
       title: "Authentication required",
     });
   }
-  return runtime.identity.authenticate(token).id;
+  return (await runtime.identity.authenticate(token)).id;
 }
 
 function version(value: string | undefined): number {
@@ -121,12 +121,12 @@ class ApiController {
   constructor(@Inject(RUNTIME) private readonly runtime: ApiRuntime) {}
 
   @Post("identity/development-session")
-  developmentSession(
+  async developmentSession(
     @Body() body: { subject?: string },
     @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const result = this.runtime.identity.loginWithDevelopmentIdentity({
+    const result = await this.runtime.identity.loginWithDevelopmentIdentity({
       subject: body.subject ?? "",
       origin: origin ?? this.runtime.appOrigin,
     });
@@ -135,19 +135,19 @@ class ApiController {
   }
 
   @Get("identity/session")
-  session(@Req() request: FastifyRequest) {
-    return { principal: this.runtime.identity.authenticate(
+  async session(@Req() request: FastifyRequest) {
+    return { principal: await this.runtime.identity.authenticate(
       cookie(request, "__Host-otr_session") ?? "",
     ) };
   }
 
   @Delete("identity/session")
-  logout(
+  async logout(
     @Req() request: FastifyRequest,
     @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const result = this.runtime.identity.logout({
+    const result = await this.runtime.identity.logout({
       token: cookie(request, "__Host-otr_session") ?? "",
       origin: origin ?? this.runtime.appOrigin,
     });
@@ -179,7 +179,7 @@ class ApiController {
     @Body() body: unknown,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const trip = await this.runtime.trips.createTrip(owner(this.runtime, request), body, {
+    const trip = await this.runtime.trips.createTrip(await owner(this.runtime, request), body, {
       idempotencyKey,
     });
     reply.status(HttpStatus.CREATED).header("etag", String(trip.version));
@@ -187,11 +187,11 @@ class ApiController {
   }
 
   @Get("trips")
-  listTrips(
+  async listTrips(
     @Req() request: FastifyRequest,
     @Query() query: Record<string, string | undefined>,
   ) {
-    return this.runtime.trips.listTrips(owner(this.runtime, request), {
+    return this.runtime.trips.listTrips(await owner(this.runtime, request), {
       ...(query.limit ? { limit: Number(query.limit) } : {}),
       ...(query.search ? { search: query.search } : {}),
       ...(query.currency ? { currency: query.currency } : {}),
@@ -205,7 +205,7 @@ class ApiController {
     @Param("tripId") tripId: string,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const trip = await this.runtime.trips.getTrip(owner(this.runtime, request), tripId);
+    const trip = await this.runtime.trips.getTrip(await owner(this.runtime, request), tripId);
     reply.header("etag", String(trip.version));
     return trip;
   }
@@ -219,7 +219,7 @@ class ApiController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const trip = await this.runtime.trips.updateTrip(
-      owner(this.runtime, request),
+      await owner(this.runtime, request),
       tripId,
       body,
       { expectedVersion: version(ifMatch) },
@@ -237,7 +237,7 @@ class ApiController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const item = await this.runtime.itinerary.create(
-      owner(this.runtime, request),
+      await owner(this.runtime, request),
       tripId,
       { ...body, tripDayId },
     );
@@ -247,36 +247,36 @@ class ApiController {
   }
 
   @Get("trips/:tripId/days/:tripDayId/itinerary-items")
-  listItems(
+  async listItems(
     @Req() request: FastifyRequest,
     @Param("tripId") tripId: string,
     @Param("tripDayId") tripDayId: string,
   ) {
     return this.runtime.itinerary.listDay(
-      owner(this.runtime, request),
+      await owner(this.runtime, request),
       tripId,
       tripDayId,
     );
   }
 
   @Post("trips/:tripId/locations")
-  createLocation(
+  async createLocation(
     @Req() request: FastifyRequest,
     @Param("tripId") tripId: string,
     @Body() body: { inputText: string; name?: string },
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     reply.status(HttpStatus.CREATED);
-    return this.runtime.locations.create(owner(this.runtime, request), tripId, body);
+    return this.runtime.locations.create(await owner(this.runtime, request), tripId, body);
   }
 
   @Get("trips/:tripId/locations/search")
-  searchLocations(
+  async searchLocations(
     @Req() request: FastifyRequest,
     @Query("q") query: string,
     @Query("limit") limit?: string,
   ) {
-    owner(this.runtime, request);
+    await owner(this.runtime, request);
     return this.runtime.locationSearch.search({
       query,
       ...(limit ? { limit: Number(limit) } : {}),
@@ -293,7 +293,7 @@ class ApiController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const location = await this.runtime.locations.manuallyAdjust(
-      owner(this.runtime, request),
+      await owner(this.runtime, request),
       locationId,
       version(ifMatch),
       { latitude: body.latitude, longitude: body.longitude, crs: "WGS84" },

@@ -24,9 +24,9 @@ function createService() {
 }
 
 describe("TC-A05-01 Login/session contract", () => {
-  test("development identity issues and clears a hardened session cookie", () => {
+  test("development identity issues and clears a hardened session cookie", async () => {
     const service = createService();
-    const login = service.loginWithDevelopmentIdentity({
+    const login = await service.loginWithDevelopmentIdentity({
       subject: "user-a",
       origin: APP_ORIGIN,
     });
@@ -36,21 +36,21 @@ describe("TC-A05-01 Login/session contract", () => {
     assert.match(login.setCookie, /Secure/u);
     assert.match(login.setCookie, /SameSite=Lax/u);
     assert.doesNotMatch(login.setCookie, /test-signing-key/u);
-    assert.equal(service.authenticate(login.token).subject, "user-a");
+    assert.equal((await service.authenticate(login.token)).subject, "user-a");
 
     service.setClock(() => NOW + 60_001);
-    assert.throws(() => service.authenticate(login.token), /invalid/u);
+    await assert.rejects(service.authenticate(login.token), /invalid/u);
     service.setClock(() => NOW);
 
-    const logout = service.logout({ token: login.token, origin: APP_ORIGIN });
+    const logout = await service.logout({ token: login.token, origin: APP_ORIGIN });
     assert.match(logout.setCookie, /Max-Age=0/u);
-    assert.throws(() => service.authenticate(login.token), SessionError);
+    await assert.rejects(service.authenticate(login.token), SessionError);
   });
 
   test("mock OIDC enforces PKCE, state, nonce and transaction expiry", async () => {
     const service = createService();
     const provider = new MockOidcProvider({ issuer: "https://idp.example.test" });
-    const flow = service.beginOidcAuthorization({ provider });
+    const flow = await service.beginOidcAuthorization({ provider });
 
     await assert.rejects(
       service.completeOidcAuthorization({
@@ -67,7 +67,7 @@ describe("TC-A05-01 Login/session contract", () => {
       /state/u,
     );
 
-    const secondFlow = service.beginOidcAuthorization({ provider });
+    const secondFlow = await service.beginOidcAuthorization({ provider });
     await assert.rejects(
       service.completeOidcAuthorization({
         provider,
@@ -83,7 +83,7 @@ describe("TC-A05-01 Login/session contract", () => {
       /nonce/u,
     );
 
-    const successfulFlow = service.beginOidcAuthorization({ provider });
+    const successfulFlow = await service.beginOidcAuthorization({ provider });
     const successfulCode = provider.issueCode({
       subject: "user-a",
       nonce: successfulFlow.nonce,
@@ -110,7 +110,7 @@ describe("TC-A05-01 Login/session contract", () => {
     );
 
     const expired = createService();
-    const expiredFlow = expired.beginOidcAuthorization({ provider });
+    const expiredFlow = await expired.beginOidcAuthorization({ provider });
     expired.setClock(() => NOW + 30_001);
     await assert.rejects(
       expired.completeOidcAuthorization({

@@ -47,10 +47,12 @@ receives an OIDC client Secret or a long-lived provider token.
   hashes only. Signing material, Cookies, codes, verifiers and tokens are not
   audit fields.
 
-The in-memory stores implemented by A05 are the identity boundary used by the
-Dev Track and its deterministic tests. A production deployment must provide a
-shared, durable session/transaction adapter before horizontal scaling; this is
-part of the Staging Identity Gate and cannot be inferred from mock OIDC.
+The in-memory adapter is restricted to deterministic development tests.
+Application runtime uses the Redis identity adapter for shared session and
+OIDC transaction state. Transaction consumption uses Redis `GETDEL`, so replay
+rejection remains atomic across API replicas. Staging and production release
+configuration requires `OTR_IDENTITY_STORE=redis`; in-memory evidence cannot
+waive the Staging Identity Gate.
 
 ## Runtime inputs
 
@@ -70,6 +72,9 @@ Staging Track additionally requires:
 - `OTR_OIDC_CLIENT_SECRET`
 - `OTR_OIDC_CALLBACK_URL`
 - `OTR_OIDC_POST_LOGOUT_REDIRECT_URL`
+- `OTR_IDENTITY_STORE=redis`
+- `OTR_OIDC_RELEASE_DRIVER` naming the committed provider-specific real-flow
+  verification module
 
 Secrets are injected at runtime and must never be committed, placed in browser
 configuration, printed in errors, or saved in fixtures.

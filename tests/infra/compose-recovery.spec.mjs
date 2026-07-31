@@ -39,6 +39,29 @@ describe("TC-A02-02 restart and degraded scanner", () => {
         "-f",
         "infra/compose/docker-compose.yml",
       ];
+      const postgresProbe = run("docker", [
+        ...composeArgs,
+        "exec",
+        "-T",
+        "postgres",
+        "sh",
+        "-ec",
+        `psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS a02_release_probe (value text primary key)" -c "INSERT INTO a02_release_probe VALUES ('kept') ON CONFLICT DO NOTHING"`,
+      ]);
+      assert.equal(postgresProbe.status, 0, combinedOutput(postgresProbe));
+      assert.equal(run("docker", [...composeArgs, "restart", "postgres"]).status, 0);
+      const postgresRetained = run("docker", [
+        ...composeArgs,
+        "exec",
+        "-T",
+        "postgres",
+        "sh",
+        "-ec",
+        'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT value FROM a02_release_probe"',
+      ]);
+      assert.equal(postgresRetained.status, 0, combinedOutput(postgresRetained));
+      assert.match(postgresRetained.stdout, /kept/);
+
       assert.equal(
         run("docker", [
           ...composeArgs,
@@ -70,6 +93,27 @@ describe("TC-A02-02 restart and degraded scanner", () => {
       ]);
       assert.equal(retained.status, 0, combinedOutput(retained));
       assert.match(retained.stdout, /kept/);
+
+      const objectWrite = run("docker", [
+        ...composeArgs,
+        "run",
+        "--rm",
+        "--no-deps",
+        "minio-init",
+        'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; printf kept | mc pipe "local/$MINIO_BUCKET/a02-restart-probe"',
+      ]);
+      assert.equal(objectWrite.status, 0, combinedOutput(objectWrite));
+      assert.equal(run("docker", [...composeArgs, "restart", "minio"]).status, 0);
+      const objectRetained = run("docker", [
+        ...composeArgs,
+        "run",
+        "--rm",
+        "--no-deps",
+        "minio-init",
+        'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc cat "local/$MINIO_BUCKET/a02-restart-probe"',
+      ]);
+      assert.equal(objectRetained.status, 0, combinedOutput(objectRetained));
+      assert.match(objectRetained.stdout, /kept/);
 
       assert.equal(run("docker", [...composeArgs, "stop", "clamav"]).status, 0);
       try {

@@ -13,6 +13,9 @@
 - `OTR_OIDC_CLIENT_SECRET` from the approved external Secret store
 - `OTR_OIDC_CALLBACK_URL` registered as an exact HTTPS URI
 - `OTR_OIDC_POST_LOGOUT_REDIRECT_URL` registered as an exact HTTPS URI
+- `OTR_APP_ORIGIN` set to the exact HTTPS application origin
+- `OTR_IDENTITY_STORE=redis` and `OTR_DEV_IDENTITY_ENABLED=false`
+- a committed provider-specific module referenced by `OTR_OIDC_RELEASE_DRIVER`
 
 No real callback, provider logout, provider outage, external Secret rotation
 or HTTPS Cookie observation was attempted because these inputs and a reachable

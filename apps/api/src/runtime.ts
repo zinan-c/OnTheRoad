@@ -10,7 +10,7 @@ import { S3ObjectStorage } from "@on-the-road/storage";
 
 import { AttachmentUploadService, PostgresAttachmentRepository } from "./modules/attachments/index.mjs";
 import { ExpenseService, PostgresExpenseRepository } from "./modules/expenses/index.mjs";
-import { IdentityService } from "./modules/identity/index.mjs";
+import { IdentityService, RedisIdentityStore } from "./modules/identity/index.mjs";
 import { ItineraryCipher } from "./modules/itinerary/encryption.mjs";
 import { PostgresItineraryRepository } from "./modules/itinerary/postgres-repository.mjs";
 import { ItineraryService } from "./modules/itinerary/service.mjs";
@@ -91,6 +91,7 @@ export function createProductionRuntime(
           || server.sessionSecret,
       },
     },
+    store: new RedisIdentityStore(redis),
   });
   const trips = new TripService(new PostgresTripRepository({ executor: database }));
   const itinerary = new ItineraryService(
