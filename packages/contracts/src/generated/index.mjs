@@ -958,7 +958,7 @@ export class OnTheRoadClient {
   /** @param {string} baseUrl @param {{ fetch?: typeof fetch }} [options] */
   constructor(baseUrl, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/u, "");
-    this.fetch = options.fetch ?? globalThis.fetch;
+    this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
   /**
@@ -1075,6 +1075,7 @@ export class OnTheRoadClient {
     const suffix = query.size ? `?${query}` : "";
     const response = await this.fetch(`${this.baseUrl}/api/v1/trips${suffix}`, {
       headers: { accept: "application/json, application/problem+json" },
+      credentials: "include",
     });
     const payload = await response.json();
     if (!response.ok) throw new ApiProblemError(parseProblemDetails(payload));
@@ -1112,6 +1113,7 @@ export class OnTheRoadClient {
       `/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(tripDayId)}/itinerary-items`,
       {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...input, tripDayId }),
       },
@@ -1122,7 +1124,10 @@ export class OnTheRoadClient {
   async listItineraryItems(tripId, tripDayId) {
     const response = await this.fetch(
       `${this.baseUrl}/api/v1/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(tripDayId)}/itinerary-items`,
-      { headers: { accept: "application/json, application/problem+json" } },
+      {
+        headers: { accept: "application/json, application/problem+json" },
+        credentials: "include",
+      },
     );
     const payload = await response.json();
     if (!response.ok) throw new ApiProblemError(parseProblemDetails(payload));
@@ -1175,6 +1180,7 @@ export class OnTheRoadClient {
       `${this.baseUrl}/api/v1/trips/${encodeURIComponent(tripId)}/days/${encodeURIComponent(tripDayId)}/itinerary-items/reorder`,
       {
         method: "POST",
+        credentials: "include",
         headers: {
           accept: "application/json, application/problem+json",
           "content-type": "application/json",
@@ -1194,6 +1200,7 @@ export class OnTheRoadClient {
   async #itineraryRequest(path, init) {
     const response = await this.fetch(`${this.baseUrl}/api/v1${path}`, {
       ...init,
+      credentials: "include",
       headers: {
         accept: "application/json, application/problem+json",
         ...init?.headers,
@@ -1211,6 +1218,7 @@ export class OnTheRoadClient {
   async #tripRequest(path, init) {
     const response = await this.fetch(`${this.baseUrl}/api/v1${path}`, {
       ...init,
+      credentials: "include",
       headers: {
         accept: "application/json, application/problem+json",
         ...init?.headers,

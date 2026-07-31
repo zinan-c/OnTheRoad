@@ -321,6 +321,7 @@ export async function createApiApplication(runtime: ApiRuntime): Promise<NestFas
   app.enableCors({
     origin: runtime.appOrigin,
     credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   app.useGlobalFilters(new ApiExceptionFilter());
   app.enableShutdownHooks();

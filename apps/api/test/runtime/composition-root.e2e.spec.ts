@@ -211,4 +211,27 @@ describe("REVIEW-P0-01 API composition root", () => {
     expect(reloaded.statusCode).toBe(200);
     expect(reloaded.json().name).toBe("上海与舟山五日");
   });
+
+  test("allows credentialed browser logout through the CORS preflight", async () => {
+    app = await createApiApplication(runtime({
+      database: true,
+      schema: true,
+      redis: true,
+      storage: true,
+      clamav: true,
+      mapProvider: true,
+    }));
+    const response = await app.getHttpAdapter().getInstance().inject({
+      method: "OPTIONS",
+      url: "/api/v1/identity/session",
+      headers: {
+        origin: "http://localhost:3000",
+        "access-control-request-method": "DELETE",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-methods"]).toContain("DELETE");
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+  });
 });

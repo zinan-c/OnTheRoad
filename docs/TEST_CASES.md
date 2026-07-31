@@ -134,8 +134,8 @@
 ### B04
 
 - `TC-B04-01` — Wizard/list component；代码：`apps/web/features/trips/trip-wizard.spec.tsx`。填写四步数据并返回修改；断言摘要、校验和提交 payload。
-- `TC-B04-02` — Double-submit/error/delete；代码：`apps/web/e2e/trips-failure.spec.ts`。双击、网络失败、删除恢复；断言单 Trip、错误可重试、删除二次确认。
-- `TC-B04-03` — Create/reload E2E；代码：`apps/web/e2e/trips-create.spec.ts`。从空账号创建五日两目的地旅行；断言进入 Day 1，刷新/重新登录存在。
+- `TC-B04-02` — Double-submit/error/delete（集成模型测试）；代码：`apps/web/integration/trips-failure.spec.ts`。双击、网络失败、删除恢复；断言单 Trip、错误可重试、删除二次确认。
+- `TC-B04-03` — Create/reload browser E2E；代码：`apps/web/browser/trip-session.spec.ts`，支撑集成模型：`apps/web/integration/trips-create.spec.ts`。通过真实 HTTP API 从空账号创建五日两目的地旅行；断言刷新、退出和重新登录后仍存在，并在桌面与移动端执行核心入口。
 
 ### C01
 
@@ -173,25 +173,25 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 
 - `TC-B06-01` — Editor field groups；代码：`apps/web/features/itinerary/item-editor.spec.tsx`。桌面/手机填写核心字段；断言 schema 与 API payload。
 - `TC-B06-02` — Empty/error/conflict accessibility；代码：`apps/web/features/itinerary/editor-states.spec.tsx`。注入空 Day、字段错误、409、慢请求；断言可恢复状态、错误关联和键盘可用。
-- `TC-B06-03` — Daily edit E2E；代码：`apps/web/e2e/itinerary-edit.spec.ts`。一天新增多类 Item 并刷新；断言时间线/详情与 DB 一致，手机核心路径可用。
+- `TC-B06-03` — Daily edit（集成模型测试）；代码：`apps/web/integration/itinerary-edit.spec.ts`。一天新增多类 Item 并刷新；断言时间线/详情与 DB 一致，手机核心路径可用。
 
 ### B07
 
 - `TC-B07-01` — Ordered-set property；代码：`packages/domain/test/itinerary-order.property.spec.ts`。生成合法/漏/多/重复/跨 Day ID；断言只接受完整同 Day 集合。
 - `TC-B07-02` — Concurrent reorder barrier；代码：`apps/api/test/itinerary/reorder-race.integration.spec.ts`。两客户端同 baseVersion；断言一个成功、一个 409、无部分顺序。
-- `TC-B07-03` — Mouse/touch/keyboard reorder；代码：`apps/web/e2e/itinerary-reorder.spec.ts`。三种输入重排并模拟保存失败；断言持久顺序和失败回滚。
+- `TC-B07-03` — Mouse/touch/keyboard reorder（集成模型测试）；代码：`apps/web/integration/itinerary-reorder.spec.ts`。三种输入重排并模拟保存失败；断言持久顺序和失败回滚。
 
 ### B08
 
 - `TC-B08-01` — Debounced autosave；代码：`apps/web/features/itinerary/use-autosave.spec.tsx`。fake clock 连续编辑；断言合并请求且 saved 只在服务端成功后出现。
 - `TC-B08-02` — Out-of-order/offline；代码：`apps/web/features/itinerary/autosave-race.spec.tsx`。B 响应先于 A、断网/409；断言旧响应不覆盖新值，输入和 retry 保留。
-- `TC-B08-03` — Leave/re-enter E2E；代码：`apps/web/e2e/autosave-leave.spec.ts`。未保存离开、保存后刷新；断言提示正确且最终值一致。
+- `TC-B08-03` — Leave/re-enter（集成模型测试）；代码：`apps/web/integration/autosave-leave.spec.ts`。未保存离开、保存后刷新；断言提示正确且最终值一致。
 
 ### B09
 
 - `TC-B09-01` — Custom Mode CRUD；代码：`apps/api/test/itinerary/transport-mode.e2e-spec.ts`。创建/编辑/停用 trip-scoped Mode；断言视觉字段和 owner。
 - `TC-B09-02` — System/referenced protection；代码：`apps/api/test/itinerary/transport-mode-invariants.spec.ts`。删除系统/跨 Trip/已引用 Mode；断言拒绝或按停用规则处理。
-- `TC-B09-03` — Settings-to-item integration；代码：`apps/web/e2e/custom-transport-mode.spec.ts`。设置中新增后立即选择到 Item；断言刷新后标签/图标/颜色一致。
+- `TC-B09-03` — Settings-to-item integration；代码：`apps/web/integration/custom-transport-mode.spec.ts`。设置中新增后立即选择到 Item；断言刷新后标签/图标/颜色一致。
 
 ### C02
 
@@ -203,19 +203,19 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 
 - `TC-C04-01` — Debounced candidate UX；代码：`apps/web/features/locations/location-input.spec.tsx`。输入中文/英文并推进 fake clock；断言 capability-aware 请求、地理上下文展示。
 - `TC-C04-02` — Ambiguous/out-of-order/failure；代码：`apps/web/features/locations/location-input-failure.spec.tsx`。两个相近候选、请求乱序、无结果；断言不预选且五种恢复动作可达。
-- `TC-C04-03` — Select-or-text E2E；代码：`apps/web/e2e/location-search.spec.ts`。选择候选与纯文字保存各一次；断言 Location 状态和持久数据正确。
+- `TC-C04-03` — Select-or-text（集成模型测试）；代码：`apps/web/integration/location-search.spec.ts`。选择候选与纯文字保存各一次；断言 Location 状态和持久数据正确。
 
 ### C05
 
 - `TC-C05-01` — Marker/fit selector；代码：`apps/web/features/map/map-model.spec.ts`。0/1/多/同点坐标；断言 GeoJSON、bounds 和 Day+序号 marker。
-- `TC-C05-02` — Tile/WebGL/fullscreen failure；代码：`apps/web/e2e/map-degraded.spec.ts`。阻断 tile、模拟 WebGL error/resize/Escape；断言文字编辑不受阻且中性/空态正确。
-- `TC-C05-03` — All/day/destination map E2E；代码：`apps/web/e2e/map-markers.spec.ts`。切换筛选；断言 Marker、图例、attribution 和 bounds 与 fixture 一致。
+- `TC-C05-02` — Tile/WebGL/fullscreen failure（集成模型测试）；代码：`apps/web/integration/map-degraded.spec.ts`。阻断 tile、模拟 WebGL error/resize/Escape；断言文字编辑不受阻且中性/空态正确。
+- `TC-C05-03` — All/day/destination map（集成模型测试）；代码：`apps/web/integration/map-markers.spec.ts`。切换筛选；断言 Marker、图例、attribution 和 bounds 与 fixture 一致。
 
 ### C06
 
 - `TC-C06-01` — Pick/reverse/manual coordinate；代码：`apps/api/test/locations/coordinate-adjust.e2e-spec.ts`。地图点选、反查失败、手工边界坐标；断言仍可保存 WGS84 resolved。
 - `TC-C06-02` — Late geocode CAS barrier；代码：`apps/api/test/locations/manual-vs-geocode-race.integration.spec.ts`。先发 geocode、再拖 Marker、最后释放响应；断言旧写影响 0 行。
-- `TC-C06-03` — Drag persistence E2E；代码：`apps/web/e2e/location-map-adjust.spec.ts`。桌面/触控拖动并刷新；断言 `manuallyAdjusted=true`、坐标和审计存在。
+- `TC-C06-03` — Drag persistence（集成模型测试）；代码：`apps/web/integration/location-map-adjust.spec.ts`。桌面/触控拖动并刷新；断言 `manuallyAdjusted=true`、坐标和审计存在。
 
 ### D02
 
@@ -239,7 +239,7 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 
 - `TC-E02-01` — Workbook inspection；代码：`apps/worker/test/import/workbook-inspect.integration.spec.ts`。xlsx/xls/csv、多 sheet、BOM；断言 sheet/columns/samples 正确。
 - `TC-E02-02` — Malicious/limit matrix；代码：`apps/worker/test/import/workbook-security.integration.spec.ts`。空/加密/ZIP bomb/损坏/超限/公式；断言明确错误、资源受限且不重试永久错误。
-- `TC-E02-03` — Upload-to-inspect E2E；代码：`apps/web/e2e/import-upload-inspect.spec.ts`。真实上传三格式；断言 Job 阶段、错误和列预览可刷新恢复。
+- `TC-E02-03` — Upload-to-inspect（集成模型测试）；代码：`apps/web/integration/import-upload-inspect.spec.ts`。真实上传三格式；断言 Job 阶段、错误和列预览可刷新恢复。
 
 ---
 
