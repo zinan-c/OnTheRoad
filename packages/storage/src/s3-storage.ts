@@ -303,7 +303,7 @@ export class S3ObjectStorage implements ObjectStorage, MediaObjectStorage {
     };
     const response = await this.#fetch(
       this.#presign("PUT", objectKey, headers, 60, this.#clock()),
-      { method: "PUT", headers, body: value },
+      { method: "PUT", headers, body: Uint8Array.from(value) },
     );
     if (response.status === 409 || response.status === 412) {
       throw new StorageError(

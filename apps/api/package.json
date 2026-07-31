@@ -10,12 +10,21 @@
     "@on-the-road/domain": "workspace:*",
     "@on-the-road/importer": "workspace:*",
     "@on-the-road/providers": "workspace:*",
-    "@on-the-road/storage": "workspace:*"
+    "@on-the-road/storage": "workspace:*",
+    "@nestjs/common": "11.1.28",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/platform-fastify": "11.1.28",
+    "fastify": "5.11.0",
+    "ioredis": "5.11.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
   },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc6 -p tsconfig.json",
     "unit": "vitest run",
-    "build": "tsc6 -p tsconfig.build.json"
+    "build": "tsc6 -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "start:dev": "pnpm run build && node --watch dist/main.js"
   }
 }

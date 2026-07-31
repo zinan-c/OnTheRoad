@@ -5,6 +5,8 @@ node_modules/
 coverage/
 dist/
 **/dist/
+**/.next/
+*.tsbuildinfo
 .DS_Store
 infra/local-stack.env
 infra/native/.runtime/

@@ -4,6 +4,7 @@ export default [
   {
     ignores: [
       "**/.cache/**",
+      "**/.next/**",
       "**/.pnpm-store/**",
       "**/.turbo/**",
       "**/artifacts/**",

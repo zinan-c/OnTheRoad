@@ -3,12 +3,16 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@on-the-road/config": "workspace:*"
+    "@on-the-road/config": "workspace:*",
+    "bullmq": "6.0.2",
+    "ioredis": "5.11.1"
   },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc6 -p tsconfig.json",
     "unit": "vitest run",
-    "build": "tsc6 -p tsconfig.build.json"
+    "build": "tsc6 -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "start:dev": "pnpm run build && node --watch dist/main.js"
   }
 }
