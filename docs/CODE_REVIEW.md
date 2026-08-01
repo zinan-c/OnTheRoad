@@ -4,20 +4,33 @@
 >
 > Review scope: all documentation under `docs/`, all current applications and shared packages, tests, build scripts, infrastructure, and runtime configuration.
 >
-> Review type: read-only assessment for follow-up agents to claim, remediate, and verify. It does not indicate that any remediation has been implemented.
+> Review type: historical assessment plus a living remediation ledger. Findings
+> retain their original review-point evidence; the remediation sections identify
+> what has since been implemented and verified.
 
 ## Remediation status
 
 This report preserves the findings as they existed at the review point. Current
-closure evidence is recorded here rather than rewriting the original evidence.
+closure evidence is recorded alongside the original evidence so that historical
+observations are not mistaken for the repository's present state.
 
-| Finding | Dev status | Closure evidence |
-|---|---|---|
-| P0-01 | Closed | `tests/runtime/real-stack.e2e.spec.ts` starts the real API composition root against migrated PostgreSQL and Redis, persists Trip/Item/Location/upload-entry changes over HTTP, sends the reorder outbox event through BullMQ, and proves the Worker writes the inbox receipt and handled timestamp. The production Worker rejects `runtime.noop` and uses an explicit PostgreSQL event processor. |
-| P1-03 | Closed | Every non-test OpenAPI operation is mounted on the Nest/Fastify application; route parity and generated-client success/Problem Details are exercised by `apps/api/test/runtime/public-route-parity.e2e.spec.ts`. |
-| P1-04 | Closed for the M0–M2 Dev scope | Playwright starts the production API composition root rather than an in-memory repository. `apps/web/browser/trip-session.spec.ts` covers real React creation/session UX and browser-origin HTTP persistence for Item create/update/copy/delete/reorder, stale-version rejection, Location adjustment, refresh and mobile layout. Feature-specific M3 browser paths remain owned by their M3 Tasks. |
+| Finding | Dev status | Remediation commit | Closure evidence / residual scope |
+|---|---|---|---|
+| P0-01 | Closed | `5be8017` | `tests/runtime/real-stack.e2e.spec.ts` starts the real API composition root against migrated PostgreSQL and Redis, persists Trip/Item/Location/upload-entry changes over HTTP, sends the reorder outbox event through BullMQ, and proves the Worker writes the inbox receipt and handled timestamp. The production Worker rejects `runtime.noop` and uses an explicit PostgreSQL event processor. Compose and production release checks remain governed by the release checklist. |
+| P0-02 | Closed | `51b2545` | The required-case manifest and runner fail on missing, skipped, todo, or uncollected M0–M2 Cases. `CI-Test Cases` provisions the dependency stack, migrates/seeds the database, runs required cases, and uploads evidence. Full application Compose parity remains a separate required release gate. |
+| P0-03 | Closed | `caf73ca` | AMAP and deterministic hybrid geocoding adapters are constructible at startup, normalize errors and coordinate systems, isolate caches, and do not silently change the selected Profile. |
+| P1-01 | Closed | `a30d35d` | Production repositories use the bounded `pg`-based `PostgresExecutor` with parameter binding, timeout controls, transaction support, redacted errors, and shutdown tests; per-operation `psql` subprocesses were removed. |
+| P1-02 | Closed | `1b81b8b` | `packages/database` is a workspace package with unified migrate/status/seed commands, checksummed history, dirty-state recovery, minimum-compatible schema checks, and clean-database integration tests. |
+| P1-03 | Closed | `30793a6` | Every non-test OpenAPI operation is mounted on the Nest/Fastify application; route parity and generated-client success/Problem Details are exercised by `apps/api/test/runtime/public-route-parity.e2e.spec.ts`. |
+| P1-04 | Closed for the M0–M2 Dev scope | `0bc6698` | Playwright starts the production API composition root rather than an in-memory repository. `apps/web/browser/trip-session.spec.ts` covers real React creation/session UX and browser-origin HTTP persistence for Item create/update/copy/delete/reorder, stale-version rejection, Location adjustment, refresh and mobile layout. Feature-specific UI interactions and M3 browser paths remain owned by their M3 Tasks. |
+| P1-05 | Closed | `e4d02ee` | Core modules are covered by strict TypeScript checks, package source-import boundaries are enforced, and the two remaining isolation exceptions are centrally allowlisted with reasons and removal conditions. |
+| P1-06 | Closed as an enforced release gate | `2362d81` | Shared durable identity state, release-readiness checks, a dedicated `Release Gates` workflow, Compose recovery checks, and the A02/A05 handoff checklist prevent Dev evidence from being treated as production evidence. Real Staging IdP and Compose results must still pass before release. |
 
 ## 1. Overall Assessment
+
+The paragraphs below record the assessment at the original review point. The
+remediation table above is authoritative for the current status of P0 and P1
+findings.
 
 The repository contains a number of solid domain models, PostgreSQL functions, Provider/Importer/PDF spikes, and module-level tests. However, it is not yet an M2 product that can be started and used through a browser.
 
@@ -29,7 +42,9 @@ The current `M2 Complete for Dev Track` status should be separated into the foll
 - The default CI pipeline does not continuously execute all critical persistence and recovery tests.
 - Production release gates such as Compose parity and the real Staging IdP remain open.
 
-Before expanding the M3 feature scope, the P0 findings in this report should be closed, and the P1 architecture debt should be evaluated to prevent later features from amplifying it.
+At the original review point, the P0 findings needed to be closed before expanding
+the M3 feature scope. P0-01 is now closed for the Dev Track; the other findings
+retain their recorded status unless explicitly listed in the remediation table.
 
 ## 2. P0 — Immediate Blockers
 
@@ -61,6 +76,21 @@ The implementation is primarily at the domain object, application service, repos
 - After applying migrations to an empty database, at least one real smoke path must complete login, Trip creation, Item editing, Location confirmation, and reload.
 - Startup failures must not expose secrets or leave a false healthy state.
 
+**Remediation update — Closed for the Dev Track (`5be8017`)**
+
+- The production API, Web, Worker, and PDF Worker have built-artifact entry points,
+  lifecycle handling, health/readiness behavior, and queue consumers.
+- The production Worker uses `PostgresEventProcessor`; `runtime.noop` is rejected
+  rather than silently acknowledging work.
+- `tests/runtime/real-stack.e2e.spec.ts` verifies the real API, migrated PostgreSQL,
+  Redis/BullMQ, and Worker path, including HTTP persistence and transactional
+  outbox/inbox handling.
+- Final verification on 2026-08-01 passed against a fresh temporary PostGIS
+  database and the native Redis stack. The temporary database was removed after
+  the run.
+- Compose/Linux parity and production infrastructure remain release-checklist
+  obligations rather than Dev Track evidence.
+
 ### P0-02 CI remains green when critical tests are skipped
 
 **Current state**
@@ -88,6 +118,19 @@ The presence of test code does not mean that the tests are continuously executed
 - Native Track may remain the daily development path, but it cannot replace Linux/Compose parity in CI or staging.
 - Compose parity may be a separate release job, but it must be a required check for production release.
 - Add an automated consistency check between Case IDs, test files, and result artifacts.
+
+**Remediation update — Closed (`51b2545`)**
+
+- `test-manifests/m0-m2.required.json` is the machine-readable required-case
+  manifest, and `scripts/run-required-cases.mjs` rejects missing, skipped, todo,
+  uncollected, or failed required Cases.
+- `scripts/verify-required-cases.mjs` checks manifest/document/file consistency;
+  the current Gate resolves `103/103` required Cases.
+- `CI-Test Cases` provisions the native PostgreSQL/PostGIS, Redis, MinIO, ClamAV,
+  ImageMagick, and browser dependencies, applies migrations and seeds, and
+  uploads its result artifact.
+- Compose parity remains intentionally separated into the production release
+  workflow, consistent with the documented dual-track policy.
 
 ### P0-03 China-primary and hybrid Profiles are accepted by configuration but unsupported at runtime
 
@@ -117,6 +160,15 @@ In either case:
 - Missing implementations or credentials must fail during startup, not on the first user request.
 - Every Profile must cover search, reverse geocoding, error normalization, attribution, coordinate conversion, and cache isolation tests.
 - Profile failures must not silently rewrite the Trip's `mapProfile` or switch Providers.
+
+**Remediation update — Closed (`caf73ca`)**
+
+- AMAP and deterministic hybrid adapters are implemented and exported from the
+  Provider package.
+- Startup construction now validates accepted Profiles against real adapter
+  availability rather than deferring failure to the first request.
+- Adapter-contract, failure-normalization, coordinate-conversion, rate/cache,
+  and hybrid-routing tests cover the accepted Profiles without silent failover.
 
 ## 3. P1 — High-Priority Architecture and Delivery Issues
 
@@ -148,6 +200,15 @@ This approach may be useful as an early integration harness, but it is not suita
 - Add connection exhaustion, timeout, rollback, process shutdown, and concurrency tests.
 - Repository error mapping must not depend on broad substring matching of complete stderr output.
 
+**Remediation update — Closed (`a30d35d`)**
+
+- API and Worker PostgreSQL repositories use the shared `PostgresExecutor`
+  backed by bounded `pg` pools and parameterized queries.
+- The executor provides statement, connection, idle-transaction, and shutdown
+  controls, transactional callbacks, and redacted error mapping.
+- Unit coverage verifies pool bounds, rollback, timeout, shutdown, concurrency,
+  and credential redaction.
+
 ### P1-02 There is no unified Database workspace or migration runner
 
 **Current state**
@@ -172,6 +233,15 @@ The database schema currently behaves more like a test asset than a deployable p
 - Pass a clean-database-to-latest migration test.
 - Verify rolling-compatible upgrade behavior from at least the previous releasable version.
 - Fail application readiness when the schema is below the minimum compatible version.
+
+**Remediation update — Closed (`1b81b8b`)**
+
+- `packages/database` participates in the pnpm/Turbo workspace and owns the
+  migration manifest, runner, status command, and reference-data seed.
+- Root `db:migrate`, `db:status`, and `db:seed` commands are reused by Native,
+  Compose, CI, and application readiness.
+- Migration history stores versions, checksums, timestamps, and failure state;
+  tests cover clean-to-latest, idempotency, dirty recovery, and compatibility.
 
 ### P1-03 OpenAPI does not match the capabilities declared complete for M0–M2
 
@@ -202,6 +272,17 @@ Application services and the public API contract have evolved separately. A pass
 - For each module, add at least one test that uses a real HTTP server and generated client for successful and error responses.
 - Run compatibility checks across all new paths and schemas.
 - Do not allow production Web code to handcraft request DTOs that diverge from OpenAPI.
+
+**Remediation update — Closed (`30793a6`)**
+
+- OpenAPI now describes the M0–M2 public identity/session, Trip/date/day,
+  Itinerary, Location, Attachment, Expense, Import, Job, reference-data, and
+  capability routes.
+- The Nest/Fastify composition root mounts every non-test generated operation.
+- `apps/api/test/runtime/public-route-parity.e2e.spec.ts` compares generated
+  operations with the real router and exercises generated-client success and
+  Problem Details responses over HTTP.
+- Contract generation, compatibility tests, lint, typecheck, and build all pass.
 
 ### P1-04 Most Web component/E2E tests are not component or browser tests
 
@@ -236,6 +317,20 @@ The test-level naming overstates the coverage level, causing Milestone reports t
   - Core editing paths on mobile viewports.
 - Browser E2E tests must use the real HTTP API and must not import API source directly.
 
+**Remediation update — Closed for the M0–M2 Dev scope (`0bc6698`)**
+
+- Playwright now starts the production API composition root and Next Web against
+  PostgreSQL and Redis; the prior in-memory browser API repository was removed.
+- `apps/web/browser/trip-session.spec.ts` verifies real React Trip creation,
+  cookies/session restoration, refresh, logout/login, and mobile rendering.
+- Browser-origin HTTP operations verify Item create/update/copy/delete/reorder,
+  stale-version `409`, Location coordinate adjustment, and persisted reload.
+- Desktop and mobile Chromium passed `4/4` cases on 2026-08-01 against a fresh
+  migrated temporary database. The full `pnpm run quality` Gate also passed.
+- UI-specific mouse/touch/keyboard reordering, offline/degraded behavior, and
+  feature-specific M3 screens remain requirements of their owning M3 Tasks; this
+  closure does not claim those future UI paths are already implemented.
+
 ### P1-05 Core modules make extensive use of `@ts-nocheck`
 
 **Current state**
@@ -257,6 +352,18 @@ Although `pnpm run typecheck` passes, the most important data, authorization, an
 - Declare every real dependency in the relevant application manifest.
 - Add package-boundary enforcement to CI.
 - If a small number of third-party isolation files require exceptions, place them in a central allowlist with an owner, reason, and removal condition.
+
+**Remediation update — Closed (`e4d02ee`)**
+
+- Core domain, identity, repository, importer, and Worker paths participate in
+  the strict TypeScript Gate.
+- Package exports and declared dependencies replace application imports from
+  another workspace's private `src` tree.
+- Package-boundary and TypeScript-exception checks run in normal quality/CI
+  execution.
+- Two third-party isolation files remain in
+  `config/ts-nocheck-allowlist.json`, each with an explicit reason and removal
+  condition.
 
 ### P1-06 Production identity and infrastructure release gates remain open
 
@@ -283,6 +390,19 @@ These are documented external and release blockers. They cannot be waived by the
 - Verify fail-closed behavior for IdP discovery/JWKS timeout, invalid signatures, and outages.
 - Use Compose to verify Linux architecture, service DNS, resource limits, persistence, EICAR, and ClamAV fail-closed behavior.
 - Make these results required release checks.
+
+**Remediation update — Closed as an enforced release gate (`2362d81`)**
+
+- Identity sessions and one-time OIDC transactions use a shared durable Redis
+  store and are tested across application instances.
+- Production startup fails closed when OIDC, HTTPS cookie, shared-store, or
+  release-readiness requirements are missing.
+- `.github/workflows/release_gates.yml` separates Compose and real OIDC evidence
+  from the daily Dev Gate, while `docs/runbooks/release-checklist.md` retains the
+  mandatory A02/A05 handoff items.
+- This finding is closed because release evidence can no longer be bypassed or
+  confused with Dev evidence. Actual Compose/Linux and real Staging IdP checks
+  remain mandatory before a production release and are not claimed as passed.
 
 ## 4. P2 — Engineering Governance and Evidence Reliability
 
