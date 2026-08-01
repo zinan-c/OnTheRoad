@@ -52,7 +52,10 @@ describe("TC-A02-03 one-command bootstrap", () => {
     );
     assert.equal(first.status, 0, combinedOutput(first));
     assert.match(first.stdout, /Created infra\/local-stack\.env/);
-    assert.match(first.stdout, /up -d --wait postgres redis minio clamav/);
+    assert.match(
+      first.stdout,
+      /up -d --wait --wait-timeout 900 postgres redis minio clamav/,
+    );
 
     const envPath = join(root, "infra/local-stack.env");
     const firstEnv = await readFile(envPath, "utf8");
@@ -90,15 +93,33 @@ describe("TC-A02-03 one-command bootstrap", () => {
     assert.match(combinedOutput(result), /Docker CLI is missing|Compose v2 is required/);
   });
 
-  test.skipIf(!integrationEnabled)(
-    "running bootstrap twice preserves data and does not duplicate initialization",
-    () => {
+  test("invalid Compose wait timeout is rejected before services start", async () => {
+    const root = await isolatedBootstrap();
+    const result = run("bash", ["scripts/dev-up.sh", "--track", "compose"], {
+      cwd: root,
+      env: {
+        ...process.env,
+        OTR_COMPOSE_WAIT_TIMEOUT_SECONDS: "not-a-number",
+      },
+    });
+    assert.equal(result.status, 2, combinedOutput(result));
+    assert.match(
+      combinedOutput(result),
+      /OTR_COMPOSE_WAIT_TIMEOUT_SECONDS must be a positive integer/,
+    );
+  });
+
+  if (integrationEnabled) {
+    test(
+      "running bootstrap twice preserves data and does not duplicate initialization",
+      () => {
       const first = run("bash", ["scripts/dev-up.sh", "--track", "compose"]);
       assert.equal(first.status, 0, combinedOutput(first));
       const second = run("bash", ["scripts/dev-up.sh", "--track", "compose"]);
       assert.equal(second.status, 0, combinedOutput(second));
       assert.match(second.stdout, /Local stack: ready/);
-    },
-    240_000,
-  );
+      },
+      240_000,
+    );
+  }
 });

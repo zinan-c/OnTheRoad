@@ -18,12 +18,29 @@ that its downstream product capability has been implemented or accepted.
 - Toolchain check: `pnpm run toolchain:check`
 - Full quality gate: `pnpm run quality`
 - Clean-checkout smoke test: `pnpm run ci:smoke`
+- Full local push CI: `pnpm run ci:local`
 
 `pnpm run quality` uses Turbo to run real ESLint, TypeScript, Vitest, and build
 tasks across every workspace. The PDF spike also requires a Chromium version
 compatible with `@playwright/test`; CI installs it in the relevant job. To use
 an existing local browser, set `OTR_A11_CHROMIUM_PATH`. Never commit a
 developer-machine absolute path to source code.
+
+### Local push CI
+
+Run `pnpm run ci:local` from a clean, locally committed worktree before pushing.
+It verifies the exact current SHA with Node 24.14.0 and pnpm 9.15.4, performs a
+frozen install, runs the aggregate quality and clean-checkout gates, starts the
+Compose PostGIS/Redis/MinIO/ClamAV stack, applies and checks migrations, and
+executes every required M0-M2 Vitest, `node:test`, and Playwright case without
+skips. The stack is stopped on both success and failure, and diagnostics are
+written to `test-results/local-m0-m2-required.json`.
+
+The command requires Docker Compose v2, Chromium installed through Playwright,
+Poppler, ImageMagick, and the native `minio`/`mc` test binaries. It reproduces
+the push checks, but the protected real-IdP workflow in
+`.github/workflows/release_gates.yml` still requires the staging environment
+and cannot be replaced by local evidence.
 
 ### Map profiles
 

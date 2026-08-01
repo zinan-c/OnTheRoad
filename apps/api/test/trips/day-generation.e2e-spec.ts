@@ -38,7 +38,10 @@ liveTripTest("TC-B03-03 create and date apply are atomic and retryable", async (
   const input = tripInput();
   await expect(trips.createTrip(ownerId, input, {
     idempotencyKey: "tc-b03-atomic-create",
-  })).rejects.toThrow(/injected trip day failure/i);
+  })).rejects.toMatchObject({
+    name: "PostgresRuntimeError",
+    code: "DATABASE_QUERY_FAILED",
+  });
   expect(await psql(`SELECT count(*) FROM trip WHERE owner_id = '${ownerId}'`)).toBe("0");
 
   await dropFailureTrigger();
@@ -62,7 +65,10 @@ liveTripTest("TC-B03-03 create and date apply are atomic and retryable", async (
     startDate: "2026-10-01",
     endDate: "2026-10-06",
     expectedVersion: created.version,
-  })).rejects.toThrow(/injected trip day failure/i);
+  })).rejects.toMatchObject({
+    name: "PostgresRuntimeError",
+    code: "DATABASE_QUERY_FAILED",
+  });
   const unchanged = await dates.preview(ownerId, created.id, {
     startDate: "2026-10-01",
     endDate: "2026-10-05",

@@ -52,10 +52,15 @@ export async function resolveRequiredCaseFiles(root, manifest) {
   for (const absoluteFile of testFiles) {
     const repositoryPath = normalizePath(relative(root, absoluteFile));
     if (excluded.has(repositoryPath)) continue;
+    const directSource = await readFile(absoluteFile, "utf8");
     const source = await sourceWithLocalImports(absoluteFile, new Set());
     frameworkByFile.set(
       repositoryPath,
-      /from\s+["']node:test["']/u.test(source) ? "node-test" : "vitest",
+      /from\s+["']node:test["']/u.test(directSource)
+        ? "node-test"
+        : /from\s+["']@playwright\/test["']/u.test(directSource)
+          ? "playwright"
+          : "vitest",
     );
     for (const caseId of new Set(source.match(CASE_PATTERN) ?? [])) {
       const files = caseFiles.get(caseId) ?? [];
@@ -68,6 +73,9 @@ export async function resolveRequiredCaseFiles(root, manifest) {
     caseFiles,
     testFiles: requiredTestFiles,
     nodeTestFiles: requiredTestFiles.filter((file) => frameworkByFile.get(file) === "node-test"),
+    playwrightTestFiles: requiredTestFiles.filter(
+      (file) => frameworkByFile.get(file) === "playwright",
+    ),
     vitestTestFiles: requiredTestFiles.filter((file) => frameworkByFile.get(file) === "vitest"),
   };
 }
@@ -78,6 +86,7 @@ export async function verifyRequiredCases(root, manifestPath) {
     caseFiles,
     testFiles,
     nodeTestFiles,
+    playwrightTestFiles,
     vitestTestFiles,
   } = await resolveRequiredCaseFiles(root, loaded.manifest);
   const documentation = await readFile(resolve(root, "docs/TEST_CASES.md"), "utf8");
@@ -91,6 +100,7 @@ export async function verifyRequiredCases(root, manifestPath) {
     caseFiles,
     testFiles,
     nodeTestFiles,
+    playwrightTestFiles,
     vitestTestFiles,
     missingFromDocumentation,
     missingTestFiles,
@@ -107,13 +117,22 @@ export function summarizeVitestResult(requiredCaseIds, result) {
   const cases = requiredCaseIds.map((caseId) => {
     const matches = assertions.filter((assertion) => assertion.fullName?.includes(caseId));
     const statuses = matches.map((assertion) => assertion.status);
+    const failures = matches
+      .filter((assertion) => assertion.status === "failed")
+      .flatMap((assertion) => assertion.failureMessages ?? [])
+      .map((message) => truncateDiagnostic(message));
     let status = "not-collected";
     if (statuses.some((value) => value === "failed")) status = "failed";
     else if (statuses.some((value) =>
       value === "pending" || value === "skipped" || value === "todo")) status = "skipped";
     else if (statuses.length > 0 && statuses.every((value) => value === "passed")) status = "passed";
     else if (statuses.length > 0) status = "failed";
-    return { caseId, status, assertions: matches.length };
+    return {
+      caseId,
+      status,
+      assertions: matches.length,
+      ...(failures.length > 0 ? { failures } : {}),
+    };
   });
   const count = (status) => cases.filter((entry) => entry.status === status).length;
   return {
@@ -126,6 +145,25 @@ export function summarizeVitestResult(requiredCaseIds, result) {
     notCollected: count("not-collected"),
     cases,
   };
+}
+
+export function collectVitestFailureDiagnostics(root, result) {
+  return result.testResults
+    .filter((testFile) => testFile.status === "failed")
+    .slice(0, 20)
+    .map((testFile) => {
+      const assertionMessages = (testFile.assertionResults ?? [])
+        .filter((assertion) => assertion.status === "failed")
+        .flatMap((assertion) => assertion.failureMessages ?? []);
+      const messages = [testFile.message, ...assertionMessages]
+        .filter((message) => typeof message === "string" && message.length > 0)
+        .slice(0, 5)
+        .map((message) => truncateDiagnostic(message));
+      return {
+        file: normalizePath(relative(root, testFile.name)),
+        messages,
+      };
+    });
 }
 
 async function walk(directory, files) {
@@ -176,4 +214,9 @@ async function resolveLocalImport(directory, specifier) {
 
 function normalizePath(path) {
   return path.split("\\").join("/");
+}
+
+function truncateDiagnostic(message, maximumLength = 4_000) {
+  if (message.length <= maximumLength) return message;
+  return `${message.slice(0, maximumLength)}\n...[truncated]`;
 }

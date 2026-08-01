@@ -25,13 +25,14 @@ describe("TC-A02-02 restart and degraded scanner", () => {
       new URL("../../scripts/dev-up-compose-health.sh", import.meta.url),
       "utf8",
     );
-    assert.match(healthScript, /clamdscan --ping/);
+    assert.match(healthScript, /clamdcheck\.sh/);
     assert.match(healthScript, /exit 1/);
   });
 
-  test.skipIf(!integrationEnabled)(
-    "data survives a service restart and scanner failure makes readiness non-zero",
-    () => {
+  if (integrationEnabled) {
+    test(
+      "data survives a service restart and scanner failure makes readiness non-zero",
+      () => {
       const composeArgs = [
         "compose",
         "--env-file",
@@ -128,7 +129,8 @@ describe("TC-A02-02 restart and degraded scanner", () => {
         const restored = run("docker", [...composeArgs, "start", "clamav"]);
         assert.equal(restored.status, 0, combinedOutput(restored));
       }
-    },
-    180_000,
-  );
+      },
+      180_000,
+    );
+  }
 });

@@ -141,9 +141,15 @@ describe("TC-C03-02 DB, signature and staging invariants", () => {
         point: { longitude: 121.49, latitude: 31.24, crs: "WGS84" },
       },
     });
-    const tamperedToken = `${token.slice(0, -1)}${token.endsWith("x") ? "y" : "x"}`;
+    const [body, signature] = token.split(".");
+    const tamperedBody = Buffer.from(
+      JSON.stringify({
+        ...JSON.parse(Buffer.from(body, "base64url").toString("utf8")),
+        locationVersion: 3,
+      }),
+    ).toString("base64url");
     assert.throws(
-      () => signer.verify(tamperedToken, context),
+      () => signer.verify(`${tamperedBody}.${signature}`, context),
       /signature/u,
     );
     assert.throws(

@@ -18,7 +18,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: "pnpm --filter @on-the-road/web start:dev",
+      command: "pnpm --filter @on-the-road/web build && pnpm --filter @on-the-road/web start",
       cwd: "../..",
       port: 3000,
       reuseExistingServer: false,

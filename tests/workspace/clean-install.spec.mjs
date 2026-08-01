@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
@@ -9,22 +18,38 @@ import { test } from "vitest";
 const rootPath = new URL("../../", import.meta.url).pathname;
 const ignored = new Set([
   ".git",
+  ".cache",
+  ".next",
   ".pnpm-store",
   ".turbo",
   "coverage",
   "node_modules",
+  "playwright-report",
+  "test-results",
 ]);
 
 function isIgnoredPath(path, directory) {
-  const parts = relative(directory, path).split("/");
+  const repositoryPath = relative(directory, path);
+  const parts = repositoryPath.split("/");
   if (parts.some((segment) => ignored.has(segment))) return true;
+  if (repositoryPath.endsWith(".tsbuildinfo")) return true;
   return /^(apps|packages|spikes)\/[^/]+\/dist(?:\/|$)/.test(
-    relative(directory, path),
+    repositoryPath,
   );
 }
 
 async function sourceDigest(directory) {
+  const snapshot = await sourceSnapshot(directory);
   const hash = createHash("sha256");
+  for (const [path, digest] of snapshot) {
+    hash.update(path);
+    hash.update(digest);
+  }
+  return hash.digest("hex");
+}
+
+async function sourceSnapshot(directory) {
+  const snapshot = new Map();
   async function visit(path) {
     const info = await stat(path);
     if (info.isDirectory()) {
@@ -34,12 +59,50 @@ async function sourceDigest(directory) {
       }
       return;
     }
-    hash.update(relative(directory, path));
-    hash.update(await readFile(path));
+    snapshot.set(
+      relative(directory, path),
+      createHash("sha256").update(await readFile(path)).digest("hex"),
+    );
   }
   await visit(directory);
-  return hash.digest("hex");
+  return snapshot;
 }
+
+function changedPaths(before, after) {
+  return [...new Set([...before.keys(), ...after.keys()])]
+    .filter((path) => before.get(path) !== after.get(path))
+    .sort();
+}
+
+test("source digest ignores generated outputs but detects source changes", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "on-the-road-a01-digest-"));
+  try {
+    await mkdir(join(directory, "apps/web/src"), { recursive: true });
+    await mkdir(join(directory, "apps/web/.next"), { recursive: true });
+    await mkdir(join(directory, "apps/web/test-results"), { recursive: true });
+    await writeFile(join(directory, "apps/web/src/page.tsx"), "export default 1;\n");
+    await writeFile(join(directory, "apps/web/.next/trace"), "first build\n");
+    await writeFile(join(directory, "apps/web/tsconfig.tsbuildinfo"), "first build\n");
+    await writeFile(
+      join(directory, "apps/web/test-results/results.json"),
+      '{"status":"first"}\n',
+    );
+
+    const initial = await sourceDigest(directory);
+    await writeFile(join(directory, "apps/web/.next/trace"), "second build\n");
+    await writeFile(join(directory, "apps/web/tsconfig.tsbuildinfo"), "second build\n");
+    await writeFile(
+      join(directory, "apps/web/test-results/results.json"),
+      '{"status":"second"}\n',
+    );
+    assert.equal(await sourceDigest(directory), initial);
+
+    await writeFile(join(directory, "apps/web/src/page.tsx"), "export default 2;\n");
+    assert.notEqual(await sourceDigest(directory), initial);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test(
   "TC-A01-03 clean checkout installs and runs every quality command",
@@ -51,7 +114,7 @@ test(
         recursive: true,
         filter: (source) => !isIgnoredPath(source, rootPath),
       });
-      const before = await sourceDigest(checkout);
+      const before = await sourceSnapshot(checkout);
       const environment = { ...process.env };
 
       const install = spawnSync(
@@ -67,9 +130,10 @@ test(
         env: environment,
       });
       assert.equal(quality.status, 0, `${quality.stdout}${quality.stderr}`);
-      assert.equal(
-        await sourceDigest(checkout),
-        before,
+      const after = await sourceSnapshot(checkout);
+      assert.deepEqual(
+        changedPaths(before, after),
+        [],
         "quality tasks changed source files",
       );
     } finally {

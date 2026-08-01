@@ -119,17 +119,9 @@ services:
       - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
     volumes:
       - clamav-signatures:/var/lib/clamav
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "clamdscan --ping 1 --wait 30 >/dev/null 2>&1 || exit 1",
-        ]
-      interval: 10s
-      timeout: 35s
-      retries: 30
-      start_period: 90s
-    mem_limit: 2g
+    # Keep the image's official clamdcheck.sh healthcheck and six-minute
+    # signature-loading start period instead of replacing it with clamdscan.
+    mem_limit: 4g
     cpus: "1.0"
     security_opt: ["no-new-privileges:true"]
     networks: [otr-internal]

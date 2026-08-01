@@ -17,6 +17,14 @@ type NativeMinioOptions = Readonly<{
   mcBin?: string;
 }>;
 
+export function resolveNativeTestBinary(
+  explicitValue: string | undefined,
+  environmentValue: string | undefined,
+  fallback: string,
+): string {
+  return explicitValue?.trim() || environmentValue?.trim() || fallback;
+}
+
 async function unusedPort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -64,6 +72,34 @@ async function waitUntilReady(endpoint: string, process: ChildProcess): Promise<
   throw new Error("Timed out waiting for native MinIO.");
 }
 
+async function waitForAlias(
+  mcBin: string,
+  configDirectory: string,
+  environment: NodeJS.ProcessEnv,
+  server: ChildProcess,
+  args: readonly string[],
+): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (server.exitCode !== null) {
+      throw new Error(`Native MinIO exited during initialization (${server.exitCode}).`, {
+        cause: lastError,
+      });
+    }
+    try {
+      runMc(mcBin, configDirectory, environment, args);
+      return;
+    } catch (error) {
+      if (error instanceof Error && error.cause) throw error;
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error("Timed out waiting for native MinIO credential initialization.", {
+    cause: lastError,
+  });
+}
+
 function runMc(
   mcBin: string,
   configDirectory: string,
@@ -102,8 +138,12 @@ export async function startNativeMinio(
     MINIO_ROOT_USER: accessKey,
     MINIO_ROOT_PASSWORD: secretKey,
   };
-  const minioBin = options.minioBin ?? process.env.MINIO_BIN ?? "minio";
-  const mcBin = options.mcBin ?? process.env.MC_BIN ?? "mc";
+  const minioBin = resolveNativeTestBinary(
+    options.minioBin,
+    process.env.MINIO_BIN,
+    "minio",
+  );
+  const mcBin = resolveNativeTestBinary(options.mcBin, process.env.MC_BIN, "mc");
   const server = spawn(
     minioBin,
     [
@@ -121,7 +161,7 @@ export async function startNativeMinio(
   );
   try {
     await waitUntilReady(endpoint, server);
-    runMc(mcBin, configDirectory, environment, [
+    await waitForAlias(mcBin, configDirectory, environment, server, [
       "alias",
       "set",
       "otr-d01",

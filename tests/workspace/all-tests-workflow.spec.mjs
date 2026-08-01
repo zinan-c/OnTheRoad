@@ -13,6 +13,18 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     new URL(".github/workflows/ci_quality_related.yml", root),
     "utf8",
   );
+  const releaseWorkflow = await readFile(
+    new URL(".github/workflows/release_gates.yml", root),
+    "utf8",
+  );
+  const localCi = await readFile(
+    new URL("scripts/run-local-ci.sh", root),
+    "utf8",
+  );
+  const playwrightConfig = await readFile(
+    new URL("apps/web/playwright.config.ts", root),
+    "utf8",
+  );
   const packageJson = JSON.parse(
     await readFile(new URL("package.json", root), "utf8"),
   );
@@ -27,10 +39,28 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     testWorkflow,
     /bash scripts\/install-native-minio\.sh "\$RUNNER_TEMP\/otr-native-minio"/,
   );
-  assert.match(testWorkflow, /RUN_COMPOSE_INTEGRATION: "1"/);
+  assert.doesNotMatch(testWorkflow, /RUN_COMPOSE_INTEGRATION/);
+  assert.match(releaseWorkflow, /RUN_COMPOSE_INTEGRATION: "1"/);
+  assert.match(
+    releaseWorkflow,
+    /cp infra\/local-stack\.env\.example infra\/local-stack\.env[\s\S]*docker compose --env-file infra\/local-stack\.env/,
+  );
   assert.match(testWorkflow, /bash scripts\/dev-up\.sh --track compose/);
   assert.match(testWorkflow, /OTR_REQUIRED_CASE_REPORT: test-results\/m0-m2-required\.json/);
-  assert.match(testWorkflow, /uses: actions\/upload-artifact@v4/);
+  assert.match(
+    testWorkflow,
+    /: "\$\{REDIS_URL:\?infra\/local-stack\.env must define REDIS_URL\}"/,
+  );
+  assert.match(testWorkflow, /export OTR_M1_REDIS_URL="\$REDIS_URL"/);
+  assert.match(
+    testWorkflow,
+    /Initialize required-case diagnostic artifact[\s\S]*node scripts\/initialize-required-case-report\.mjs[\s\S]*Start real integration dependencies/,
+  );
+  assert.match(testWorkflow, /uses: actions\/upload-artifact@v6/);
+  assert.doesNotMatch(
+    `${testWorkflow}\n${qualityWorkflow}\n${releaseWorkflow}`,
+    /uses: (?:actions\/(?:checkout|setup-node|upload-artifact)|pnpm\/action-setup)@v4(?:\s|$)/m,
+  );
   assert.match(qualityWorkflow, /^name: "CI-Quality Related"$/m);
   assert.equal(
     qualityWorkflow.match(/bash scripts\/install-native-minio\.sh/g)?.length,
@@ -60,4 +90,27 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     );
   }
   assert.equal(packageJson.scripts["test:cases:required"], "node scripts/run-required-cases.mjs");
+  assert.equal(packageJson.scripts["ci:local"], "bash scripts/run-local-ci.sh");
+  for (const command of [
+    "pnpm run toolchain:check",
+    "pnpm install --frozen-lockfile",
+    "docker compose version",
+    "docker info",
+    "pnpm run quality",
+    "bash scripts/dev-up.sh --track compose",
+    "pnpm run db:migrate",
+    "pnpm run db:seed",
+    "pnpm run test:cases:required",
+    "pnpm run ci:smoke",
+    "git diff --exit-code",
+  ]) {
+    assert.ok(localCi.includes(command), `local CI must include ${command}`);
+  }
+  assert.match(localCi, /trap cleanup EXIT/);
+  assert.match(localCi, /export OTR_M1_REDIS_URL="\$\{REDIS_URL\}"/);
+  assert.doesNotMatch(playwrightConfig, /start:dev/);
+  assert.match(
+    playwrightConfig,
+    /@on-the-road\/web build && pnpm --filter @on-the-road\/web start/,
+  );
 });

@@ -17,7 +17,11 @@ describe("TC-A02-01 local stack health", () => {
     for (const service of ["postgres", "redis", "minio", "clamav"]) {
       assert.match(compose, new RegExp(`^  ${service}:`, "m"));
     }
-    assert.equal((compose.match(/healthcheck:/g) ?? []).length, 4);
+    assert.equal(
+      (compose.match(/healthcheck:/g) ?? []).length,
+      3,
+      "ClamAV must retain the official image healthcheck",
+    );
     for (const volume of [
       "postgres-data",
       "redis-data",
@@ -30,6 +34,12 @@ describe("TC-A02-01 local stack health", () => {
     assert.ok((compose.match(/cpus:/g) ?? []).length >= 4);
     assert.ok((compose.match(/no-new-privileges:true/g) ?? []).length >= 5);
     assert.match(compose, /minio-init:[\s\S]*?read_only:\s*true/u);
+    assert.doesNotMatch(
+      compose.split(/^ {2}clamav:/m)[1],
+      /healthcheck:/,
+      "ClamAV startup must retain the image's six-minute start period",
+    );
+    assert.match(compose, /clamav:[\s\S]*?mem_limit:\s*4g/u);
   });
 
   test("PostGIS and the object bucket are initialized idempotently", async () => {
@@ -79,11 +89,13 @@ describe("TC-A02-01 local stack health", () => {
     assert.match(healthScript, /grep -qx '\[\[:space:\]\]\*1/);
     assert.match(healthScript, /redis-cli --no-auth-warning -a/);
     assert.match(healthScript, /grep -qx 'PONG'/);
+    assert.match(healthScript, /clamdcheck\.sh/);
   });
 
-  test.skipIf(!integrationEnabled)(
-    "empty volumes expose PostGIS, Redis, MinIO bucket, and ClamAV readiness",
-    () => {
+  if (integrationEnabled) {
+    test(
+      "empty volumes expose PostGIS, Redis, MinIO bucket, and ClamAV readiness",
+      () => {
       const bootstrap = run("bash", ["scripts/dev-up.sh", "--track", "compose"]);
       assert.equal(bootstrap.status, 0, combinedOutput(bootstrap));
 
@@ -122,7 +134,8 @@ describe("TC-A02-01 local stack health", () => {
       ]);
       assert.equal(eicar.status, 1, combinedOutput(eicar));
       assert.match(combinedOutput(eicar), /FOUND/);
-    },
-    180_000,
-  );
+      },
+      180_000,
+    );
+  }
 });

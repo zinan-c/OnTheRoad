@@ -35,7 +35,8 @@
     "test:all:dev": "pnpm run unit && pnpm run test:integration && pnpm run test:visual && pnpm run ci:smoke",
     "build": "turbo run build",
     "quality": "pnpm run test:cases:verify && pnpm run lint && pnpm run typecheck && pnpm run unit && pnpm run build",
-    "ci:smoke": "vitest run tests/workspace/clean-install.spec.mjs"
+    "ci:smoke": "vitest run tests/workspace/clean-install.spec.mjs",
+    "ci:local": "bash scripts/run-local-ci.sh"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

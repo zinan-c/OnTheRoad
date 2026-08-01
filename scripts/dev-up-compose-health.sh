@@ -48,7 +48,7 @@ check postgres postgres_ready
 check redis redis_ready
 check minio compose run --rm --no-deps minio-init \
   "mc alias set local http://minio:9000 \"${MINIO_ROOT_USER}\" \"${MINIO_ROOT_PASSWORD}\" >/dev/null && mc stat \"local/${MINIO_BUCKET}\""
-check clamav compose exec -T clamav clamdscan --ping 1 --wait 5
+check clamav compose exec -T clamav clamdcheck.sh
 
 if [[ "${failed}" -ne 0 ]]; then
   echo "Compose Track readiness failed; media processing must remain fail-closed." >&2

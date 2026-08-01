@@ -18,12 +18,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4.4.0
         with:
           version: 9.15.4
           run_install: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -38,7 +38,11 @@ jobs:
           pnpm exec playwright install --with-deps chromium
           sudo apt-get update
           sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
-      - name: Start pinned integration dependencies
+      - name: Initialize required-case diagnostic artifact
+        env:
+          OTR_REQUIRED_CASE_REPORT: test-results/m0-m2-required.json
+        run: node scripts/initialize-required-case-report.mjs
+      - name: Start real integration dependencies
         run: bash scripts/dev-up.sh --track compose
       - name: Apply and verify the unified database schema
         run: |
@@ -53,15 +57,17 @@ jobs:
               test/migration-runner.spec.ts test/migration-runner.integration.spec.ts
       - name: Run every required M0-M2 case without skips
         env:
-          RUN_COMPOSE_INTEGRATION: "1"
           OTR_RUN_CLAMAV_INTEGRATION: "1"
           OTR_REQUIRED_CASE_REPORT: test-results/m0-m2-required.json
         run: |
           set -a
           source infra/local-stack.env
           set +a
+          : "${DATABASE_URL:?infra/local-stack.env must define DATABASE_URL}"
+          : "${REDIS_URL:?infra/local-stack.env must define REDIS_URL}"
           export OTR_TRIP_DATABASE_URL="$DATABASE_URL"
           export OTR_M1_DATABASE_URL="$DATABASE_URL"
+          export OTR_M1_REDIS_URL="$REDIS_URL"
           export OTR_C03_DATABASE_URL="$DATABASE_URL"
           export OTR_D01_DATABASE_URL="$DATABASE_URL"
           export OTR_D02_DATABASE_URL="$DATABASE_URL"
@@ -70,7 +76,7 @@ jobs:
           pnpm run test:cases:required
       - name: Upload required-case result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: m0-m2-required-case-result
           path: test-results/m0-m2-required.json
