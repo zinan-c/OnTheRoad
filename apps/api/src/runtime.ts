@@ -13,23 +13,52 @@ import { ExpenseService, PostgresExpenseRepository } from "./modules/expenses/in
 import { IdentityService, RedisIdentityStore } from "./modules/identity/index.mjs";
 import { ItineraryCipher } from "./modules/itinerary/encryption.mjs";
 import { PostgresItineraryRepository } from "./modules/itinerary/postgres-repository.mjs";
+import {
+  ItineraryOrderService,
+  PostgresItineraryOrderRepository,
+} from "./modules/itinerary/reorder.mjs";
 import { ItineraryService } from "./modules/itinerary/service.mjs";
 import { PostgresLocationRepository } from "./modules/locations/postgres-repository.mjs";
 import { createConfiguredLocationSearchApi } from "./modules/locations/search.js";
 import { LocationService } from "./modules/locations/service.mjs";
 import { PostgresTripRepository } from "./modules/trips/postgres-repository.mjs";
+import { PostgresTripDayRepository } from "./modules/trips/postgres-day-repository.mjs";
+import { TripDateChangeService } from "./modules/trips/date-change.mjs";
 import { TripService } from "./modules/trips/service.mjs";
+
+export interface ImportTransport {
+  createUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
+  queueInspection(input: Record<string, unknown>): Promise<unknown> | unknown;
+  getJob(input: Record<string, unknown>): Promise<unknown> | unknown;
+}
+
+export interface OidcProvider {
+  readonly issuer: string;
+  authorizationUrl(input: {
+    state: string;
+    nonce: string;
+    codeChallenge: string;
+  }): string;
+  exchangeCode(input: {
+    code: string;
+    codeVerifier: string;
+  }): Promise<{ issuer: string; subject: string; nonce: string }>;
+}
 
 export interface ApiRuntime {
   readonly appOrigin: string;
   readonly environment: string;
   readonly identity: IdentityService;
+  readonly oidcProvider?: OidcProvider;
   readonly trips: TripService;
+  readonly tripDates: TripDateChangeService;
   readonly itinerary: ItineraryService;
+  readonly itineraryOrder: ItineraryOrderService;
   readonly locations: LocationService;
   readonly locationSearch: ReturnType<typeof createConfiguredLocationSearchApi>;
   readonly expenses: ExpenseService;
   readonly attachments: AttachmentUploadService;
+  readonly imports?: ImportTransport;
   referenceData(): unknown;
   checkReadiness(): Promise<Record<string, boolean>>;
   close(): Promise<void>;
@@ -94,6 +123,9 @@ export function createProductionRuntime(
     store: new RedisIdentityStore(redis),
   });
   const trips = new TripService(new PostgresTripRepository({ executor: database }));
+  const tripDates = new TripDateChangeService(
+    new PostgresTripDayRepository({ executor: database }),
+  );
   const itinerary = new ItineraryService(
     new PostgresItineraryRepository({ executor: database }),
     new ItineraryCipher({
@@ -103,6 +135,9 @@ export function createProductionRuntime(
           || server.sessionSecret,
       },
     }),
+  );
+  const itineraryOrder = new ItineraryOrderService(
+    new PostgresItineraryOrderRepository({ executor: database }),
   );
   const locations = new LocationService({
     repository: new PostgresLocationRepository({ executor: database }),
@@ -130,7 +165,9 @@ export function createProductionRuntime(
     environment: config.environment,
     identity,
     trips,
+    tripDates,
     itinerary,
+    itineraryOrder,
     locations,
     locationSearch,
     expenses,

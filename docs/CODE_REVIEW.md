@@ -6,6 +6,15 @@
 >
 > Review type: read-only assessment for follow-up agents to claim, remediate, and verify. It does not indicate that any remediation has been implemented.
 
+## Remediation status
+
+This report preserves the findings as they existed at the review point. Current
+closure evidence is recorded here rather than rewriting the original evidence.
+
+| Finding | Dev status | Closure evidence |
+|---|---|---|
+| P1-03 | Closed | Every non-test OpenAPI operation is mounted on the Nest/Fastify application; route parity and generated-client success/Problem Details are exercised by `apps/api/test/runtime/public-route-parity.e2e.spec.ts`. |
+
 ## 1. Overall Assessment
 
 The repository contains a number of solid domain models, PostgreSQL functions, Provider/Importer/PDF spikes, and module-level tests. However, it is not yet an M2 product that can be started and used through a browser.
