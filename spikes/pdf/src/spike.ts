@@ -264,8 +264,8 @@ async function renderPdf(
   try {
     const page = await browser.newPage();
     await page.goto(pathToFileURL(htmlPath).href, {
-      waitUntil: "load",
-      timeout: Math.max(timeoutMs, 2_000),
+      waitUntil: "domcontentloaded",
+      timeout: 30_000,
     });
     await waitForResources(page, timeoutMs, injectDelayMs);
     await page.pdf({
