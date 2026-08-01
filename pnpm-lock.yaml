@@ -23,12 +23,18 @@ importers:
       '@typescript/typescript6':
         specifier: 6.0.2
         version: 6.0.2
+      bullmq:
+        specifier: 6.0.2
+        version: 6.0.2(ioredis@5.11.1)(pg@8.16.3)
       eslint:
         specifier: 10.8.0
         version: 10.8.0
       fast-check:
         specifier: 4.9.0
         version: 4.9.0
+      ioredis:
+        specifier: 5.11.1
+        version: 5.11.1
       turbo:
         specifier: 2.10.7
         version: 2.10.7

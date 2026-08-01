@@ -74,6 +74,16 @@ jobs:
           export OTR_D04_DATABASE_URL="$DATABASE_URL"
           export OTR_E02_DATABASE_URL="$DATABASE_URL"
           pnpm run test:cases:required
+      - name: Run the real API, database, queue, and Worker smoke
+        run: |
+          set -a
+          source infra/local-stack.env
+          set +a
+          export OTR_RUNTIME_SMOKE_DATABASE_URL="$DATABASE_URL"
+          export OTR_RUNTIME_SMOKE_REDIS_URL="$REDIS_URL"
+          export OTR_RUNTIME_SMOKE_STORAGE_ENDPOINT="$S3_ENDPOINT"
+          export OTR_RUNTIME_SMOKE_CLAMAV_PORT="$CLAMAV_PORT"
+          pnpm run test:runtime-smoke
       - name: Upload required-case result
         if: always()
         uses: actions/upload-artifact@v6

@@ -20,6 +20,7 @@
     "typecheck": "turbo run typecheck",
     "unit": "turbo run unit && vitest run tests/workspace/quality-scripts.spec.mjs tests/workspace/toolchain-guard.spec.mjs tests/workspace/all-tests-workflow.spec.mjs tests/workspace/required-cases.spec.mjs tests/workspace/package-boundaries.spec.mjs tests/workspace/typescript-exceptions.spec.mjs",
     "test:integration": "vitest run tests/config tests/contracts tests/infra tests/milestones",
+    "test:runtime-smoke": "vitest run tests/runtime/real-stack.e2e.spec.ts",
     "test:cases:verify": "node scripts/verify-required-cases.mjs",
     "test:cases:required": "node scripts/run-required-cases.mjs",
     "package-boundaries:check": "node scripts/verify-package-boundaries.mjs",
@@ -43,8 +44,10 @@
     "@playwright/test": "1.62.0",
     "@types/node": "24.10.1",
     "@typescript/typescript6": "6.0.2",
+    "bullmq": "6.0.2",
     "eslint": "10.8.0",
     "fast-check": "4.9.0",
+    "ioredis": "5.11.1",
     "turbo": "2.10.7",
     "vitest": "4.1.10"
   }

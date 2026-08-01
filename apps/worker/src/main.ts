@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import { loadProcessConfig } from "@on-the-road/config/env";
+import { PostgresEventProcessor } from "./processors/maintenance/postgres-event-processor.js";
 import { createQueueProcess } from "./queue-runtime.js";
 
 export async function startWorker(
@@ -8,10 +9,17 @@ export async function startWorker(
 ) {
   const config = loadProcessConfig("worker", environment);
   if (!config.server) throw new Error("Worker server configuration is required.");
+  const eventProcessor = new PostgresEventProcessor(
+    config.server.databaseUrl.href,
+  );
   const processRuntime = createQueueProcess({
     redisUrl: config.server.redisUrl.href,
+    processor: (job) => eventProcessor.process(job),
   });
-  const close = () => processRuntime.close();
+  const close = async () => {
+    await processRuntime.close();
+    await eventProcessor.close();
+  };
   process.once("SIGTERM", () => void close());
   process.once("SIGINT", () => void close());
   return { processRuntime, close };

@@ -24,7 +24,9 @@ const EVENT_FIELDS = new Set([
   "schemaVersion",
 ]);
 
-function validateEvent(candidate: Record<string, unknown>): asserts candidate is JobEvent {
+export function assertJobEvent(
+  candidate: Record<string, unknown>,
+): asserts candidate is JobEvent {
   const unexpected = Object.keys(candidate).filter((field) => !EVENT_FIELDS.has(field));
   if (unexpected.length > 0) {
     throw new TypeError(`Event payload contains unsupported fields: ${unexpected.join(", ")}`);
@@ -51,7 +53,7 @@ export class InMemoryJobStore {
   readonly #inboxClaims = new Set<string>();
 
   appendOutboxEvent(candidate: Record<string, unknown>): JobEvent {
-    validateEvent(candidate);
+    assertJobEvent(candidate);
     if (this.#outbox.has(candidate.eventId)) {
       throw new Error(`Duplicate outbox event: ${candidate.eventId}`);
     }

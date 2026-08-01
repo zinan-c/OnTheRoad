@@ -15,9 +15,6 @@ export interface QueueProcess {
 }
 
 export async function defaultApplicationProcessor(job: Job): Promise<unknown> {
-  if (job.name === "runtime.noop") {
-    return { ok: true, jobId: job.id ?? null };
-  }
   throw Object.assign(
     new Error(`No application processor is registered for ${job.name}`),
     { code: "WORKER_PROCESSOR_UNSUPPORTED", retryable: false },

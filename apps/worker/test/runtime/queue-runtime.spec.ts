@@ -32,4 +32,13 @@ describe("REVIEW-P0-01 application Worker composition root", () => {
       retryable: false,
     });
   });
+
+  test("the default processor never acknowledges a runtime placeholder", async () => {
+    await expect(defaultApplicationProcessor({
+      name: "runtime.noop",
+    } as never)).rejects.toMatchObject({
+      code: "WORKER_PROCESSOR_UNSUPPORTED",
+      retryable: false,
+    });
+  });
 });
