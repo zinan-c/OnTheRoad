@@ -75,7 +75,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.match(
     testWorkflow,
-    /install --no-install-recommends --yes imagemagick poppler-utils/,
+    /install --no-install-recommends --yes imagemagick poppler-utils redis-tools/,
   );
 
   for (const command of [
@@ -107,6 +107,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     assert.ok(localCi.includes(command), `local CI must include ${command}`);
   }
   assert.match(localCi, /trap cleanup EXIT/);
+  assert.match(localCi, /psql redis-cli magick/);
   assert.match(localCi, /export OTR_M1_REDIS_URL="\$\{REDIS_URL\}"/);
   assert.doesNotMatch(playwrightConfig, /start:dev/);
   assert.match(

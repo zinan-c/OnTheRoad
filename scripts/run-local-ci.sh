@@ -26,7 +26,7 @@ pnpm run toolchain:check
 pnpm install --frozen-lockfile
 
 for required_command in \
-  docker minio mc psql magick identify convert montage \
+  docker minio mc psql redis-cli magick identify convert montage \
   pdffonts pdfinfo pdftoppm pdftotext; do
   if ! command -v "${required_command}" >/dev/null 2>&1; then
     echo "Local CI prerequisite is missing from PATH: ${required_command}" >&2

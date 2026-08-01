@@ -37,7 +37,7 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
+          sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils redis-tools
       - name: Initialize required-case diagnostic artifact
         env:
           OTR_REQUIRED_CASE_REPORT: test-results/m0-m2-required.json

@@ -37,8 +37,8 @@ skips. The stack is stopped on both success and failure, and diagnostics are
 written to `test-results/local-m0-m2-required.json`.
 
 The command requires Docker Compose v2, Chromium installed through Playwright,
-Poppler, ImageMagick, and the native `minio`/`mc` test binaries. It reproduces
-the push checks, but the protected real-IdP workflow in
+Poppler, ImageMagick, `redis-cli`, and the native `minio`/`mc` test binaries.
+It reproduces the push checks, but the protected real-IdP workflow in
 `.github/workflows/release_gates.yml` still requires the staging environment
 and cannot be replaced by local evidence.
 
