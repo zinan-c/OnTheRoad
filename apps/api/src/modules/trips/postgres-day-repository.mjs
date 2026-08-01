@@ -48,6 +48,32 @@ export class PostgresTripDayRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} tripId */
+  listDays(ownerId, tripId) {
+    return this.#json(
+      `SELECT COALESCE(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', day.id,
+            'tripId', day.trip_id,
+            'dayNumber', day.day_number,
+            'date', day.date,
+            'version', day.version,
+            'routeGeneration', day.route_generation
+          )
+          ORDER BY day.day_number
+        ),
+        '[]'::jsonb
+      )::text
+      FROM trip_day day
+      JOIN trip ON trip.id = day.trip_id
+      WHERE day.trip_id = $1::uuid
+        AND trip.owner_id = $2
+        AND trip.status <> 'deleted'`,
+      [tripId, ownerId],
+    );
+  }
+
   /** @param {string} ownerId @param {string} tripId @param {{startDate: string, endDate: string, expectedVersion: number, confirmDestructive: boolean}} input */
   applyDateRange(ownerId, tripId, {
     startDate,

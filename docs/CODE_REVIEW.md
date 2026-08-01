@@ -15,6 +15,7 @@ closure evidence is recorded here rather than rewriting the original evidence.
 |---|---|---|
 | P0-01 | Closed | `tests/runtime/real-stack.e2e.spec.ts` starts the real API composition root against migrated PostgreSQL and Redis, persists Trip/Item/Location/upload-entry changes over HTTP, sends the reorder outbox event through BullMQ, and proves the Worker writes the inbox receipt and handled timestamp. The production Worker rejects `runtime.noop` and uses an explicit PostgreSQL event processor. |
 | P1-03 | Closed | Every non-test OpenAPI operation is mounted on the Nest/Fastify application; route parity and generated-client success/Problem Details are exercised by `apps/api/test/runtime/public-route-parity.e2e.spec.ts`. |
+| P1-04 | Closed for the M0–M2 Dev scope | Playwright starts the production API composition root rather than an in-memory repository. `apps/web/browser/trip-session.spec.ts` covers real React creation/session UX and browser-origin HTTP persistence for Item create/update/copy/delete/reorder, stale-version rejection, Location adjustment, refresh and mobile layout. Feature-specific M3 browser paths remain owned by their M3 Tasks. |
 
 ## 1. Overall Assessment
 

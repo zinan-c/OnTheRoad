@@ -135,7 +135,7 @@
 
 - `TC-B04-01` — Wizard/list component；代码：`apps/web/features/trips/trip-wizard.spec.tsx`。填写四步数据并返回修改；断言摘要、校验和提交 payload。
 - `TC-B04-02` — Double-submit/error/delete（集成模型测试）；代码：`apps/web/integration/trips-failure.spec.ts`。双击、网络失败、删除恢复；断言单 Trip、错误可重试、删除二次确认。
-- `TC-B04-03` — Create/reload browser E2E；代码：`apps/web/browser/trip-session.spec.ts`，支撑集成模型：`apps/web/integration/trips-create.spec.ts`。通过真实 HTTP API 从空账号创建五日两目的地旅行；断言刷新、退出和重新登录后仍存在，并在桌面与移动端执行核心入口。
+- `TC-B04-03` — Create/reload browser E2E；代码：`apps/web/browser/trip-session.spec.ts`，支撑集成模型：`apps/web/integration/trips-create.spec.ts`。Playwright 启动真实 Next Web 与 production API composition root，使用 PostgreSQL/Redis 从空账号创建五日两目的地旅行，并从浏览器 origin 完成 Item create/update/copy/delete/reorder、409 陈旧写入拒绝和 Location 坐标确认；断言刷新、退出和重新登录后仍存在，并在桌面与移动端执行核心入口。
 
 ### C01
 

@@ -8,6 +8,7 @@ import {
   Catch,
   Get,
   Headers,
+  HttpCode,
   HttpStatus,
   Inject,
   Module,
@@ -339,6 +340,17 @@ class ApiController {
     return result;
   }
 
+  @Get("trips/:tripId/days")
+  async listTripDays(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+  ) {
+    return this.runtime.tripDates.list(
+      await owner(this.runtime, request),
+      tripId,
+    );
+  }
+
   @Post("trips/:tripId/days/:tripDayId/itinerary-items")
   async createItem(
     @Req() request: FastifyRequest,
@@ -371,6 +383,7 @@ class ApiController {
   }
 
   @Post("trips/:tripId/days/:tripDayId/itinerary-items/reorder")
+  @HttpCode(HttpStatus.OK)
   async reorderItems(
     @Req() request: FastifyRequest,
     @Param("tripId") tripId: string,

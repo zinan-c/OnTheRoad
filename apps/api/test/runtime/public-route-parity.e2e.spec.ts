@@ -37,6 +37,7 @@ function createRuntime(): ApiRuntime {
     },
     tripDates: {
       apply: async () => ({ id: "trip-1", version: 4, days: [] }),
+      list: async () => [],
     },
     itinerary: {
       get: async () => ({ id: "item-1", version: 1 }),

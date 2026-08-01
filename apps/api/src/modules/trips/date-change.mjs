@@ -4,9 +4,17 @@ import {
 } from "@on-the-road/domain/trip/date-range";
 
 export class TripDateChangeService {
-  /** @param {{loadDateContext: Function, applyDateRange: Function}} repository */
+  /** @param {{listDays?: Function, loadDateContext: Function, applyDateRange: Function}} repository */
   constructor(repository) {
     this.repository = repository;
+  }
+
+  /** @param {string} ownerId @param {string} tripId */
+  list(ownerId, tripId) {
+    if (typeof this.repository.listDays !== "function") {
+      throw new TypeError("repository.listDays is required");
+    }
+    return this.repository.listDays(ownerId, tripId);
   }
 
   /** @param {string} ownerId @param {string} tripId @param {{startDate: string, endDate: string}} input */

@@ -733,6 +733,35 @@
         }
       }
     },
+    "/trips/{tripId}/days": {
+      "get": {
+        "operationId": "listTripDays",
+        "summary": "List owner-scoped Trip days in itinerary order",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered Trip days",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TripDay"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/trips/{tripId}/dates": {
       "patch": {
         "operationId": "changeTripDates",
@@ -1593,6 +1622,42 @@
             "items": {
               "$ref": "#/components/schemas/DestinationInput"
             }
+          }
+        }
+      },
+      "TripDay": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "tripId",
+          "dayNumber",
+          "date",
+          "version",
+          "routeGeneration"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "tripId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "dayNumber": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "routeGeneration": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
