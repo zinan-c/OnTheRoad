@@ -9,6 +9,7 @@
     "./itinerary": "./src/itinerary/index.mjs",
     "./itinerary/order": "./src/itinerary/order.mjs",
     "./location": "./src/location/index.mjs",
+    "./routing": "./src/routing/index.mjs",
     "./transport-mode": "./src/transport-mode/index.mjs",
     "./trip": "./src/trip/index.mjs",
     "./trip/date-range": "./src/trip/date-range.mjs"
