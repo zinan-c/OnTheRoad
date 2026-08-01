@@ -217,6 +217,10 @@ importers:
         version: 24.10.1
 
   packages/importer:
+    dependencies:
+      '@on-the-road/config':
+        specifier: workspace:*
+        version: link:../config
     devDependencies:
       '@types/node':
         specifier: 24.10.1

@@ -9,6 +9,9 @@
   "devDependencies": {
     "@types/node": "24.10.1"
   },
+  "dependencies": {
+    "@on-the-road/config": "workspace:*"
+  },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc6 -p tsconfig.json",
