@@ -52,6 +52,53 @@ describe("TC-D04-03 expense summary seed", () => {
         toCurrency: "CNY",
         rate: "7.200000000000",
       }],
+      breakdowns: {
+        category: {
+          DINING: {
+            originalTotal: "100.0000",
+            settledTotal: "100.0000",
+            unconverted: "0",
+          },
+          TICKET: {
+            originalTotal: "10.0000",
+            settledTotal: "72.0000",
+            unconverted: "0",
+          },
+        },
+        currency: {
+          CNY: {
+            originalTotal: "100.0000",
+            settledTotal: "100.0000",
+            unconverted: "0",
+          },
+          USD: {
+            originalTotal: "10.0000",
+            settledTotal: "72.0000",
+            unconverted: "0",
+          },
+        },
+        day: {
+          unassigned: {
+            originalTotal: "110.0000",
+            settledTotal: "172.0000",
+            unconverted: "0",
+          },
+        },
+        destination: {
+          unassigned: {
+            originalTotal: "110.0000",
+            settledTotal: "172.0000",
+            unconverted: "0",
+          },
+        },
+        mode: {
+          unassigned: {
+            originalTotal: "110.0000",
+            settledTotal: "172.0000",
+            unconverted: "0",
+          },
+        },
+      },
     });
   });
 });

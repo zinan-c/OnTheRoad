@@ -114,14 +114,32 @@ describe("REVIEW-P1-03 public transport parity", () => {
   test("uses the generated client against real controllers and Problem Details", async () => {
     const runtime = createRuntime();
     app = await createApiApplication(runtime);
-    await app.listen(0, "127.0.0.1");
+    const server = app.getHttpAdapter().getInstance();
+    const inProcessFetch: typeof fetch = async (input, init) => {
+      const request = new Request(input, init);
+      const response = await server.inject({
+        method: request.method,
+        url: new URL(request.url).pathname + new URL(request.url).search,
+        headers: Object.fromEntries(request.headers.entries()),
+        ...(request.body === null ? {} : { payload: await request.text() }),
+      });
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(response.headers)) {
+        if (Array.isArray(value)) {
+          for (const item of value) headers.append(name, item);
+        } else if (value !== undefined) {
+          headers.set(name, String(value));
+        }
+      }
+      return new Response(response.body, { status: response.statusCode, headers });
+    };
     const login = await runtime.identity.loginWithDevelopmentIdentity({
       subject: "route-owner",
       origin: runtime.appOrigin,
     });
     const sessionCookie = login.setCookie.split(";", 1)[0];
-    const client = new OnTheRoadClient(await app.getUrl(), {
-      fetch: (input, init) => fetch(input, {
+    const client = new OnTheRoadClient("http://127.0.0.1", {
+      fetch: (input, init) => inProcessFetch(input, {
         ...init,
         headers: {
           ...Object.fromEntries(new Headers(init?.headers).entries()),
@@ -151,7 +169,9 @@ describe("REVIEW-P1-03 public transport parity", () => {
       path: { jobId: "job-1" },
     })).resolves.toMatchObject({ data: { status: "queued" } });
 
-    const anonymous = new OnTheRoadClient(await app.getUrl());
+    const anonymous = new OnTheRoadClient("http://127.0.0.1", {
+      fetch: inProcessFetch,
+    });
     await expect(anonymous.request("getJob", {
       path: { jobId: "job-1" },
     })).rejects.toMatchObject({
