@@ -71,6 +71,16 @@ describe("TC-A03-02 secret and error redaction", () => {
       },
       "OBJECT_STORAGE_ACCESS_KEY",
     ],
+    [
+      "invalid runtime profile",
+      { OTR_RUNTIME_PROFILE: "staging" },
+      "OTR_RUNTIME_PROFILE",
+    ],
+    [
+      "invalid QA service mode",
+      { OTR_RUNTIME_PROFILE: "qa", OTR_QA_REDIS_MODE: "docker" },
+      "OTR_QA_REDIS_MODE",
+    ],
   ])("%s fails with a field-level issue before startup", (_, changes, field) => {
     const environment = { ...minimalEnvironment, ...changes };
     for (const [key, value] of Object.entries(environment)) {

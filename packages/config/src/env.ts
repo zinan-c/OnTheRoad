@@ -7,6 +7,8 @@ export const PROCESS_ROLES = [
 
 export type ProcessRole = (typeof PROCESS_ROLES)[number];
 export type RuntimeEnvironment = "development" | "test" | "production";
+export type RuntimeProfile = "dev" | "qa" | "release";
+export type ServiceMode = "native" | "container" | "remote";
 export type MapProfile =
   | "fixture"
   | "cn_primary"
@@ -50,6 +52,8 @@ export class ConfigValidationError extends Error {
 export interface ProcessConfig {
   readonly role: ProcessRole;
   readonly environment: RuntimeEnvironment;
+  readonly profile: RuntimeProfile;
+  readonly serviceModes: Readonly<Record<string, ServiceMode>>;
   readonly urls: {
     readonly app: URL;
     readonly api: URL;
@@ -108,6 +112,16 @@ const VALID_ENVIRONMENTS = new Set<RuntimeEnvironment>([
   "test",
   "production",
 ]);
+const VALID_PROFILES = new Set<RuntimeProfile>(["dev", "qa", "release"]);
+const SERVICE_MODE_FIELDS = [
+  "POSTGRES",
+  "REDIS",
+  "MINIO",
+  "CLAMAV",
+  "API",
+  "WEB",
+  "WORKER",
+] as const;
 const VALID_MAP_PROFILES = new Set<MapProfile>([
   "fixture",
   "cn_primary",
@@ -270,6 +284,33 @@ export function loadProcessConfig(
     );
   }
 
+  const inferredProfile: RuntimeProfile = runtime === "production" ? "release" : "dev";
+  const runtimeProfileValue = environment.OTR_RUNTIME_PROFILE?.trim() || inferredProfile;
+  const runtimeProfile = VALID_PROFILES.has(runtimeProfileValue as RuntimeProfile)
+    ? runtimeProfileValue as RuntimeProfile
+    : inferredProfile;
+  if (!VALID_PROFILES.has(runtimeProfileValue as RuntimeProfile)) {
+    issue(
+      issues,
+      "OTR_RUNTIME_PROFILE",
+      "INVALID_ENUM",
+      "OTR_RUNTIME_PROFILE must be dev, qa or release",
+    );
+  }
+  const serviceModes = Object.fromEntries(SERVICE_MODE_FIELDS.map((service) => {
+    const field = `OTR_${runtimeProfile.toUpperCase()}_${service}_MODE`;
+    const value = environment[field]?.trim() || "native";
+    if (!["native", "container", "remote"].includes(value)) {
+      issue(
+        issues,
+        field,
+        "INVALID_ENUM",
+        `${field} must be native, container or remote`,
+      );
+    }
+    return [service.toLowerCase(), value as ServiceMode];
+  }));
+
   const appUrl = parsedUrl(
     required(environment, issues, "APP_ORIGIN"),
     issues,
@@ -282,11 +323,11 @@ export function loadProcessConfig(
     "API_BASE_URL",
     ["http:", "https:"],
   );
-  const profileValue = required(environment, issues, "MAP_PROFILE");
-  const profile = VALID_MAP_PROFILES.has(profileValue as MapProfile)
-    ? (profileValue as MapProfile)
+  const mapProfileValue = required(environment, issues, "MAP_PROFILE");
+  const mapProfile = VALID_MAP_PROFILES.has(mapProfileValue as MapProfile)
+    ? (mapProfileValue as MapProfile)
     : "fixture";
-  if (profileValue && profile === "fixture" && profileValue !== "fixture") {
+  if (mapProfileValue && mapProfile === "fixture" && mapProfileValue !== "fixture") {
     issue(
       issues,
       "MAP_PROFILE",
@@ -310,7 +351,7 @@ export function loadProcessConfig(
   const amapKey = environment.AMAP_API_KEY?.trim() ?? "";
   const hereKey = environment.OTR_HERE_API_KEY?.trim() ?? "";
 
-  if (profile === "fixture" && (autocomplete || explicitSearch)) {
+  if (mapProfile === "fixture" && (autocomplete || explicitSearch)) {
     issue(
       issues,
       autocomplete ? "MAP_AUTOCOMPLETE_ENABLED" : "MAP_EXPLICIT_SEARCH_ENABLED",
@@ -319,7 +360,7 @@ export function loadProcessConfig(
     );
   }
   if (
-    profile === "cn_primary"
+    mapProfile === "cn_primary"
     && !amapKey
   ) {
     issue(
@@ -330,7 +371,7 @@ export function loadProcessConfig(
     );
   }
   if (
-    profile === "international_primary"
+    mapProfile === "international_primary"
     && !hereKey
   ) {
     issue(
@@ -340,7 +381,7 @@ export function loadProcessConfig(
       "international online search requires OTR_HERE_API_KEY",
     );
   }
-  if (profile === "hybrid" && (!amapKey || !hereKey)) {
+  if (mapProfile === "hybrid" && (!amapKey || !hereKey)) {
     issue(
       issues,
       "MAP_PROFILE",
@@ -481,6 +522,8 @@ export function loadProcessConfig(
   return {
     role,
     environment: runtime,
+    profile: runtimeProfile,
+    serviceModes,
     urls: {
       app: appUrl,
       api: apiUrl,
@@ -490,7 +533,7 @@ export function loadProcessConfig(
       api: apiPort,
     },
     map: {
-      profile,
+      profile: mapProfile,
       here: {
         geocodeEndpoint: hereGeocodeEndpoint,
         discoverEndpoint: hereDiscoverEndpoint,

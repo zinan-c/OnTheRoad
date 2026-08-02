@@ -14,10 +14,8 @@ import {
   type QueueProcess,
 } from "../../apps/worker/src/queue-runtime.js";
 
-const databaseUrl = process.env.OTR_RUNTIME_SMOKE_DATABASE_URL;
-const redisUrl = process.env.OTR_RUNTIME_SMOKE_REDIS_URL;
-const enabled = Boolean(databaseUrl && redisUrl);
-const integrationTest = enabled ? test : test.skip;
+const databaseUrl = process.env.DATABASE_URL;
+const redisUrl = process.env.REDIS_URL;
 
 let database: PostgresExecutor;
 let api: StartedApi;
@@ -38,13 +36,12 @@ function runtimeEnvironment(): Record<string, string> {
     API_PORT: String(apiPort),
     DATABASE_URL: databaseUrl!,
     REDIS_URL: redisUrl!,
-    OBJECT_STORAGE_ENDPOINT:
-      process.env.OTR_RUNTIME_SMOKE_STORAGE_ENDPOINT ?? "http://127.0.0.1:19000",
-    OBJECT_STORAGE_ACCESS_KEY: "runtime-smoke-access",
-    OBJECT_STORAGE_SECRET_KEY: "runtime-smoke-secret",
-    OBJECT_STORAGE_BUCKET: "runtime-smoke",
-    CLAMAV_HOST: "127.0.0.1",
-    CLAMAV_PORT: process.env.OTR_RUNTIME_SMOKE_CLAMAV_PORT ?? "13310",
+    OBJECT_STORAGE_ENDPOINT: process.env.OBJECT_STORAGE_ENDPOINT!,
+    OBJECT_STORAGE_ACCESS_KEY: process.env.OBJECT_STORAGE_ACCESS_KEY!,
+    OBJECT_STORAGE_SECRET_KEY: process.env.OBJECT_STORAGE_SECRET_KEY!,
+    OBJECT_STORAGE_BUCKET: process.env.OBJECT_STORAGE_BUCKET!,
+    CLAMAV_HOST: process.env.CLAMAV_HOST!,
+    CLAMAV_PORT: process.env.CLAMAV_PORT ?? "3310",
     SESSION_SECRET: "runtime-smoke-session-secret-at-least-32-bytes",
     MAP_PROFILE: "fixture",
     MAP_AUTOCOMPLETE_ENABLED: "false",
@@ -65,8 +62,7 @@ async function eventually(
 }
 
 beforeAll(async () => {
-  if (!enabled) return;
-  database = new PostgresExecutor({ databaseUrl, role: "test" });
+  database = new PostgresExecutor({ databaseUrl: process.env.DATABASE_URL, role: "test" });
   api = await startApi(runtimeEnvironment());
   const queueName = `${APPLICATION_QUEUE}.runtime-smoke.${randomUUID()}`;
   eventProcessor = new PostgresEventProcessor(databaseUrl!);
@@ -81,7 +77,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (!enabled) return;
   if (eventId) {
     await database.query(
       "DELETE FROM job_inbox WHERE event_id = $1",
@@ -105,7 +100,7 @@ afterAll(async () => {
 });
 
 describe("REVIEW-P0-01 real API/DB/queue/Worker smoke", () => {
-  integrationTest(
+  test(
     "starts from migrated PostgreSQL and persists an HTTP edit through Worker consumption",
     async () => {
       const baseUrl = await api.app.getUrl();

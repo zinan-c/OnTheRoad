@@ -16,6 +16,30 @@ cp .env.example .env
 pnpm run toolchain:check
 ```
 
+Runtime configuration has three explicit profiles:
+
+- `dev`: native/local Postgres, Redis, MinIO, ClamAV and local Node processes;
+  Docker is not checked.
+- `qa`: native, container or remote can be selected independently per service.
+  Copy `config/profiles/qa.env.example` to `config/profiles/qa.env`, then run
+  commands with `bash scripts/run-profile.sh qa -- ...`.
+- `release`: production-shaped configuration. Docker/Compose and real Staging
+  IdP checks are release gates, not development checks.
+
+Examples:
+
+```sh
+pnpm run test:integration
+pnpm run profile:qa -- pnpm exec vitest run tests/milestones/m3/real-environment.e2e.spec.ts
+pnpm run profile:release -- pnpm run test:cases:required
+```
+
+In QA, `OTR_QA_<SERVICE>_MODE` accepts `native`, `container` or `remote` for
+`POSTGRES`, `REDIS`, `MINIO`, `CLAMAV`, `API`, `WEB` and `WORKER`. Selecting
+`container` records the intended topology but does not start Docker implicitly;
+the selected endpoints must still be supplied and reachable. This keeps QA
+flexible without moving the A02 Docker gate into ordinary development runs.
+
 The default capability response is:
 
 - offline map and local fixtures: enabled;

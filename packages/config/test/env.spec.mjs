@@ -33,6 +33,16 @@ describe("TC-A03-01 minimal config schema", () => {
 
     for (const config of configs) {
       expect(config.environment).toBe("development");
+      expect(config.profile).toBe("dev");
+      expect(config.serviceModes).toEqual({
+        postgres: "native",
+        redis: "native",
+        minio: "native",
+        clamav: "native",
+        api: "native",
+        web: "native",
+        worker: "native",
+      });
       expect(config.map.profile).toBe("fixture");
       expect(config.map.capabilities).toEqual({
         autocomplete: false,
@@ -53,6 +63,23 @@ describe("TC-A03-01 minimal config schema", () => {
     }
 
     expect(configs.map(({ role }) => role)).toEqual(PROCESS_ROLES);
+  });
+
+  test("QA can select container or remote mode independently per service", () => {
+    const config = loadProcessConfig("api", {
+      ...minimalEnvironment,
+      OTR_RUNTIME_PROFILE: "qa",
+      OTR_QA_POSTGRES_MODE: "container",
+      OTR_QA_REDIS_MODE: "remote",
+    });
+
+    expect(config.profile).toBe("qa");
+    expect(config.serviceModes).toMatchObject({
+      postgres: "container",
+      redis: "remote",
+      minio: "native",
+      worker: "native",
+    });
   });
 
   test("HERE credentials stay server-side while capabilities remain shared", () => {
