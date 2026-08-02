@@ -4,3 +4,8 @@ export {
   AttachmentUploadService,
   InMemoryAttachmentRepository,
 } from "./upload-session.mjs";
+export {
+  AttachmentGalleryError,
+  AttachmentGalleryService,
+  InMemoryAttachmentGalleryRepository,
+} from "./gallery.mjs";
