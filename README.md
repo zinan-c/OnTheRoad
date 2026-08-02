@@ -58,27 +58,43 @@ from another Node version as a supported development environment.
 ## Local development
 
 Daily macOS development uses the native dependency track and does not require
-Docker. The stack provides PostgreSQL/PostGIS, Redis, MinIO, and ClamAV:
+Docker. The startup flow is:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run dev
+```
+
+`pnpm run dev` first runs the prepare phase. Prepare starts or adopts the
+project-owned PostgreSQL/PostGIS, Redis, MinIO, and ClamAV services, waits for
+fail-closed readiness, applies migrations and seed data, checks schema
+compatibility, writes the generated `config/profiles/dev.env`, and only then
+starts the API, Web, and Worker. It retries dependency startup three times and
+stops on any failed prerequisite. It never installs missing system software
+automatically.
+
+To run only the dependency and database preparation checks:
 
 ```sh
 pnpm run dev:prepare
 ```
 
-The prepare command starts or adopts the project-owned native dependencies,
-waits for fail-closed readiness, applies migrations and seed data, checks schema
-compatibility, and writes the generated local profile. It retries dependency
-startup three times and stops on any failed prerequisite. It never installs
-missing system software automatically.
-
-To run the API, Web, and Worker through the same startup/readiness gate:
+Profile entry points:
 
 ```sh
-pnpm run dev
+# Native QA track (default)
+pnpm run qa
+
+# Compose QA track, when container verification is intended
+OTR_QA_TRACK=compose pnpm run qa
+
+# Production: validate injected OTR_ENV_* only; do not start local services
+pnpm run prod
 ```
 
-The `qa` entry point uses the same chain and accepts `OTR_QA_TRACK=compose` when
-container verification is explicitly desired. `prod` validates injected
-`OTR_ENV_*` values and does not start local dependencies or write a profile.
+`dev` and `qa` use the same prepare → profile → build → application readiness
+chain. `prod` validates injected `OTR_ENV_*` values and does not start local
+dependencies or write a profile.
 
 The Web application is available at `http://localhost:3000`. API liveness and
 readiness are exposed at `http://localhost:3001/health/live` and
