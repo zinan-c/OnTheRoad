@@ -44,7 +44,7 @@ export class ImportMappingService {
   /** @param {string} ownerId @param {string} jobId @param {{mapping: Record<string, string>, sourceColumns: string[], requiredTargets?: string[], sheetNames?: string[], expectedVersion?: number}} input */
   save(ownerId, jobId, input) {
     const current = this.repository.find(ownerId, jobId);
-    if (current && input.expectedVersion !== current.version) throw new ImportMappingError("IMPORT_MAPPING_VERSION_CONFLICT", "Mapping changed; reload before saving.", 409);
+    if (current && input.expectedVersion !== undefined && input.expectedVersion !== current.version) throw new ImportMappingError("IMPORT_MAPPING_VERSION_CONFLICT", "Mapping changed; reload before saving.", 409);
     const checked = validateMapping(input);
     if (!checked.valid) throw new ImportMappingError("IMPORT_MAPPING_INVALID", "Mapping requires correction.");
     return this.repository.save({ jobId, ownerId, mapping: canonicalizeMapping(checked.mapping), hash: checked.hash, version: (current?.version ?? 0) + 1, updatedAt: new Date().toISOString() });
