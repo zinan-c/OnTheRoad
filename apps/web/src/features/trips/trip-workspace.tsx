@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { MappingEditor, type MappingRow } from "../imports/mapping/mapping-editor";
 import { PreviewStates } from "../imports/preview/preview-states";
@@ -44,7 +44,6 @@ function defaultPreviewRows(): PreviewRow[] {
 
 export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [days, setDays] = useState<Day[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [summary, setSummary] = useState<any>();
   const [mappingRows, setMappingRows] = useState(defaultMappingRows);
   const [mappingSaved, setMappingSaved] = useState(false);
@@ -52,12 +51,15 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [expenseError, setExpenseError] = useState<string | null>(null);
   const mappingJobId = `workspace-${tripId}`;
   const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
+  const selectionState = useSyncExternalStore((listener) => selectionStore.subscribe(() => listener()), () => selectionStore.state, () => selectionStore.state);
+  const selectedId = selectionState.selected?.itemId ?? null;
 
   useEffect(() => {
     void Promise.all([api<Day[]>(`/trips/${tripId}/days`).then(async (loadedDays) => Promise.all(loadedDays.map(async (day) => ({ ...day, items: await api<Item[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`) })))), api(`/trips/${tripId}/expenses/summary`), api<{ mapping: Record<string, string> }>(`/imports/${mappingJobId}/mapping`).catch(() => null)]).then(([loadedDays, loadedSummary, loadedMapping]) => {
       setDays(loadedDays);
       setSummary(loadedSummary);
-      setSelectedId(flattenDays(loadedDays)[0]?.id ?? null);
+      const firstItem = flattenDays(loadedDays)[0];
+      if (firstItem) selectionStore.selectFromTimeline(firstItem.id, `day-${firstItem.dayNumber}`);
       if (loadedMapping) setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
     });
   }, [tripId]);
@@ -93,11 +95,11 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }
 
   return <div className="tripWorkspace">
-    {actualLocated.length > 0 ? <RealRouteMap items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => { selectionStore.selectFromMarker(id); setSelectedId(id); }} /> : null}
+    {actualLocated.length > 0 ? <RealRouteMap items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => selectionStore.selectFromMarker(id)} /> : null}
     <section aria-label="路线地图" className="workspaceCard routeWorkspace">
       <header><h2>路线与时间线</h2><p>点击路线点或时间线项目，两个视图会保持同一选中状态。</p></header>
       <div className="routeLayout">
-        <svg viewBox="0 0 400 220" role="img" aria-label="路线地图" className="routeMap">
+        <svg viewBox="0 0 400 220" role="img" aria-label="路线示意图" className="routeMap">
           {located.slice(1).map(({ item, point }, index) => {
             const from = located[index]?.point;
             if (!from) return null;
@@ -106,9 +108,9 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
             const style = routeStyle({ modeCode, quality: "approximate" });
             return <line key={`${located[index]?.item.id}-${item.id}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={style.color} strokeDasharray={style.dasharray.join(" ")} strokeWidth={4} data-route-mode={style.label} />;
           })}
-          {located.map(({ item, point }) => { const position = svgPoint(point); return <circle key={item.id} cx={position.x} cy={position.y} r={selectedId === item.id ? 9 : 6} tabIndex={0} role="button" aria-label={`地图点 ${item.target}`} aria-pressed={selectedId === item.id} fill={selectedId === item.id ? "#d9485f" : "#2563eb"} onClick={() => setSelectedId(item.id)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedId(item.id); }} />; })}
+          {located.map(({ item, point }) => { const position = svgPoint(point); return <circle key={item.id} cx={position.x} cy={position.y} r={selectedId === item.id ? 9 : 6} tabIndex={0} role="button" aria-label={`地图点 ${item.target}`} aria-pressed={selectedId === item.id} fill={selectedId === item.id ? "#d9485f" : "#2563eb"} onClick={() => selectionStore.selectFromMarker(item.id)} onKeyDown={(event) => { if (event.key === "Enter") selectionStore.selectFromMarker(item.id); }} />; })}
         </svg>
-        <ol aria-label="行程时间线" className="workspaceTimeline">{items.map((item) => <li key={item.id}><button type="button" aria-pressed={selectedId === item.id} data-selected={selectedId === item.id} onClick={() => { selectionStore.selectFromTimeline(item.id, `day-${item.dayNumber}`); setSelectedId(item.id); }}>{item.target}</button></li>)}</ol>
+        <ol aria-label="行程时间线" className="workspaceTimeline">{items.map((item) => <li key={item.id}><button type="button" aria-pressed={selectedId === item.id} data-selected={selectedId === item.id} onClick={() => selectionStore.selectFromTimeline(item.id, `day-${item.dayNumber}`)}>{item.target}</button></li>)}</ol>
       </div>
       {selectedId ? <p role="status">当前选择：{items.find(({ id }) => id === selectedId)?.target ?? selectedId}</p> : null}
     </section>
