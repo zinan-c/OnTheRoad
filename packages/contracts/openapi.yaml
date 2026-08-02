@@ -2799,6 +2799,7 @@
           "originalCurrencyTotals",
           "unconverted",
           "rateSnapshots"
+          ,"breakdowns"
         ],
         "properties": {
           "settlementCurrency": {
@@ -2823,6 +2824,21 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExchangeRate"
+            }
+          },
+          "breakdowns": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["originalTotal", "settledTotal", "unconverted"],
+                "properties": {
+                  "originalTotal": { "type": "string" },
+                  "settledTotal": { "type": "string" },
+                  "unconverted": { "type": "string" }
+                }
+              }
             }
           }
         }

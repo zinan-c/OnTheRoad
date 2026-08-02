@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  addMoney,
   convertMoney,
   ExpenseDomainError,
   normalizeMoney,
@@ -12,6 +11,7 @@ import {
   currencies,
   normalizeCurrencyCode,
 } from "@on-the-road/config/reference-data";
+import { summarizeExpenses } from "./summary.mjs";
 
 const CURRENCY_CODES = new Set(currencies.map(({ code }) => code));
 const CATEGORY_CODES = new Set(costCategories.map(({ code }) => code));
@@ -123,42 +123,7 @@ export class ExpenseService {
     const expenses = /** @type {Record<string, any>[]} */ (
       await this.repository.list(tripId)
     ).filter(({ source }) => source === "actual");
-    /** @type {Record<string, string>} */
-    const original = {};
-    const rateSnapshots = new Map();
-    const unconverted = [];
-    for (const expense of expenses) {
-      original[expense.currency] = addMoney([
-        original[expense.currency] ?? "0",
-        expense.originalAmount,
-      ]);
-      if (!expense.settledAmount) {
-        unconverted.push({
-          currency: expense.currency,
-          amount: expense.originalAmount,
-        });
-      } else if (expense.currency !== expense.settlementCurrency) {
-        const key = `${expense.currency}:${expense.settlementCurrency}:${expense.exchangeRate}`;
-        rateSnapshots.set(key, {
-          fromCurrency: expense.currency,
-          toCurrency: expense.settlementCurrency,
-          rate: expense.exchangeRate,
-        });
-      }
-    }
-    return {
-      settlementCurrency: trip.defaultCurrency,
-      settledActualTotal: addMoney(
-        expenses.flatMap(({ settledAmount }) =>
-          settledAmount ? [settledAmount] : []),
-      ),
-      originalCurrencyTotals: Object.fromEntries(
-        Object.entries(original).sort(([left], [right]) =>
-          left.localeCompare(right)),
-      ),
-      unconverted,
-      rateSnapshots: [...rateSnapshots.values()],
-    };
+    return summarizeExpenses(expenses, trip.defaultCurrency);
   }
 }
 
