@@ -258,8 +258,41 @@ export function redactSecrets<T>(value: T): T {
 
 export function loadProcessConfig(
   role: ProcessRole,
-  environment: EnvironmentInput,
+  environmentInput: EnvironmentInput,
 ): ProcessConfig {
+  const environment: EnvironmentInput = {
+    ...environmentInput,
+    ...(environmentInput.DATABASE_URL === undefined && environmentInput.OTR_ENV_DATABASE_URL !== undefined
+      ? { DATABASE_URL: environmentInput.OTR_ENV_DATABASE_URL }
+      : {}),
+    ...(environmentInput.REDIS_URL === undefined && environmentInput.OTR_ENV_REDIS_URL !== undefined
+      ? { REDIS_URL: environmentInput.OTR_ENV_REDIS_URL }
+      : {}),
+    ...(environmentInput.OBJECT_STORAGE_ENDPOINT === undefined && environmentInput.OTR_ENV_OBJECT_STORAGE_ENDPOINT !== undefined
+      ? { OBJECT_STORAGE_ENDPOINT: environmentInput.OTR_ENV_OBJECT_STORAGE_ENDPOINT }
+      : {}),
+    ...(environmentInput.OBJECT_STORAGE_ACCESS_KEY === undefined && environmentInput.OTR_ENV_OBJECT_STORAGE_ACCESS_KEY !== undefined
+      ? { OBJECT_STORAGE_ACCESS_KEY: environmentInput.OTR_ENV_OBJECT_STORAGE_ACCESS_KEY }
+      : {}),
+    ...(environmentInput.OBJECT_STORAGE_SECRET_KEY === undefined && environmentInput.OTR_ENV_OBJECT_STORAGE_SECRET_KEY !== undefined
+      ? { OBJECT_STORAGE_SECRET_KEY: environmentInput.OTR_ENV_OBJECT_STORAGE_SECRET_KEY }
+      : {}),
+    ...(environmentInput.OBJECT_STORAGE_BUCKET === undefined && environmentInput.OTR_ENV_OBJECT_STORAGE_BUCKET !== undefined
+      ? { OBJECT_STORAGE_BUCKET: environmentInput.OTR_ENV_OBJECT_STORAGE_BUCKET }
+      : {}),
+    ...(environmentInput.OBJECT_STORAGE_REGION === undefined && environmentInput.OTR_ENV_OBJECT_STORAGE_REGION !== undefined
+      ? { OBJECT_STORAGE_REGION: environmentInput.OTR_ENV_OBJECT_STORAGE_REGION }
+      : {}),
+    ...(environmentInput.CLAMAV_HOST === undefined && environmentInput.OTR_ENV_CLAMAV_HOST !== undefined
+      ? { CLAMAV_HOST: environmentInput.OTR_ENV_CLAMAV_HOST }
+      : {}),
+    ...(environmentInput.CLAMAV_PORT === undefined && environmentInput.OTR_ENV_CLAMAV_PORT !== undefined
+      ? { CLAMAV_PORT: environmentInput.OTR_ENV_CLAMAV_PORT }
+      : {}),
+    ...(environmentInput.SESSION_SECRET === undefined && environmentInput.OTR_ENV_SESSION_SECRET !== undefined
+      ? { SESSION_SECRET: environmentInput.OTR_ENV_SESSION_SECRET }
+      : {}),
+  };
   const issues: ConfigIssue[] = [];
   if (!PROCESS_ROLES.includes(role)) {
     throw new ConfigValidationError([

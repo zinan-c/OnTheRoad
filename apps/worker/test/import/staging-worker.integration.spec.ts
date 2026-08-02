@@ -1,8 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { stableFingerprint, stableSourceRowKey } from "../../../../packages/importer/src/fingerprint.mjs";
-import { normalizeImportRow } from "../../../../packages/importer/src/normalize.mjs";
-import { validateNormalizedRow } from "../../../../packages/importer/src/validate.mjs";
+import {
+  normalizeImportRow,
+  stableFingerprint,
+  stableSourceRowKey,
+  validateNormalizedRow,
+} from "@on-the-road/importer";
 
 type StagedRow = {
   sourceRowKey: string;

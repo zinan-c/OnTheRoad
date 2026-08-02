@@ -73,12 +73,12 @@ flowchart LR
 
 - **优先级**：`P0 / Critical`
 - **目标**：建立所有应用与共享包的可安装、可构建、可测试基线。
-- **实现范围**：pnpm workspace、Turbo pipeline、Node 24 锁定、strict TypeScript、lint/typecheck/unit/build 脚本、缓存策略和 CI required checks。
+- **实现范围**：pnpm workspace、Turbo pipeline、Node 26.0.0 锁定、strict TypeScript、lint/typecheck/unit/build 脚本、缓存策略和 CI required checks。
 - **不在范围内**：生产发布流水线、Kubernetes、业务模块实现。
 - **预计修改的文件**：`package.json`、`pnpm-workspace.yaml`、`turbo.json`、`.nvmrc`、`tsconfig.base.json`、`.github/workflows/ci_quality_related.yml`、`apps/*/package.json`、`packages/*/package.json`。
 - **异常情况**：锁文件漂移、Node/pnpm 版本不符、缓存污染、单个 workspace 循环依赖；均需快速失败并指出 workspace。
 - **测试要求**：干净 checkout 执行 install/lint/typecheck/unit/build；验证缓存命中和故意类型错误会阻断 CI。
-- **验收标准**：CI 在支持的 Node 24 环境全绿；分支保护可引用稳定 check 名称。
+- **验收标准**：CI 在 Node 26.0.0 环境全绿；分支保护可引用稳定 check 名称。
 - **完成标准**：脚本在本机和 CI 输出一致；开发文档写明版本与命令；无被跳过的空测试命令。
 
 ### A02 双轨依赖栈：原生开发 + Compose 验证（6 人日）

@@ -105,19 +105,6 @@ stack_validate_env() {
   fi
 }
 
-stack_apply_database_schema() {
-  if ! command -v pnpm >/dev/null 2>&1; then
-    echo "pnpm is required to apply the application database schema." >&2
-    return 1
-  fi
-  (
-    cd "${STACK_REPO_ROOT}"
-    pnpm run db:migrate
-    pnpm run db:seed
-    pnpm run db:status -- --check
-  )
-}
-
 stack_binary() {
   local variable="$1"
   local fallback="$2"
@@ -166,6 +153,19 @@ stack_read_owned_pid() {
     return 1
   fi
   printf '%s\n' "${pid}"
+}
+
+stack_adopt_owned_pid() {
+  local service="$1"
+  local fingerprint="$2"
+  local command_name="${3:-${service}}"
+  local pid
+  pid="$(ps -axo pid=,comm=,args= 2>/dev/null | awk -v name="${command_name}" -v needle="${fingerprint}" '$2 == name && index($0, needle) { print $1; exit }')"
+  if [[ -z "${pid}" || ! "${pid}" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+  echo "${service}: adopting managed process ${pid} with fingerprint ${fingerprint}"
+  stack_record_pid "${service}" "${pid}" "${fingerprint}"
 }
 
 stack_record_pid() {

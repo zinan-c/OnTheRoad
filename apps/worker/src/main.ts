@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { randomUUID } from "node:crypto";
 
 import { loadProcessConfig } from "@on-the-road/config/env";
 import { PostgresEventProcessor } from "./processors/maintenance/postgres-event-processor.js";
@@ -53,8 +54,16 @@ export async function startWorker(
       }
     }
   })();
+  const heartbeatKey = `otr:worker:heartbeat:${randomUUID()}`;
+  const heartbeat = async () => {
+    await importRedis.set(heartbeatKey, new Date().toISOString(), "EX", 15);
+  };
+  await heartbeat();
+  const heartbeatTimer = setInterval(() => void heartbeat(), 5_000);
   const close = async () => {
     importing = false;
+    clearInterval(heartbeatTimer);
+    await importRedis.del(heartbeatKey).catch(() => undefined);
     importRedis.disconnect();
     await importRepository.close();
     await processRuntime.close();

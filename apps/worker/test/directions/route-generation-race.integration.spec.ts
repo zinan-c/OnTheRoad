@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { generateRouteWindow } from "../../../../packages/domain/src/routing/index.mjs";
+import { generateRouteWindow } from "@on-the-road/domain/routing";
 
 type RouteCandidate = ReturnType<typeof generateRouteWindow>[number];
 

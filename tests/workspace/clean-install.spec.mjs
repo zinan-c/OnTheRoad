@@ -143,7 +143,7 @@ test(
   240_000,
 );
 
-test("TC-A01-03 CI exposes stable required check names on Node 24", async () => {
+test("TC-A01-03 CI exposes stable required check names on Node 26", async () => {
   const workflow = await readFile(
     join(rootPath, ".github/workflows/ci_quality_related.yml"),
     "utf8",

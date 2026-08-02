@@ -70,9 +70,9 @@ failure never silently changes the configured profile.
 
 API, Worker and PDF Worker require:
 
-- `DATABASE_URL`, `REDIS_URL`;
-- `OBJECT_STORAGE_ENDPOINT`, access key, secret key and bucket;
-- `CLAMAV_HOST` and optional `CLAMAV_PORT`;
+- `OTR_ENV_DATABASE_URL`, `OTR_ENV_REDIS_URL`;
+- `OTR_ENV_OBJECT_STORAGE_ENDPOINT`, region, access key, secret key and bucket;
+- `OTR_ENV_CLAMAV_HOST` and optional `OTR_ENV_CLAMAV_PORT`;
 - `SESSION_SECRET`.
 
 Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities.

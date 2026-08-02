@@ -142,6 +142,8 @@ start_postgres() {
   local data_dir="${STACK_RUNTIME_DIR}/postgres"
   if stack_read_owned_pid postgres "${data_dir}" >/dev/null; then
     echo "postgres: already managed"
+  elif [[ -f "${data_dir}/postmaster.pid" ]] && stack_adopt_owned_pid postgres "${data_dir}" postgres >/dev/null; then
+    echo "postgres: adopted existing managed process"
   else
     stack_assert_port_free postgres "${POSTGRES_PORT}"
     if [[ ! -f "${data_dir}/PG_VERSION" ]]; then
@@ -183,6 +185,11 @@ start_redis() {
     echo "redis: already managed"
     return
   fi
+  if stack_adopt_owned_pid redis "${REDIS_HOST}:${REDIS_PORT}" redis-server >/dev/null; then
+    echo "redis: adopted existing managed process"
+    stack_wait_until redis redis_probe
+    return
+  fi
   stack_assert_port_free redis "${REDIS_PORT}"
   cat >"${config}" <<EOF
 bind ${REDIS_HOST}
@@ -203,8 +210,11 @@ EOF
 
 start_minio() {
   local data_dir="${STACK_RUNTIME_DIR}/minio-data"
+  local process_fingerprint="minio server --address ${MINIO_HOST}:${MINIO_API_PORT}"
   if stack_read_owned_pid minio "${data_dir}" >/dev/null; then
     echo "minio: already managed"
+  elif stack_adopt_owned_pid minio "${process_fingerprint}" minio >/dev/null; then
+    echo "minio: adopted existing managed process"
   else
     stack_assert_port_free minio "${MINIO_API_PORT}"
     stack_assert_port_free minio-console "${MINIO_CONSOLE_PORT}"
@@ -225,6 +235,11 @@ start_clamav() {
   local database_dir="${effective_clamav_database_dir}"
   if stack_read_owned_pid clamav "${config}" >/dev/null; then
     echo "clamav: already managed"
+    return
+  fi
+  if stack_adopt_owned_pid clamav "${config}" clamd >/dev/null; then
+    echo "clamav: adopted existing managed process"
+    stack_wait_until clamav clamav_probe
     return
   fi
   stack_assert_port_free clamav "${CLAMAV_PORT}"
@@ -256,5 +271,4 @@ start_postgres
 start_redis
 start_minio
 start_clamav
-stack_apply_database_schema
 "${SCRIPT_DIR}/dev-up-native-health.sh"

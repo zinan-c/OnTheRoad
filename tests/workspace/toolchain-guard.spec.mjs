@@ -43,11 +43,11 @@ function assertProcessCompleted(result, phase) {
 test("TC-A01-02 wrong Node version fails fast with an actionable error", () => {
   const result = guard("23.11.0", "9.15.4");
   assert.notEqual(result.status, 0);
-  assert.match(`${result.stdout}${result.stderr}`, /Node 24.*received 23\.11\.0/i);
+  assert.match(`${result.stdout}${result.stderr}`, /Node 26\.0\.0.*received 23\.11\.0/i);
 });
 
 test("TC-A01-02 wrong pnpm version fails fast with an actionable error", () => {
-  const result = guard("24.11.1", "8.15.0");
+  const result = guard("26.0.0", "8.15.0");
   assert.notEqual(result.status, 0);
   assert.match(`${result.stdout}${result.stderr}`, /pnpm 9\.15\.4.*received 8\.15\.0/i);
 });

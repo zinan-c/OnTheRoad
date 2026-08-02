@@ -66,5 +66,4 @@ fi
 echo "Ensuring the MinIO bucket exists..."
 compose run --rm minio-init
 
-stack_apply_database_schema
 "${SCRIPT_DIR}/dev-up-health.sh" --track compose

@@ -25,7 +25,7 @@ if [[ "$#" -eq 0 ]]; then
 fi
 
 set -a
-if [[ -f "${REPO_ROOT}/.env.example" ]]; then
+if [[ "${profile}" == "dev" && -f "${REPO_ROOT}/.env.example" ]]; then
   # Safe development defaults; local-stack.env and explicit .env override these.
   # shellcheck disable=SC1091
   source "${REPO_ROOT}/.env.example"
@@ -51,10 +51,28 @@ if [[ -f "${profile_file}" ]]; then
   # shellcheck disable=SC1090
   source "${profile_file}"
 elif [[ "${profile}" != "dev" && "${requested_profile_env}" != "${profile}" ]]; then
-  echo "Missing ${profile_file}. Copy the matching .env.example before running this profile." >&2
-  exit 3
+  if [[ -z "${OTR_ENV_DATABASE_URL:-}" ]]; then
+    echo "Missing ${profile_file} and no injected OTR_ENV_* release configuration was found." >&2
+    exit 3
+  fi
 fi
 set +a
+
+# Application-facing connection values use an OTR_ENV_ prefix. Exporting the
+# unprefixed aliases keeps existing database/worker harnesses compatible.
+DATABASE_URL="${OTR_ENV_DATABASE_URL:-${DATABASE_URL:-}}"
+REDIS_URL="${OTR_ENV_REDIS_URL:-${REDIS_URL:-}}"
+OBJECT_STORAGE_ENDPOINT="${OTR_ENV_OBJECT_STORAGE_ENDPOINT:-${OBJECT_STORAGE_ENDPOINT:-}}"
+OBJECT_STORAGE_ACCESS_KEY="${OTR_ENV_OBJECT_STORAGE_ACCESS_KEY:-${OBJECT_STORAGE_ACCESS_KEY:-}}"
+OBJECT_STORAGE_SECRET_KEY="${OTR_ENV_OBJECT_STORAGE_SECRET_KEY:-${OBJECT_STORAGE_SECRET_KEY:-}}"
+OBJECT_STORAGE_BUCKET="${OTR_ENV_OBJECT_STORAGE_BUCKET:-${OBJECT_STORAGE_BUCKET:-}}"
+OBJECT_STORAGE_REGION="${OTR_ENV_OBJECT_STORAGE_REGION:-${OBJECT_STORAGE_REGION:-${S3_REGION:-us-east-1}}}"
+CLAMAV_HOST="${OTR_ENV_CLAMAV_HOST:-${CLAMAV_HOST:-}}"
+CLAMAV_PORT="${OTR_ENV_CLAMAV_PORT:-${CLAMAV_PORT:-3310}}"
+SESSION_SECRET="${OTR_ENV_SESSION_SECRET:-${SESSION_SECRET:-}}"
+export DATABASE_URL REDIS_URL OBJECT_STORAGE_ENDPOINT OBJECT_STORAGE_ACCESS_KEY
+export OBJECT_STORAGE_SECRET_KEY OBJECT_STORAGE_BUCKET OBJECT_STORAGE_REGION
+export CLAMAV_HOST CLAMAV_PORT SESSION_SECRET
 
 export OTR_RUNTIME_PROFILE="${profile}"
 

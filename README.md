@@ -44,7 +44,7 @@ See [CODE_REVIEW](./docs/CODE_REVIEW.md) for remediation evidence and
 
 ## Toolchain
 
-- Node.js `24.14.0`
+- Node.js `26.0.0`
 - pnpm `9.15.4`
 
 ```sh
@@ -61,47 +61,24 @@ Daily macOS development uses the native dependency track and does not require
 Docker. The stack provides PostgreSQL/PostGIS, Redis, MinIO, and ClamAV:
 
 ```sh
-bash scripts/dev-up.sh --track native
-bash scripts/dev-up-health.sh --track native
+pnpm run dev:prepare
 ```
 
-The startup command applies migrations, seeds reference data, checks schema
-compatibility, initializes object storage, and waits for fail-closed readiness.
-It never installs missing system software automatically.
+The prepare command starts or adopts the project-owned native dependencies,
+waits for fail-closed readiness, applies migrations and seed data, checks schema
+compatibility, and writes the generated local profile. It retries dependency
+startup three times and stops on any failed prerequisite. It never installs
+missing system software automatically.
 
-To build and start the four application processes, export the local dependency
-contract and the development application settings:
+To run the API, Web, and Worker through the same startup/readiness gate:
 
 ```sh
-set -a
-source infra/local-stack.env
-set +a
-
-export NODE_ENV=development
-export APP_ORIGIN=http://localhost:3000
-export API_BASE_URL=http://localhost:3001/api/v1
-export NEXT_PUBLIC_API_ORIGIN=http://localhost:3001
-export OBJECT_STORAGE_ENDPOINT="$S3_ENDPOINT"
-export OBJECT_STORAGE_REGION="$S3_REGION"
-export OBJECT_STORAGE_ACCESS_KEY="$S3_ACCESS_KEY"
-export OBJECT_STORAGE_SECRET_KEY="$S3_SECRET_KEY"
-export OBJECT_STORAGE_BUCKET="$MINIO_BUCKET"
-export SESSION_SECRET=local-session-secret-change-me-32-bytes
-export MAP_PROFILE=fixture
-export MAP_AUTOCOMPLETE_ENABLED=false
-export MAP_EXPLICIT_SEARCH_ENABLED=false
-
-pnpm run build
+pnpm run dev
 ```
 
-Then run these commands in separate shells with the same environment:
-
-```sh
-pnpm run start:api
-pnpm run start:web
-pnpm run start:worker
-pnpm run start:pdf-worker
-```
+The `qa` entry point uses the same chain and accepts `OTR_QA_TRACK=compose` when
+container verification is explicitly desired. `prod` validates injected
+`OTR_ENV_*` values and does not start local dependencies or write a profile.
 
 The Web application is available at `http://localhost:3000`. API liveness and
 readiness are exposed at `http://localhost:3001/health/live` and

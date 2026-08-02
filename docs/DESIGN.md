@@ -389,7 +389,7 @@ Audit
 
 | 层 | 选择 | 理由 | 主要替代 |
 |---|---|---|---|
-| Runtime | Node.js 24 LTS | 前后端和 Worker 统一语言；当前官方仍标记 v24 为 LTS | JVM 25/21 LTS（按组织基线） |
+| Runtime | Node.js 26.0.0 | 前后端和 Worker 统一语言；项目统一锁定 Node 26.0.0，避免运行时漂移 | JVM 25/21 LTS（按组织基线） |
 | Web | Next.js App Router + React | 路由、SSR、流式状态和成熟生态；可用 Node/Docker 部署 | Vite SPA；Nuxt |
 | API | NestJS + Fastify | 模块边界、DTO/DI/OpenAPI；Fastify 适合高并发 I/O | Fastify 原生；Spring Boot |
 | Data access | Drizzle + 参数化空间 SQL | 类型安全迁移；空间查询可明确审查 | Kysely；jOOQ |
@@ -402,7 +402,7 @@ Audit
 | UI | Tailwind CSS + Radix/shadcn 模式 | 可访问 primitives、易形成设计系统 | MUI；Ant Design |
 | Observability | OpenTelemetry + Prometheus/Grafana + Sentry | 日志、指标、链路和前端错误统一关联 | Datadog；New Relic |
 
-Node 官方建议生产应用使用 Active 或 Maintenance LTS；截至本文日期，v24 处于 LTS。Nest 官方提供 FastifyAdapter，但使用 Fastify 时必须选择对应插件，不能默认假设 Express 中间件兼容。
+Node 官方建议生产应用使用 Active 或 Maintenance LTS；本项目当前统一锁定 Node 26.0.0。Nest 官方提供 FastifyAdapter，但使用 Fastify 时必须选择对应插件，不能默认假设 Express 中间件兼容。
 
 ### 6.2 为什么 MVP 不同时引入 Spring Batch、Apache POI 和 Java PDF Worker
 

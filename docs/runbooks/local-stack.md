@@ -46,7 +46,7 @@ production.
 
 ### Prerequisites
 
-- Node 24 and pnpm 9.15.4, as pinned at the repository root.
+- Node 26.0.0 and pnpm 9.15.4, as pinned at the repository root.
 - Compatible native installations of PostgreSQL/PostGIS, Redis, MinIO client
   and server, and ClamAV.
 - Enough disk space for project-local database/object/signature data.
@@ -58,8 +58,7 @@ software automatically.
 ### Commands
 
 ```sh
-bash scripts/dev-up.sh --track native
-bash scripts/dev-up-health.sh --track native
+pnpm run dev:prepare
 bash scripts/dev-down.sh --track native
 ```
 
@@ -69,9 +68,16 @@ The start command will:
 2. allocate only configured loopback ports;
 3. start or discover only processes owned by this project;
 4. initialize PostGIS and the S3 bucket idempotently;
-5. run the shared `db:migrate`, `db:seed`, and `db:status --check` entrypoint;
-6. wait for the shared readiness probes;
-7. print `Local stack: Native Ready`.
+5. run the shared readiness probes;
+6. run the shared `db:migrate`, `db:seed`, and `db:status --check` entrypoint;
+7. write the generated profile only after those checks succeed;
+8. print `Environment prepared`.
+
+`pnpm run dev` invokes this prepare phase, builds the API, Web, and Worker,
+starts them with the generated profile, and waits for API, Web, and Worker
+heartbeat readiness. `pnpm run qa` uses the same flow and can select Compose
+with `OTR_QA_TRACK=compose`. Production validates injected `OTR_ENV_*` values
+only; it does not start local dependencies or write a profile.
 
 PID files must record both PID and an ownership fingerprint. Stop/recovery must
 verify that fingerprint before signaling a process, so stale PID files cannot
@@ -100,8 +106,7 @@ non-zero and media processing must not start.
 ### Commands
 
 ```sh
-bash scripts/dev-up.sh --track compose
-bash scripts/dev-up-health.sh --track compose
+bash scripts/prepare-environment.sh qa compose
 bash scripts/dev-down.sh --track compose
 ```
 
