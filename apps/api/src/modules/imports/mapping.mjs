@@ -31,6 +31,8 @@ export class PostgresImportMappingRepository {
   find(ownerId, jobId) {
     return this.database.json(`SELECT COALESCE((SELECT jsonb_build_object('jobId', id, 'ownerId', owner_id, 'mapping', mapping, 'hash', mapping_hash, 'version', mapping_version, 'updatedAt', updated_at) FROM import_job WHERE id = $2::uuid AND owner_id = $1), 'null'::jsonb)::text`, [ownerId, jobId]);
   }
+  /** @param {string} ownerId @param {string} tripId */
+  latest(ownerId, tripId) { return this.database.json(`SELECT COALESCE((SELECT jsonb_build_object('id', id, 'status', status, 'mappingVersion', mapping_version, 'updatedAt', updated_at) FROM import_job WHERE owner_id = $1 AND trip_id = $2::uuid ORDER BY created_at DESC, id DESC LIMIT 1), 'null'::jsonb)::text`, [ownerId, tripId]); }
   /** @param {Record<string, any>} value */
   save(value) {
     return this.database.json(`UPDATE import_job SET mapping = $3::jsonb, mapping_hash = $4, mapping_version = mapping_version + 1, status = CASE WHEN status = 'uploaded' THEN 'mapping_required' ELSE status END, stage = CASE WHEN stage = 'uploaded' THEN 'mapping_required' ELSE stage END, updated_at = now() WHERE id = $2::uuid AND owner_id = $1 RETURNING jsonb_build_object('jobId', id, 'ownerId', owner_id, 'mapping', mapping, 'hash', mapping_hash, 'version', mapping_version, 'updatedAt', updated_at)::text`, [value.ownerId, value.jobId, JSON.stringify(value.mapping), value.hash]);
@@ -55,5 +57,11 @@ export class ImportMappingService {
     const value = this.repository.find(ownerId, jobId);
     if (!value) throw new ImportMappingError("IMPORT_MAPPING_NOT_FOUND", "Mapping was not found.", 404);
     return value;
+  }
+
+  /** @param {string} ownerId @param {string} tripId */
+  latest(ownerId, tripId) {
+    if (typeof this.repository.latest !== "function") return null;
+    return this.repository.latest(ownerId, tripId);
   }
 }

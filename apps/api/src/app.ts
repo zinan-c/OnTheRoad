@@ -666,6 +666,12 @@ class ApiController {
     return this.runtime.importMapping.get(await owner(this.runtime, request), jobId);
   }
 
+  @Get("trips/:tripId/imports/latest")
+  async latestImport(@Req() request: FastifyRequest, @Param("tripId") tripId: string) {
+    if (!this.runtime.importMapping) throw new ProblemDetailsError({ status: 503, code: "IMPORT_MAPPING_UNAVAILABLE", title: "Import mapping is unavailable" });
+    return this.runtime.importMapping.latest(await owner(this.runtime, request), tripId);
+  }
+
   @Put("imports/:jobId/mapping")
   async saveImportMapping(
     @Req() request: FastifyRequest,

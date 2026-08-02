@@ -43,20 +43,24 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
   const [previewJobMissing, setPreviewJobMissing] = useState(false);
   const [expenseError, setExpenseError] = useState<string | null>(null);
-  const mappingJobId = `workspace-${tripId}`;
+  const [importJobId, setImportJobId] = useState<string | null>(null);
   const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
   const selectionState = useSyncExternalStore((listener) => selectionStore.subscribe(() => listener()), () => selectionStore.state, () => selectionStore.state);
   const selectedId = selectionState.selected?.itemId ?? null;
 
   useEffect(() => {
-    void Promise.all([api<Day[]>(`/trips/${tripId}/days`).then(async (loadedDays) => Promise.all(loadedDays.map(async (day) => ({ ...day, items: await api<Item[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`) })))), api(`/trips/${tripId}/expenses/summary`), api<{ mapping: Record<string, string> }>(`/imports/${mappingJobId}/mapping`).catch(() => null), api<{ rows: PreviewRow[] }>(`/imports/${mappingJobId}/preview`).catch(() => null)]).then(([loadedDays, loadedSummary, loadedMapping, loadedPreview]) => {
+    void (async () => {
+      const [loadedDays, loadedSummary, latest] = await Promise.all([api<Day[]>(`/trips/${tripId}/days`).then(async (loaded) => Promise.all(loaded.map(async (day) => ({ ...day, items: await api<Item[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`) })))), api(`/trips/${tripId}/expenses/summary`), api<{ id: string } | null>(`/trips/${tripId}/imports/latest`).catch(() => null)]);
+      const jobId = latest?.id ?? null;
+      const [loadedMapping, loadedPreview] = jobId ? await Promise.all([api<{ mapping: Record<string, string> }>(`/imports/${jobId}/mapping`).catch(() => null), api<{ rows: PreviewRow[] }>(`/imports/${jobId}/preview`).catch(() => null)]) : [null, null];
+      setImportJobId(jobId);
       setDays(loadedDays);
       setSummary(loadedSummary);
       const firstItem = flattenDays(loadedDays)[0];
       if (firstItem) selectionStore.selectFromTimeline(firstItem.id, `day-${firstItem.dayNumber}`);
       if (loadedMapping) setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
       if (loadedPreview) setPreviewRows(loadedPreview.rows); else setPreviewJobMissing(true);
-    });
+    })();
   }, [tripId]);
 
   const items = useMemo(() => flattenDays(days), [days]);
@@ -85,13 +89,15 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }
 
   async function saveMapping() {
-    const saved = await api(`/imports/${mappingJobId}/mapping`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ mapping: Object.fromEntries(mappingRows.filter(({ target }) => target).map(({ source, target }) => [source, target])), sourceColumns: mappingRows.map(({ source }) => source), requiredTargets: ["Target"], sheetNames: ["Itinerary"] }) });
+    if (!importJobId) return;
+    const saved = await api(`/imports/${importJobId}/mapping`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ mapping: Object.fromEntries(mappingRows.filter(({ target }) => target).map(({ source, target }) => [source, target])), sourceColumns: mappingRows.map(({ source }) => source), requiredTargets: ["Target"], sheetNames: ["Itinerary"] }) });
     setMappingSaved(Boolean(saved));
   }
 
   async function skipPreview(ids: readonly string[]) {
-    await api(`/imports/${mappingJobId}/preview/skip`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) });
-    const preview = await api<{ rows: PreviewRow[] }>(`/imports/${mappingJobId}/preview`);
+    if (!importJobId) return;
+    await api(`/imports/${importJobId}/preview/skip`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) });
+    const preview = await api<{ rows: PreviewRow[] }>(`/imports/${importJobId}/preview`);
     setPreviewRows(preview.rows);
   }
 
@@ -118,7 +124,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
 
     <section aria-label="费用工作台" className="workspaceCard"><header><h2>费用统计</h2><p>费用保存后重新读取真实 API 汇总。</p></header>{summary ? <CostSummaryPanel summary={summary} budget={null} /> : <p>正在载入费用…</p>}{expenseError ? <p role="alert">{expenseError}</p> : null}<form aria-label="新增费用" onSubmit={(event) => void addExpense(event)} className="expenseForm"><input name="amount" aria-label="金额" placeholder="金额" required /><select name="currency" aria-label="币种" defaultValue="CNY"><option>CNY</option><option>USD</option></select><select name="category" aria-label="费用类别" defaultValue="DINING"><option>DINING</option><option>TRANSPORT</option><option>TICKET</option></select><button type="submit">添加费用</button></form></section>
 
-    <section aria-label="导入映射工作台" className="workspaceCard"><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</section>
+    <section aria-label="导入映射工作台" className="workspaceCard">{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
     <section aria-label="导入预览工作台" className="workspaceCard">{previewJobMissing && previewRows.length === 0 ? <p role="status">暂无真实导入任务，上传并检查文件后可预览。</p> : <PreviewStates rows={previewRows} onSkipErrors={(ids) => void skipPreview(ids)} />}</section>
     {items[0] ? <section aria-label="图片工作台" className="workspaceCard"><TripGallery tripId={tripId} itemId={items[0].id} /></section> : null}
   </div>;
