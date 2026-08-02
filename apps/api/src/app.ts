@@ -685,6 +685,16 @@ class ApiController {
     return this.runtime.importMapping.save(await owner(this.runtime, request), jobId, input);
   }
 
+  @Get("imports/:jobId/preview")
+  async importPreview(@Req() request: FastifyRequest, @Param("jobId") jobId: string) {
+    return this.runtime.importPreview.list(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/preview/skip")
+  async skipImportPreview(@Req() request: FastifyRequest, @Param("jobId") jobId: string, @Body() body: { ids?: string[] }) {
+    return this.runtime.importPreview.skip(await owner(this.runtime, request), jobId, body.ids ?? []);
+  }
+
   @Post("trips/:tripId/imports/:attachmentId/inspection")
   async queueImportInspection(
     @Req() request: FastifyRequest,

@@ -26,6 +26,7 @@ import { PostgresTripDayRepository } from "./modules/trips/postgres-day-reposito
 import { TripDateChangeService } from "./modules/trips/date-change.mjs";
 import { TripService } from "./modules/trips/service.mjs";
 import { ImportMappingService, PostgresImportMappingRepository } from "./modules/imports/mapping.mjs";
+import { ImportPreviewService, PostgresImportPreviewRepository } from "./modules/imports/preview.mjs";
 
 export interface ImportTransport {
   createUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
@@ -62,6 +63,7 @@ export interface ApiRuntime {
   readonly gallery: AttachmentGalleryService;
   readonly imports?: ImportTransport;
   readonly importMapping?: ImportMappingService;
+  readonly importPreview: ImportPreviewService;
   referenceData(): unknown;
   checkReadiness(): Promise<Record<string, boolean>>;
   close(): Promise<void>;
@@ -167,6 +169,7 @@ export function createProductionRuntime(
   });
   const gallery = new AttachmentGalleryService(attachmentRepository);
   const importMapping = new ImportMappingService(new PostgresImportMappingRepository({ executor: database }));
+  const importPreview = new ImportPreviewService(new PostgresImportPreviewRepository({ executor: database }));
 
   return {
     appOrigin: config.urls.app.origin,
@@ -182,6 +185,7 @@ export function createProductionRuntime(
     attachments,
     gallery,
     importMapping,
+    importPreview,
     referenceData: createReferenceDataResponse,
     async checkReadiness() {
       const checks: Record<string, boolean> = {
