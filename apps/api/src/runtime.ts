@@ -8,7 +8,7 @@ import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { CandidateTokenSigner } from "@on-the-road/domain/location";
 import { S3ObjectStorage } from "@on-the-road/storage";
 
-import { AttachmentUploadService, PostgresAttachmentRepository } from "./modules/attachments/index.mjs";
+import { AttachmentGalleryService, AttachmentUploadService, PostgresAttachmentRepository } from "./modules/attachments/index.mjs";
 import { ExpenseService, PostgresExpenseRepository } from "./modules/expenses/index.mjs";
 import { IdentityService, RedisIdentityStore } from "./modules/identity/index.mjs";
 import { ItineraryCipher } from "./modules/itinerary/encryption.mjs";
@@ -59,6 +59,7 @@ export interface ApiRuntime {
   readonly locationSearch: ReturnType<typeof createConfiguredLocationSearchApi>;
   readonly expenses: ExpenseService;
   readonly attachments: AttachmentUploadService;
+  readonly gallery: AttachmentGalleryService;
   readonly imports?: ImportTransport;
   readonly importMapping?: ImportMappingService;
   referenceData(): unknown;
@@ -157,10 +158,14 @@ export function createProductionRuntime(
     accessKey: server.storage.accessKey,
     secretKey: server.storage.secretKey,
   });
+  const attachmentRepository = new PostgresAttachmentRepository({
+    executor: database,
+  });
   const attachments = new AttachmentUploadService({
     storage,
-    repository: new PostgresAttachmentRepository({ executor: database }),
+    repository: attachmentRepository,
   });
+  const gallery = new AttachmentGalleryService(attachmentRepository);
   const importMapping = new ImportMappingService(new InMemoryImportMappingRepository());
 
   return {
@@ -175,6 +180,7 @@ export function createProductionRuntime(
     locationSearch,
     expenses,
     attachments,
+    gallery,
     importMapping,
     referenceData: createReferenceDataResponse,
     async checkReadiness() {

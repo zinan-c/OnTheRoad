@@ -9,6 +9,7 @@ import { CostSummaryPanel } from "../expenses/cost-summary-panel";
 import { routeStyle } from "../map/route-style";
 import { RealRouteMap } from "../map/real-route-map";
 import { MapTimelineSelectionStore } from "../map/store";
+import { TripGallery } from "../attachments/trip-gallery";
 
 type Point = { readonly longitude: number; readonly latitude: number };
 type Item = { readonly id: string; readonly target: string; readonly dayNumber?: number; readonly location?: { readonly point?: Point | null } | null; readonly transportModeCode?: string | null };
@@ -119,5 +120,6 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
 
     <section aria-label="导入映射工作台" className="workspaceCard"><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</section>
     <section aria-label="导入预览工作台" className="workspaceCard"><PreviewStates rows={previewRows} onSkipErrors={(ids) => setPreviewRows((rows) => rows.map((row) => ids.includes(row.id) ? { ...row, status: "skipped" } : row))} /></section>
+    {items[0] ? <section aria-label="图片工作台" className="workspaceCard"><TripGallery tripId={tripId} itemId={items[0].id} /></section> : null}
   </div>;
 }

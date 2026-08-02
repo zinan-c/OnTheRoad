@@ -13,6 +13,7 @@ export type GalleryAttachment = {
   readonly isCover: boolean;
   readonly progress?: number;
   readonly error?: string;
+  readonly version?: number;
 };
 
 export type GalleryActions = {

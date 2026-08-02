@@ -58,6 +58,15 @@ export class PostgresAttachmentRepository {
     );
   }
 
+  /** @param {string} ownerId @param {string} itemId */
+  list(ownerId, itemId) { return this.#json(`SELECT COALESCE(jsonb_agg(jsonb_build_object('id', a.id, 'ownerId', a.owner_id, 'itemId', a.itinerary_item_id, 'status', a.status, 'previewUrl', NULL, 'width', a.width, 'height', a.height, 'caption', a.caption, 'sortOrder', a.sort_order, 'isCover', a.is_cover, 'version', a.version, 'error', a.processing_error_code) ORDER BY a.sort_order, a.id), '[]'::jsonb) FROM attachment a WHERE a.owner_id = $1 AND a.itinerary_item_id = $2::uuid AND a.deleted_at IS NULL`, [ownerId, itemId]); }
+
+  /** @param {string} ownerId @param {string} id @param {number} expectedVersion @param {Record<string, any>} patch */
+  update(ownerId, id, expectedVersion, patch) { return this.#json(`UPDATE attachment SET caption = COALESCE($4, caption), is_cover = COALESCE($5, is_cover), sort_order = COALESCE($6, sort_order), version = version + 1, updated_at = now() WHERE id = $2::uuid AND owner_id = $1 AND version = $3 RETURNING jsonb_build_object('id', id, 'ownerId', owner_id, 'itemId', itinerary_item_id, 'status', status, 'previewUrl', NULL, 'width', width, 'height', height, 'caption', caption, 'sortOrder', sort_order, 'isCover', is_cover, 'version', version, 'error', processing_error_code)`, [ownerId, id, expectedVersion, patch.caption ?? null, patch.isCover ?? null, patch.sortOrder ?? null]); }
+
+  /** @param {string} ownerId @param {string} id */
+  remove(ownerId, id) { return this.#json(`UPDATE attachment SET deleted_at = now(), version = version + 1, updated_at = now() WHERE id = $2::uuid AND owner_id = $1 AND deleted_at IS NULL RETURNING jsonb_build_object('id', id, 'deletedAt', deleted_at, 'version', version)`, [ownerId, id]); }
+
   /** @param {string} id @param {number} expectedVersion @param {{ownerId: string} & Record<string, unknown>} metadata */
   complete(id, expectedVersion, metadata) {
     return this.#json(

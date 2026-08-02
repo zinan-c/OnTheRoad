@@ -558,6 +558,26 @@ class ApiController {
     return session;
   }
 
+  @Get("trips/:tripId/itinerary-items/:itemId/gallery")
+  async gallery(
+    @Req() request: FastifyRequest,
+    @Param("itemId") itemId: string,
+  ) { return this.runtime.gallery.list(await owner(this.runtime, request), itemId); }
+
+  @Patch("trips/:tripId/attachments/:attachmentId/gallery")
+  async updateGallery(
+    @Req() request: FastifyRequest,
+    @Param("attachmentId") attachmentId: string,
+    @Headers("if-match") ifMatch: string | undefined,
+    @Body() body: Record<string, unknown>,
+  ) { return this.runtime.gallery.update(await owner(this.runtime, request), attachmentId, version(ifMatch), body); }
+
+  @Delete("trips/:tripId/attachments/:attachmentId/gallery")
+  async removeGallery(
+    @Req() request: FastifyRequest,
+    @Param("attachmentId") attachmentId: string,
+  ) { return this.runtime.gallery.remove(await owner(this.runtime, request), attachmentId); }
+
   @Post("trips/:tripId/attachments/:attachmentId/complete")
   async completeAttachmentUpload(
     @Req() request: FastifyRequest,
