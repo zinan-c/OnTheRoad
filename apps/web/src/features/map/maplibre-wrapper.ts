@@ -5,7 +5,7 @@ import {
   type MapItem,
   type MapMarker,
   type MapModel,
-} from "./map-model.js";
+} from "./map-model";
 
 export type MapRuntimeOptions = {
   container: unknown;
