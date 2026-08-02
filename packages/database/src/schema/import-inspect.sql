@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS import_inspect_job (
   id uuid PRIMARY KEY,
+  trip_id uuid,
   owner_id text NOT NULL CHECK (char_length(owner_id) BETWEEN 1 AND 255),
   attachment_id uuid NOT NULL,
   status text NOT NULL DEFAULT 'queued'

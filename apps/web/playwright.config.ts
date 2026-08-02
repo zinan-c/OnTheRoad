@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm run db:seed && pnpm --filter @on-the-road/api build && node apps/api/test/runtime/browser-server.mjs",
+      command: "pnpm run db:seed && pnpm --filter @on-the-road/api build && pnpm --filter @on-the-road/worker build && node apps/api/test/runtime/browser-server.mjs",
       cwd: "../..",
       port: 3001,
       reuseExistingServer: true,

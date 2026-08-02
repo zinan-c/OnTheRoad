@@ -35,6 +35,15 @@ function defaultMappingRows(): MappingRow[] {
   ];
 }
 
+function digestBase64(value: ArrayBuffer): string {
+  const bytes = new Uint8Array(value);
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
+
 export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [days, setDays] = useState<Day[]>([]);
   const [summary, setSummary] = useState<any>();
@@ -44,6 +53,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [previewJobMissing, setPreviewJobMissing] = useState(false);
   const [expenseError, setExpenseError] = useState<string | null>(null);
   const [importJobId, setImportJobId] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
   const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
   const selectionState = useSyncExternalStore((listener) => selectionStore.subscribe(() => listener()), () => selectionStore.state, () => selectionStore.state);
   const selectedId = selectionState.selected?.itemId ?? null;
@@ -101,6 +111,41 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
     setPreviewRows(preview.rows);
   }
 
+  async function uploadImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImportStatus("正在创建上传会话…");
+    try {
+      const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+      const checksumSha256 = digestBase64(digest);
+      const session = await api<{ attachmentId: string; uploadUrl: string; headers?: Record<string, string> }>(`/trips/${tripId}/imports/uploads`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ filename: file.name, contentType: file.type, contentLength: file.size, checksumSha256 }) });
+      setImportStatus("正在上传文件…");
+      const uploaded = await fetch(session.uploadUrl, { method: "PUT", ...(session.headers ? { headers: session.headers } : {}), body: file });
+      if (!uploaded.ok) throw new Error(`上传失败：${uploaded.status}`);
+      await api(`/trips/${tripId}/imports/${session.attachmentId}/complete`, { method: "POST" });
+      setImportStatus("正在扫描并检查文件…");
+      const inspection = await api<{ id: string }>(`/trips/${tripId}/imports/${session.attachmentId}/inspection`, { method: "POST", headers: { "idempotency-key": session.attachmentId } });
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const job = await api<{ status: string }>(`/jobs/${inspection.id}`);
+        if (job.status === "succeeded") break;
+        if (job.status === "failed") throw new Error("文件检查失败");
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      const latest = await api<{ id: string } | null>(`/trips/${tripId}/imports/latest`);
+      if (!latest?.id) throw new Error("检查完成但未生成 ImportJob");
+      setImportJobId(latest.id);
+      const [loadedMapping, loadedPreview] = await Promise.all([api<{ mapping: Record<string, string> }>(`/imports/${latest.id}/mapping`).catch(() => null), api<{ rows: PreviewRow[] }>(`/imports/${latest.id}/preview`).catch(() => null)]);
+      if (loadedMapping) setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
+      if (loadedPreview) setPreviewRows(loadedPreview.rows);
+      setPreviewJobMissing(false);
+      setImportStatus(`已生成真实 ImportJob：${latest.id}`);
+    } catch (error) {
+      setImportStatus(error instanceof Error ? error.message : "导入失败");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   return <div className="tripWorkspace">
     {actualLocated.length > 0 ? <RealRouteMap items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => selectionStore.selectFromMarker(id)} /> : null}
     <section aria-label="路线地图" className="workspaceCard routeWorkspace">
@@ -124,7 +169,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
 
     <section aria-label="费用工作台" className="workspaceCard"><header><h2>费用统计</h2><p>费用保存后重新读取真实 API 汇总。</p></header>{summary ? <CostSummaryPanel summary={summary} budget={null} /> : <p>正在载入费用…</p>}{expenseError ? <p role="alert">{expenseError}</p> : null}<form aria-label="新增费用" onSubmit={(event) => void addExpense(event)} className="expenseForm"><input name="amount" aria-label="金额" placeholder="金额" required /><select name="currency" aria-label="币种" defaultValue="CNY"><option>CNY</option><option>USD</option></select><select name="category" aria-label="费用类别" defaultValue="DINING"><option>DINING</option><option>TRANSPORT</option><option>TICKET</option></select><button type="submit">添加费用</button></form></section>
 
-    <section aria-label="导入映射工作台" className="workspaceCard">{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
+    <section aria-label="导入映射工作台" className="workspaceCard"><label>上传行程文件<input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void uploadImport(event)} /></label>{importStatus ? <p role="status">{importStatus}</p> : null}{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
     <section aria-label="导入预览工作台" className="workspaceCard">{previewJobMissing && previewRows.length === 0 ? <p role="status">暂无真实导入任务，上传并检查文件后可预览。</p> : <PreviewStates rows={previewRows} onSkipErrors={(ids) => void skipPreview(ids)} />}</section>
     {items[0] ? <section aria-label="图片工作台" className="workspaceCard"><TripGallery tripId={tripId} itemId={items[0].id} /></section> : null}
   </div>;

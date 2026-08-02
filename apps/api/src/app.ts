@@ -666,6 +666,19 @@ class ApiController {
     return this.runtime.importMapping.get(await owner(this.runtime, request), jobId);
   }
 
+  @Post("trips/:tripId/imports/:attachmentId/complete")
+  async completeImportUpload(
+    @Req() request: FastifyRequest,
+    @Param("attachmentId") attachmentId: string,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    if (!this.runtime.imports?.completeUpload) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_TRANSPORT_UNAVAILABLE", title: "Import transport is unavailable" });
+    }
+    reply.status(HttpStatus.ACCEPTED);
+    return this.runtime.imports.completeUpload({ ownerId: await owner(this.runtime, request), attachmentId });
+  }
+
   @Get("trips/:tripId/imports/latest")
   async latestImport(@Req() request: FastifyRequest, @Param("tripId") tripId: string) {
     if (!this.runtime.importMapping) throw new ProblemDetailsError({ status: 503, code: "IMPORT_MAPPING_UNAVAILABLE", title: "Import mapping is unavailable" });

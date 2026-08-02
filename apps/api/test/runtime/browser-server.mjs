@@ -1,4 +1,5 @@
 import { startApi } from "../../dist/main.js";
+import { startWorker } from "../../../worker/dist/main.js";
 
 const required = [
   "DATABASE_URL",
@@ -29,9 +30,11 @@ const started = await startApi({
   MAP_AUTOCOMPLETE_ENABLED: "false",
   MAP_EXPLICIT_SEARCH_ENABLED: "false",
 });
+const worker = await startWorker({ ...process.env, NODE_ENV: "development" });
 
 async function close() {
   await started.close();
+  await worker.close();
   process.exit(0);
 }
 

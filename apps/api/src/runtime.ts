@@ -6,7 +6,7 @@ import { loadProcessConfig } from "@on-the-road/config/env";
 import { createReferenceDataResponse } from "./modules/system/reference-data.mjs";
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { CandidateTokenSigner } from "@on-the-road/domain/location";
-import { S3ObjectStorage } from "@on-the-road/storage";
+import { IMPORT_CONTENT_TYPES, S3ObjectStorage } from "@on-the-road/storage";
 
 import { AttachmentGalleryService, AttachmentUploadService, PostgresAttachmentRepository } from "./modules/attachments/index.mjs";
 import { ExpenseService, PostgresExpenseRepository } from "./modules/expenses/index.mjs";
@@ -27,9 +27,11 @@ import { TripDateChangeService } from "./modules/trips/date-change.mjs";
 import { TripService } from "./modules/trips/service.mjs";
 import { ImportMappingService, PostgresImportMappingRepository } from "./modules/imports/mapping.mjs";
 import { ImportPreviewService, PostgresImportPreviewRepository } from "./modules/imports/preview.mjs";
+import { PostgresImportTransport } from "./modules/imports/postgres-upload.mjs";
 
 export interface ImportTransport {
   createUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
+  completeUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
   queueInspection(input: Record<string, unknown>): Promise<unknown> | unknown;
   getJob(input: Record<string, unknown>): Promise<unknown> | unknown;
 }
@@ -160,6 +162,14 @@ export function createProductionRuntime(
     accessKey: server.storage.accessKey,
     secretKey: server.storage.secretKey,
   });
+  const importStorage = new S3ObjectStorage({
+    endpoint: server.storage.endpoint.href,
+    region: environment.OBJECT_STORAGE_REGION?.trim() || "us-east-1",
+    bucket: server.storage.bucket,
+    accessKey: server.storage.accessKey,
+    secretKey: server.storage.secretKey,
+    allowedContentTypes: IMPORT_CONTENT_TYPES,
+  });
   const attachmentRepository = new PostgresAttachmentRepository({
     executor: database,
   });
@@ -170,6 +180,7 @@ export function createProductionRuntime(
   const gallery = new AttachmentGalleryService(attachmentRepository);
   const importMapping = new ImportMappingService(new PostgresImportMappingRepository({ executor: database }));
   const importPreview = new ImportPreviewService(new PostgresImportPreviewRepository({ executor: database }));
+  const imports = new PostgresImportTransport({ database, storage: importStorage, queue: redis });
 
   return {
     appOrigin: config.urls.app.origin,
@@ -184,6 +195,7 @@ export function createProductionRuntime(
     expenses,
     attachments,
     gallery,
+    imports,
     importMapping,
     importPreview,
     referenceData: createReferenceDataResponse,

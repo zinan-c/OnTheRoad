@@ -1198,6 +1198,35 @@
         }
       }
     },
+    "/trips/{tripId}/imports/{attachmentId}/complete": {
+      "post": {
+        "operationId": "completeImportUpload",
+        "summary": "Complete and verify an immutable workbook upload",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/AttachmentId"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Uploaded import source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/jobs/{jobId}": {
       "get": {
         "operationId": "getJob",

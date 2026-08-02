@@ -35,6 +35,12 @@ const DEFAULT_CONTENT_TYPES = [
   "image/webp",
 ] as const;
 
+export const IMPORT_CONTENT_TYPES = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+] as const;
+
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }

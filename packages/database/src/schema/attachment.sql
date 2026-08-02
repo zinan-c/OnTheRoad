@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS attachment (
   id uuid PRIMARY KEY,
+  trip_id uuid,
   owner_id text NOT NULL CHECK (char_length(owner_id) BETWEEN 1 AND 255),
   object_key text NOT NULL UNIQUE
     CHECK (object_key ~ '^attachments/[a-f0-9]{32}/[A-Za-z0-9-]+$'),
