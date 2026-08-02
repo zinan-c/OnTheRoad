@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { budgetPresentation, dimensionRows, formatCost } from "./cost-summary.js";
+import { budgetPresentation, dimensionRows, formatCost } from "./cost-summary-model";
 
 const summary = { settlementCurrency: "CNY", settledActualTotal: "80.0000", originalCurrencyTotals: { CNY: "80.0000" }, unconverted: [], breakdowns: { day: { "day-1": { originalTotal: "80.0000", settledTotal: "80.0000", unconverted: "0" } } } };
 

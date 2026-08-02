@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./browser",
+  testDir: ".",
+  testMatch: ["browser/**/*.spec.ts", "e2e/**/*.spec.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -15,7 +16,7 @@ export default defineConfig({
       command: "pnpm --filter @on-the-road/api build && node apps/api/test/runtime/browser-server.mjs",
       cwd: "../..",
       port: 3001,
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 120_000,
       env: {
         DATABASE_URL: process.env.DATABASE_URL ?? "",
@@ -47,7 +48,7 @@ export default defineConfig({
       command: "pnpm --filter @on-the-road/web build && pnpm --filter @on-the-road/web start",
       cwd: "../..",
       port: 3000,
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 120_000,
       env: {
         NEXT_PUBLIC_API_ORIGIN: "http://127.0.0.1:3001",

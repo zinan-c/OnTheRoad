@@ -2,6 +2,7 @@
 
 import { OnTheRoadClient } from "@on-the-road/contracts";
 import { useCallback, useEffect, useState } from "react";
+import { TripWorkspace } from "../../../features/trips/trip-workspace";
 
 interface Trip {
   readonly id: string;
@@ -67,6 +68,7 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
       <h1>{trip.name}</h1>
       <p className="lead">{trip.startDate} — {trip.endDate}</p>
       <p className="status statusReady">已保存 · 刷新页面不会丢失</p>
+      <TripWorkspace tripId={tripId} />
       <button className="secondary" onClick={logout}>退出登录</button>
     </section>
   );

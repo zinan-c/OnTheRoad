@@ -635,6 +635,36 @@ class ApiController {
     return upload;
   }
 
+  @Get("imports/:jobId/mapping")
+  async getImportMapping(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+  ) {
+    if (!this.runtime.importMapping) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_MAPPING_UNAVAILABLE", title: "Import mapping is unavailable" });
+    }
+    return this.runtime.importMapping.get(await owner(this.runtime, request), jobId);
+  }
+
+  @Put("imports/:jobId/mapping")
+  async saveImportMapping(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    if (!this.runtime.importMapping) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_MAPPING_UNAVAILABLE", title: "Import mapping is unavailable" });
+    }
+    const input = {
+      mapping: body.mapping as Record<string, string>,
+      sourceColumns: body.sourceColumns as string[],
+      ...(Array.isArray(body.requiredTargets) ? { requiredTargets: body.requiredTargets as string[] } : {}),
+      ...(Array.isArray(body.sheetNames) ? { sheetNames: body.sheetNames as string[] } : {}),
+      ...(typeof body.expectedVersion === "number" ? { expectedVersion: body.expectedVersion } : {}),
+    };
+    return this.runtime.importMapping.save(await owner(this.runtime, request), jobId, input);
+  }
+
   @Post("trips/:tripId/imports/:attachmentId/inspection")
   async queueImportInspection(
     @Req() request: FastifyRequest,

@@ -187,6 +187,24 @@ button:disabled {
   color: #a44132;
 }
 
+.tripWorkspace { display: grid; gap: 1rem; margin-top: 2rem; text-align: left; }
+.workspaceCard { border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; background: rgb(255 255 255 / 84%); padding: 1rem; box-shadow: 0 8px 24px rgb(25 50 80 / 7%); }
+.workspaceCard h2 { margin: 0 0 .25rem; }
+.workspaceCard header p { color: #667085; margin-top: 0; }
+.routeLayout { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1rem; align-items: start; }
+.routeMap { width: 100%; min-height: 16rem; border-radius: .75rem; background: #f3f7fb; }
+.workspaceTimeline { display: grid; gap: .5rem; margin: 0; padding-left: 1.25rem; }
+.workspaceTimeline button, .expenseForm button, .mappingEditor button, .previewStates button { border: 1px solid #c4cfdd; border-radius: .5rem; background: #fff; padding: .5rem .7rem; cursor: pointer; }
+.workspaceTimeline button[aria-pressed="true"] { border-color: #d9485f; background: #fff1f3; color: #a8243c; font-weight: 700; }
+.expenseForm { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+.expenseForm input, .expenseForm select { border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem; }
+.costDimensions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
+.costDimensions section { border: 1px solid #edf1f6; border-radius: .5rem; padding: .5rem; }
+.mappingEditor, .previewStates { overflow-x: auto; }
+.mappingEditor table, .previewStates table { width: 100%; border-collapse: collapse; }
+.mappingEditor th, .mappingEditor td, .previewStates th, .previewStates td { border-bottom: 1px solid #edf1f6; padding: .55rem; text-align: left; vertical-align: top; }
+.previewCell { max-width: 24rem; word-break: break-word; }
+
 .featureGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -226,4 +244,8 @@ article p {
   .formRow {
     grid-template-columns: 1fr;
   }
+
+  .routeLayout { grid-template-columns: 1fr; }
+  .costDimensions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tripWorkspace { margin-top: 1rem; }
 }
