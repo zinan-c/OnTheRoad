@@ -10,11 +10,13 @@ import {
 export type MapRuntimeOptions = {
   container: unknown;
   onTileError: (error: Error) => void;
+  onMarkerClick?: (itemId: string) => void;
 };
 
 export type MapRuntimeHandle = {
   setGeoJson: (geojson: MapModel["geojson"]) => void;
   setMarkers: (markers: readonly MapMarker[]) => void;
+  setRouteGeoJson: (geojson: unknown) => void;
   fitBounds: (bounds: Bounds, options: { padding: number; maxZoom: number }) => void;
   resize: () => void;
   destroy: () => void;
@@ -67,10 +69,15 @@ export class MapLibreWrapper {
 
   constructor(private readonly runtime: MapRuntimeFactory) {}
 
+  setRouteGeoJson(geojson: unknown): void {
+    this.runtimeHandle?.setRouteGeoJson(geojson);
+  }
+
   async mount(
     container: unknown,
     items: readonly MapItem[],
     filter: MapFilter = { kind: "all" },
+    onMarkerClick?: (itemId: string) => void,
   ): Promise<void> {
     this.items = [...items];
     const model = buildMapModel(this.items, filter);
@@ -82,16 +89,11 @@ export class MapLibreWrapper {
     }
 
     try {
-      const handle = await this.runtime.createMap({
-        container,
-        onTileError: () => {
-          this.state = {
-            ...this.state,
-            mode: "neutral-grid",
-            degradationReason: "底图不可用",
-          };
-        },
-      });
+      const mapOptions: MapRuntimeOptions = { container, onTileError: () => {
+        this.state = { ...this.state, mode: "neutral-grid", degradationReason: "底图不可用" };
+      } };
+      if (onMarkerClick) mapOptions.onMarkerClick = onMarkerClick;
+      const handle = await this.runtime.createMap(mapOptions);
       this.runtimeHandle = handle;
       handle.setGeoJson(model.geojson);
       handle.setMarkers(model.markers);

@@ -7,6 +7,8 @@ import { PreviewStates } from "../imports/preview/preview-states";
 import { type PreviewRow } from "../imports/preview/preview-model";
 import { CostSummaryPanel } from "../expenses/cost-summary-panel";
 import { routeStyle } from "../map/route-style";
+import { RealRouteMap } from "../map/real-route-map";
+import { MapTimelineSelectionStore } from "../map/store";
 
 type Point = { readonly longitude: number; readonly latitude: number };
 type Item = { readonly id: string; readonly target: string; readonly dayNumber?: number; readonly location?: { readonly point?: Point | null } | null; readonly transportModeCode?: string | null };
@@ -49,6 +51,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [previewRows, setPreviewRows] = useState(defaultPreviewRows);
   const [expenseError, setExpenseError] = useState<string | null>(null);
   const mappingJobId = `workspace-${tripId}`;
+  const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
 
   useEffect(() => {
     void Promise.all([api<Day[]>(`/trips/${tripId}/days`).then(async (loadedDays) => Promise.all(loadedDays.map(async (day) => ({ ...day, items: await api<Item[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`) })))), api(`/trips/${tripId}/expenses/summary`), api<{ mapping: Record<string, string> }>(`/imports/${mappingJobId}/mapping`).catch(() => null)]).then(([loadedDays, loadedSummary, loadedMapping]) => {
@@ -60,6 +63,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }, [tripId]);
 
   const items = useMemo(() => flattenDays(days), [days]);
+  const actualLocated = useMemo(() => items.flatMap((item) => item.location?.point ? [{ item, point: item.location.point }] : []), [items]);
   const located = useMemo(() => items.map((item, index) => ({ item, point: item.location?.point ?? { longitude: 121.49 + index * 0.01, latitude: 31.24 - index * 0.006 } })), [items]);
   const bounds = useMemo(() => {
     const longitudes = located.map(({ point }) => point.longitude);
@@ -89,6 +93,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }
 
   return <div className="tripWorkspace">
+    {actualLocated.length > 0 ? <RealRouteMap items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => { selectionStore.selectFromMarker(id); setSelectedId(id); }} /> : null}
     <section aria-label="路线地图" className="workspaceCard routeWorkspace">
       <header><h2>路线与时间线</h2><p>点击路线点或时间线项目，两个视图会保持同一选中状态。</p></header>
       <div className="routeLayout">
@@ -103,7 +108,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
           })}
           {located.map(({ item, point }) => { const position = svgPoint(point); return <circle key={item.id} cx={position.x} cy={position.y} r={selectedId === item.id ? 9 : 6} tabIndex={0} role="button" aria-label={`地图点 ${item.target}`} aria-pressed={selectedId === item.id} fill={selectedId === item.id ? "#d9485f" : "#2563eb"} onClick={() => setSelectedId(item.id)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedId(item.id); }} />; })}
         </svg>
-        <ol aria-label="行程时间线" className="workspaceTimeline">{items.map((item) => <li key={item.id}><button type="button" aria-pressed={selectedId === item.id} data-selected={selectedId === item.id} onClick={() => setSelectedId(item.id)}>{item.target}</button></li>)}</ol>
+        <ol aria-label="行程时间线" className="workspaceTimeline">{items.map((item) => <li key={item.id}><button type="button" aria-pressed={selectedId === item.id} data-selected={selectedId === item.id} onClick={() => { selectionStore.selectFromTimeline(item.id, `day-${item.dayNumber}`); setSelectedId(item.id); }}>{item.target}</button></li>)}</ol>
       </div>
       {selectedId ? <p role="status">当前选择：{items.find(({ id }) => id === selectedId)?.target ?? selectedId}</p> : null}
     </section>
