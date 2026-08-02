@@ -25,7 +25,7 @@ import { PostgresTripRepository } from "./modules/trips/postgres-repository.mjs"
 import { PostgresTripDayRepository } from "./modules/trips/postgres-day-repository.mjs";
 import { TripDateChangeService } from "./modules/trips/date-change.mjs";
 import { TripService } from "./modules/trips/service.mjs";
-import { ImportMappingService, InMemoryImportMappingRepository } from "./modules/imports/mapping.mjs";
+import { ImportMappingService, PostgresImportMappingRepository } from "./modules/imports/mapping.mjs";
 
 export interface ImportTransport {
   createUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
@@ -166,7 +166,7 @@ export function createProductionRuntime(
     repository: attachmentRepository,
   });
   const gallery = new AttachmentGalleryService(attachmentRepository);
-  const importMapping = new ImportMappingService(new InMemoryImportMappingRepository());
+  const importMapping = new ImportMappingService(new PostgresImportMappingRepository({ executor: database }));
 
   return {
     appOrigin: config.urls.app.origin,
