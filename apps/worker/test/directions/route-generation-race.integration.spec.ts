@@ -20,7 +20,7 @@ afterEach(async () => {
   await Promise.all(processors.splice(0).map((processor) => processor.close()));
 });
 
-describe("C07 production route generation race/rebuild contract", () => {
+describe("TC-C07-02 generation/sourceVersion race", () => {
   liveTest("keeps the newest source generation active and discards a late rebuild", async () => {
     database = new PostgresExecutor({ databaseUrl, role: "worker" });
     const context = await seedRouteContext(database);

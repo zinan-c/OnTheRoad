@@ -68,7 +68,9 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
       setSummary(loadedSummary);
       const firstItem = flattenDays(loadedDays)[0];
       if (firstItem) selectionStore.selectFromTimeline(firstItem.id, `day-${firstItem.dayNumber}`);
-      if (loadedMapping) setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
+      if (loadedMapping && Object.keys(loadedMapping.mapping).length > 0) {
+        setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
+      }
       if (loadedPreview) setPreviewRows(loadedPreview.rows); else setPreviewJobMissing(true);
     })();
   }, [tripId]);
@@ -135,7 +137,9 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
       if (!latest?.id) throw new Error("检查完成但未生成 ImportJob");
       setImportJobId(latest.id);
       const [loadedMapping, loadedPreview] = await Promise.all([api<{ mapping: Record<string, string> }>(`/imports/${latest.id}/mapping`).catch(() => null), api<{ rows: PreviewRow[] }>(`/imports/${latest.id}/preview`).catch(() => null)]);
-      if (loadedMapping) setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
+      if (loadedMapping && Object.keys(loadedMapping.mapping).length > 0) {
+        setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
+      }
       if (loadedPreview) setPreviewRows(loadedPreview.rows);
       setPreviewJobMissing(false);
       setImportStatus(`已生成真实 ImportJob：${latest.id}`);

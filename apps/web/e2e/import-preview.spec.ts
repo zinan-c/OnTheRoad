@@ -1,12 +1,46 @@
 import { expect, test } from "@playwright/test";
-import { createTripWorkspace } from "./helpers";
+import { apiOrigin, createTripWorkspace, uploadImportFixture } from "./helpers";
 
-test("TC-E05 preview E2E filters errors and skips only the confirmed row", async ({ page }) => {
-  await createTripWorkspace(page, "E05 预览验证");
+test.setTimeout(180_000);
+test("TC-E05-03 5,000-row preview E2E filters errors and skips only the confirmed row", async ({ page }) => {
+  const tripId = await createTripWorkspace(page, "E05 预览验证");
+  await uploadImportFixture(page, 5_000);
+  const mapping = page.getByRole("region", { name: "导入映射工作台" });
+  const [saved] = await Promise.all([
+    page.waitForResponse((response) =>
+      response.request().method() === "PUT"
+      && response.url().includes("/mapping")),
+    mapping.getByRole("button", { name: "保存映射" }).click(),
+  ]);
+  expect(saved.ok(), await saved.text()).toBe(true);
+  await expect(
+    mapping.getByRole("status").filter({ hasText: "映射已保存" }),
+  ).toBeVisible();
+  await expect.poll(async () => page.evaluate(async ({ tripId, apiOrigin }) => {
+    const latest = await fetch(
+      `${apiOrigin}/api/v1/trips/${tripId}/imports/latest`,
+      { credentials: "include" },
+    ).then((response) => response.json()) as { id: string };
+    const preview = await fetch(
+      `${apiOrigin}/api/v1/imports/${latest.id}/preview`,
+      { credentials: "include" },
+    ).then((response) => response.json()) as {
+      rows: Array<{ status: string }>;
+    };
+    return preview.rows.length === 5_000
+      && preview.rows.some(({ status }) => status === "error");
+  }, { tripId, apiOrigin }), { timeout: 60_000 }).toBe(true);
+  await page.reload();
   const preview = page.getByRole("region", { name: "导入预览工作台" });
   await expect(preview.getByRole("status")).toContainText("尚未写入正式行程");
   await preview.getByRole("button", { name: /error 1/ }).click();
-  await preview.getByRole("button", { name: /确认跳过当前页错误/ }).click();
+  const [skipped] = await Promise.all([
+    page.waitForResponse((response) =>
+      response.request().method() === "POST"
+      && response.url().includes("/preview/skip")),
+    preview.getByRole("button", { name: /确认跳过当前页错误/ }).click(),
+  ]);
+  expect(skipped.ok(), await skipped.text()).toBe(true);
   await preview.getByRole("button", { name: /skipped 1/ }).click();
   await expect(preview).toContainText("已跳过");
   await expect(preview).not.toContainText("已导入");

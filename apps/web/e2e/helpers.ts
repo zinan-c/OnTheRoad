@@ -29,3 +29,20 @@ export async function createTripWorkspace(page: Page, name: string) {
   await expect(page.getByRole("button", { name: "地点1", exact: true })).toBeVisible();
   return tripId;
 }
+
+export async function uploadImportFixture(page: Page, rowCount = 2) {
+  const workspace = page.getByRole("region", { name: "导入映射工作台" });
+  const rows = Array.from({ length: rowCount }, (_, index) =>
+    index === rowCount - 1
+      ? "0,"
+      : `${(index % 5) + 1},事项${index + 1}`);
+  await workspace.getByLabel("上传行程文件").setInputFiles({
+    name: "m3-preview.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(`Day,Target\n${rows.join("\n")}\n`),
+  });
+  await expect(
+    workspace.getByRole("status").filter({ hasText: "已生成真实 ImportJob" }),
+  ).toBeVisible({ timeout: 45_000 });
+  await expect(workspace.getByRole("button", { name: "保存映射" })).toBeVisible();
+}

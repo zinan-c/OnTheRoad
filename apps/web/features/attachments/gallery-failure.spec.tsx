@@ -4,9 +4,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 
-import { Gallery, type GalleryAttachment } from "./gallery";
+import { Gallery, type GalleryAttachment } from "../../src/features/attachments/gallery";
 
-describe("D03 gallery failure states", () => {
+describe("TC-D03-02 interrupted/delete/order conflict", () => {
   test("shows failed state and retries without rendering a broken image", async () => {
     const user = userEvent.setup();
     const retry = vi.fn();

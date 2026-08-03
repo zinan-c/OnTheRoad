@@ -8,7 +8,7 @@ import {
   validateNormalizedRow,
 } from "../src/index.mjs";
 
-describe("E04 normalization and validation contract", () => {
+describe("TC-E04-01 normalize/validate golden", () => {
   test("normalizes aliases and produces deterministic fingerprints", () => {
     const row = normalizeImportRow({
       目的地: "上海博物馆",

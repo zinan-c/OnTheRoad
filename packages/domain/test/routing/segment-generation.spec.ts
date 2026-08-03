@@ -24,7 +24,7 @@ const item = (id: string, day: string, dayNumber: number, sortOrder: number, ove
   ...overrides,
 });
 
-describe("C07 route segment generation contract", () => {
+describe("TC-C07-01 route segment generation matrix", () => {
   test("orders adjacent items and uses the arrival day and destination mode", () => {
     const result = generateRouteWindow({
       items: [

@@ -22,7 +22,7 @@ afterEach(async () => {
   processor = undefined;
 });
 
-describe("E04 production staging integration/worker contract", () => {
+describe("TC-E04-03 workbook-to-staging E2E", () => {
   liveTest("normalizes, validates, fingerprints, and stages without formal writes", async () => {
     database = new PostgresExecutor({ databaseUrl, role: "worker" });
     processor = new PostgresImportStagingProcessor(databaseUrl!);

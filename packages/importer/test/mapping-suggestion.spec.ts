@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { canonicalizeMapping, suggestMappings, validateMapping } from "../src/index.mjs";
 
-describe("E03 mapping suggestions", () => {
+describe("TC-E03-01 mapping suggestion score", () => {
   test("scores Chinese/English aliases and explains the recommendation", () => {
     const result = suggestMappings({ sourceColumns: ["日期", "事项", "Latitude"], sampleRows: [{ 日期: "2026-08-01", 事项: "抵达", Latitude: "31.2" }] });
     expect(result.find(({ source }) => source === "日期")?.candidates[0]).toMatchObject({ target: "Date", score: 1 });

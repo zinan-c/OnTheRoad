@@ -4,11 +4,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 
-import { Gallery, attachmentAspectRatio, type GalleryAttachment } from "./gallery";
+import { Gallery, attachmentAspectRatio, type GalleryAttachment } from "../../src/features/attachments/gallery";
 
 const ready: GalleryAttachment = { id: "a", status: "ready", previewUrl: "/a.jpg", width: 1200, height: 800, caption: "上海", sortOrder: 0, isCover: true };
 
-describe("D03 gallery", () => {
+describe("TC-D03-01 upload/gallery component", () => {
   test("renders proportional preview, caption, cover and lightbox", async () => {
     const user = userEvent.setup();
     const actions = { retry: vi.fn(), updateCaption: vi.fn(), setCover: vi.fn(), remove: vi.fn(), reorder: vi.fn() };

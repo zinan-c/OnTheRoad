@@ -4,12 +4,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { PreviewStates } from "./preview-states";
-import { type PreviewRow } from "./preview-model";
+import { PreviewStates } from "../../src/features/imports/preview/preview-states";
+import { type PreviewRow } from "../../src/features/imports/preview/preview-model";
 
 const rows: PreviewRow[] = Array.from({ length: 3 }, (_, index) => ({ id: String(index + 1), sheetName: "Sheet 1", rowNumber: index + 1, sourceRowKey: `Sheet 1:${index + 1}`, status: index === 0 ? "error" : "new", rawData: { Target: index === 0 ? "" : `事项${index}` }, normalizedData: {}, errors: index === 0 ? [{ field: "Target", message: "必填" }] : [] }));
 
-describe("E05 preview states", () => {
+describe("TC-E05-02 pagination/status-change/skip confirmation", () => {
   afterEach(() => cleanup());
   test("shows counts, row-level errors and explicit skip action", async () => {
     const user = userEvent.setup();

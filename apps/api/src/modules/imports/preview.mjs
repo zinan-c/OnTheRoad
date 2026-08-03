@@ -15,7 +15,23 @@ export class PostgresImportPreviewRepository {
   /** @param {string} ownerId @param {string} jobId */
   rows(ownerId, jobId) { return this.database.json(`SELECT COALESCE(jsonb_agg(jsonb_build_object('id', r.id, 'sheetName', r.sheet_name, 'rowNumber', r.row_number, 'sourceRowKey', r.source_row_key, 'status', r.status, 'rawData', r.raw_data, 'normalizedData', r.normalized_data, 'errors', r.errors) ORDER BY r.row_number, r.id), '[]'::jsonb) FROM import_row r JOIN import_job j ON j.id = r.import_job_id WHERE j.id = $2::uuid AND j.owner_id = $1 AND r.status <> 'pending'`, [ownerId, jobId]); }
   /** @param {string} ownerId @param {string} jobId @param {string[]} ids */
-  skip(ownerId, jobId, ids) { return this.database.json(`UPDATE import_row r SET status = 'skipped', updated_at = now() FROM import_job j WHERE j.id = r.import_job_id AND j.id = $2::uuid AND j.owner_id = $1 AND r.id = ANY($3::uuid[]) AND r.status IN ('error', 'unresolved') RETURNING r.id`, [ownerId, jobId, ids]); }
+  skip(ownerId, jobId, ids) {
+    return this.database.json(`
+      WITH skipped AS (
+        UPDATE import_row r
+        SET status = 'skipped', updated_at = now()
+        FROM import_job j
+        WHERE j.id = r.import_job_id
+          AND j.id = $2::uuid
+          AND j.owner_id = $1
+          AND r.id = ANY($3::uuid[])
+          AND r.status IN ('error', 'unresolved')
+        RETURNING r.id
+      )
+      SELECT COALESCE(jsonb_agg(id ORDER BY id), '[]'::jsonb)
+      FROM skipped
+    `, [ownerId, jobId, ids]);
+  }
 }
 
 export class ImportPreviewService {

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-import { routeStyle } from "./route-style.js";
+import { routeStyle } from "../../src/features/map/route-style.js";
 
-describe("C08 route style contract", () => {
+describe("TC-C08-01 route style contract", () => {
   test("keeps mode color, line and icon distinguishable", () => {
     const walk = routeStyle({ modeCode: "WALK", quality: "actual" });
     const flight = routeStyle({ modeCode: "FLIGHT", quality: "actual" });

@@ -24,7 +24,13 @@ describe("M0-M2 required-case gate", () => {
     assert.ok(result.nodeTestFiles.length > 0);
     assert.deepEqual(result.playwrightTestFiles, [
       "apps/web/browser/trip-session.spec.ts",
+      "apps/web/e2e/attachments-gallery.spec.ts",
+      "apps/web/e2e/cost-summary.spec.ts",
+      "apps/web/e2e/import-mapping.spec.ts",
+      "apps/web/e2e/import-preview.spec.ts",
       "apps/web/e2e/import-upload-chain.spec.ts",
+      "apps/web/e2e/map-timeline-link.spec.ts",
+      "apps/web/e2e/routes-visual.spec.ts",
     ]);
     assert.ok(
       !result.vitestTestFiles.includes("apps/web/browser/trip-session.spec.ts"),
