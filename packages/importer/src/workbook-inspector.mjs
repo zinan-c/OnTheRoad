@@ -41,7 +41,7 @@ export class WorkbookInspectError extends Error {
 
 /**
  * @param {Buffer | Uint8Array | string} value
- * @param {{filename?: string, limits?: Partial<WorkbookLimits>, sampleRows?: number}} [options]
+ * @param {{filename?: string, limits?: Partial<WorkbookLimits>, sampleRows?: number, includeRows?: boolean}} [options]
  */
 export function inspectWorkbook(value, options) {
   const body = Buffer.isBuffer(value) ? value : Buffer.from(value);
@@ -117,6 +117,7 @@ export function inspectWorkbook(value, options) {
       name,
       columns: inspected.columns,
       samples: inspected.samples,
+      ...(options?.includeRows ? { rows: inspected.rows } : {}),
       rowCount: inspected.rowCount,
     });
   }
@@ -193,14 +194,16 @@ function inspectSheet(sheet, name, sampleRows, limits) {
     return text || `Column ${index + 1}`;
   });
   const dataRows = matrix.slice(1);
-  const samples = dataRows.slice(0, sampleRows).map((row) =>
+  const rows = dataRows.map((row) =>
     Object.fromEntries(columns.map((column, index) => [
       column,
       row[index] ?? "",
     ])));
+  const samples = rows.slice(0, sampleRows);
   return {
     columns,
     samples,
+    rows,
     rowCount: dataRows.length,
     cellCount: matrix.length * columns.length,
   };

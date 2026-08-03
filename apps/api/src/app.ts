@@ -351,6 +351,17 @@ class ApiController {
     );
   }
 
+  @Get("trips/:tripId/routes")
+  async listRoutes(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+  ) {
+    return this.runtime.routes.list(
+      await owner(this.runtime, request),
+      tripId,
+    );
+  }
+
   @Post("trips/:tripId/days/:tripDayId/itinerary-items")
   async createItem(
     @Req() request: FastifyRequest,
@@ -541,7 +552,9 @@ class ApiController {
   @Post("trips/:tripId/attachments/upload-sessions")
   async createAttachmentUploadSession(
     @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
     @Body() body: {
+      itineraryItemId?: string;
       contentType: string;
       contentLength: number;
       checksumSha256: string;
@@ -550,6 +563,8 @@ class ApiController {
   ) {
     const session = await this.runtime.attachments.createSession({
       ownerId: await owner(this.runtime, request),
+      tripId,
+      ...(body.itineraryItemId ? { itemId: body.itineraryItemId } : {}),
       contentType: body.contentType,
       contentLength: body.contentLength,
       checksumSha256: body.checksumSha256,
@@ -563,6 +578,24 @@ class ApiController {
     @Req() request: FastifyRequest,
     @Param("itemId") itemId: string,
   ) { return this.runtime.gallery.list(await owner(this.runtime, request), itemId); }
+
+  @Post("trips/:tripId/itinerary-items/:itemId/gallery/reorder")
+  async reorderGallery(
+    @Req() request: FastifyRequest,
+    @Param("itemId") itemId: string,
+    @Body() body: {
+      expectedVersion?: number;
+      expectedVersions?: Record<string, number>;
+      orderedIds?: string[];
+    },
+  ) {
+    return this.runtime.gallery.reorder(
+      await owner(this.runtime, request),
+      itemId,
+      body.expectedVersions ?? Number(body.expectedVersion),
+      body.orderedIds ?? [],
+    );
+  }
 
   @Patch("trips/:tripId/attachments/:attachmentId/gallery")
   async updateGallery(
@@ -585,6 +618,20 @@ class ApiController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const attachment = await this.runtime.attachments.complete({
+      ownerId: await owner(this.runtime, request),
+      attachmentId,
+    });
+    reply.status(HttpStatus.ACCEPTED);
+    return attachment;
+  }
+
+  @Post("trips/:tripId/attachments/:attachmentId/retry")
+  async retryAttachment(
+    @Req() request: FastifyRequest,
+    @Param("attachmentId") attachmentId: string,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const attachment = await this.runtime.attachments.retry({
       ownerId: await owner(this.runtime, request),
       attachmentId,
     });

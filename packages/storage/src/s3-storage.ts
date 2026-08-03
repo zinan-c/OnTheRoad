@@ -281,6 +281,43 @@ export class S3ObjectStorage implements ObjectStorage, MediaObjectStorage {
     return value;
   }
 
+  createReadUrl(
+    objectKey: string,
+    objectVersion: string,
+    expiresInSeconds = 300,
+  ): string {
+    if (!/^derived\/[0-9a-f-]{36}\/[A-Za-z0-9-]+$/u.test(objectKey)) {
+      throw new StorageError(
+        "DERIVATIVE_KEY_INVALID",
+        "Derivative object key is invalid.",
+      );
+    }
+    if (!objectVersion.trim()) {
+      throw new StorageError(
+        "OBJECT_VERSION_REQUIRED",
+        "An immutable object version is required.",
+      );
+    }
+    if (
+      !Number.isSafeInteger(expiresInSeconds)
+      || expiresInSeconds < 1
+      || expiresInSeconds > 900
+    ) {
+      throw new StorageError(
+        "EXPIRY_INVALID",
+        "Read expiry must be between 1 and 900 seconds.",
+      );
+    }
+    return this.#presign(
+      "GET",
+      objectKey,
+      {},
+      expiresInSeconds,
+      this.#clock(),
+      { versionId: objectVersion },
+    );
+  }
+
   async putImmutable(
     objectKey: string,
     value: Buffer,

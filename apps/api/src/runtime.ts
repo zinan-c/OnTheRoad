@@ -29,6 +29,7 @@ import { TripService } from "./modules/trips/service.mjs";
 import { ImportMappingService, PostgresImportMappingRepository } from "./modules/imports/mapping.mjs";
 import { ImportPreviewService, PostgresImportPreviewRepository } from "./modules/imports/preview.mjs";
 import { PostgresImportTransport } from "./modules/imports/postgres-upload.mjs";
+import { PostgresRouteRepository } from "./modules/routing/postgres-route-repository.mjs";
 
 export interface ImportTransport {
   createUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
@@ -67,6 +68,7 @@ export interface ApiRuntime {
   readonly imports?: ImportTransport;
   readonly importMapping?: ImportMappingService;
   readonly importPreview: ImportPreviewService;
+  readonly routes: PostgresRouteRepository;
   referenceData(): unknown;
   checkReadiness(): Promise<Record<string, boolean>>;
   close(): Promise<void>;
@@ -173,15 +175,18 @@ export function createProductionRuntime(
   });
   const attachmentRepository = new PostgresAttachmentRepository({
     executor: database,
+    storage,
   });
   const attachments = new AttachmentUploadService({
     storage,
     repository: attachmentRepository,
+    queue: redis,
   });
   const gallery = new AttachmentGalleryService(attachmentRepository);
-  const importMapping = new ImportMappingService(new PostgresImportMappingRepository({ executor: database }));
+  const importMapping = new ImportMappingService(new PostgresImportMappingRepository({ executor: database, queue: redis }));
   const importPreview = new ImportPreviewService(new PostgresImportPreviewRepository({ executor: database }));
   const imports = new PostgresImportTransport({ database, storage: importStorage, queue: redis });
+  const routes = new PostgresRouteRepository({ executor: database });
 
   return {
     appOrigin: config.urls.app.origin,
@@ -199,6 +204,7 @@ export function createProductionRuntime(
     imports,
     importMapping,
     importPreview,
+    routes,
     referenceData: createReferenceDataResponse,
     async checkReadiness() {
       const checks: Record<string, boolean> = {

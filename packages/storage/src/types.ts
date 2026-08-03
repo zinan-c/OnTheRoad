@@ -42,6 +42,11 @@ export interface MediaObjectStorage {
     value: Buffer,
     contentType: string,
   ): Promise<ImmutableStoredObject>;
+  createReadUrl?(
+    objectKey: string,
+    objectVersion: string,
+    expiresInSeconds?: number,
+  ): string;
 }
 
 export class StorageError extends Error {

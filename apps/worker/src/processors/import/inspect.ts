@@ -18,6 +18,7 @@ export type WorkbookInspection = {
     name: string;
     columns: string[];
     samples: Array<Record<string, unknown>>;
+    rows?: Array<Record<string, unknown>>;
     rowCount: number;
   }>;
 };
@@ -66,7 +67,7 @@ type ImportInspectProcessorOptions = {
   };
   inspect: (
     body: Buffer,
-    options: { filename: string },
+    options: { filename: string; includeRows?: boolean },
   ) => WorkbookInspection | Promise<WorkbookInspection>;
 };
 
@@ -101,6 +102,7 @@ export class ImportInspectProcessor {
       }
       const inspection = await this.#inspect(body, {
         filename: attachment.filename,
+        includeRows: true,
       });
       return await this.#repository.markSucceeded(job.id, inspection);
     } catch (error) {

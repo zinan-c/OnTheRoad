@@ -34,17 +34,24 @@ export class PostgresImportInspectRepository implements ImportInspectRepository 
 
   async markSucceeded(id: string, inspection: WorkbookInspection): Promise<ImportInspectJob> {
     return this.#database.transaction(async (client) => {
-      const job = (await client.query<any>(`UPDATE import_inspect_job SET status = 'succeeded', inspection = $2::jsonb, completed_at = now(), updated_at = now() WHERE id = $1::uuid RETURNING id, owner_id, attachment_id, trip_id, status, attempts`, [id, JSON.stringify(inspection)])).rows[0];
+      const publicInspection = {
+        ...inspection,
+        sheets: inspection.sheets.map(({ rows: _rows, ...sheet }) => sheet),
+      };
+      const job = (await client.query<any>(`UPDATE import_inspect_job SET status = 'succeeded', inspection = $2::jsonb, completed_at = now(), updated_at = now() WHERE id = $1::uuid RETURNING id, owner_id, attachment_id, trip_id, status, attempts`, [id, JSON.stringify(publicInspection)])).rows[0];
       if (!job) throw new Error("IMPORT_INSPECT_JOB_NOT_FOUND");
       const attachment = (await client.query<any>(`SELECT source_filename, checksum_sha256 FROM attachment WHERE id = $1::uuid`, [job.attachment_id])).rows[0];
       const sourceSha256 = Buffer.from(attachment.checksum_sha256, "base64").toString("hex");
       const mappingHash = createHash("sha256").update("{}").digest("hex");
-      const imported = (await client.query<any>(`INSERT INTO import_job (trip_id, owner_id, source_attachment_id, source_sha256, importer_type, importer_version, mapping, mapping_hash, status, stage, total_rows, valid_rows, error_rows) VALUES ($1::uuid, $2, $3::uuid, $4, split_part($5, '.', 2), 'runtime-1', '{}'::jsonb, $6, 'mapping_required', 'mapping_required', $7, $7, 0) RETURNING id`, [job.trip_id, job.owner_id, job.attachment_id, sourceSha256, attachment.source_filename, mappingHash, inspection.sheets.reduce((sum, sheet) => sum + sheet.samples.length, 0)])).rows[0];
-      let rowNumber = 2;
+      const totalRows = inspection.sheets.reduce(
+        (sum, sheet) => sum + (sheet.rows ?? sheet.samples).length,
+        0,
+      );
+      const imported = (await client.query<any>(`INSERT INTO import_job (trip_id, owner_id, source_attachment_id, source_sha256, importer_type, importer_version, mapping, mapping_hash, status, stage, total_rows, valid_rows, error_rows) VALUES ($1::uuid, $2, $3::uuid, $4, split_part($5, '.', 2), 'runtime-1', '{}'::jsonb, $6, 'mapping_required', 'mapping_required', $7, 0, 0) RETURNING id`, [job.trip_id, job.owner_id, job.attachment_id, sourceSha256, attachment.source_filename, mappingHash, totalRows])).rows[0];
       for (const sheet of inspection.sheets) {
-        for (const sample of sheet.samples) {
-          await client.query(`INSERT INTO import_row (import_job_id, sheet_name, row_number, source_row_key, raw_data, normalized_data, status) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $5::jsonb, 'pending')`, [imported.id, sheet.name, rowNumber, `${sheet.name}:${rowNumber}`, JSON.stringify(sample)]);
-          rowNumber += 1;
+        for (const [index, rawData] of (sheet.rows ?? sheet.samples).entries()) {
+          const rowNumber = index + 2;
+          await client.query(`INSERT INTO import_row (import_job_id, sheet_name, row_number, source_row_key, raw_data, status) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, 'pending')`, [imported.id, sheet.name, rowNumber, `${sheet.name}:${rowNumber}`, JSON.stringify(rawData)]);
         }
       }
       return { id: job.id, ownerId: job.owner_id, attachmentId: job.attachment_id, status: job.status, attempts: job.attempts };

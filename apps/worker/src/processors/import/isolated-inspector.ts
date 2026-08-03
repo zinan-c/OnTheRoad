@@ -47,7 +47,7 @@ export class IsolatedWorkbookInspector {
 
   inspect(
     body: Buffer,
-    options: { filename: string },
+    options: { filename: string; includeRows?: boolean },
   ): Promise<WorkbookInspection> {
     return new Promise((resolve, reject) => {
       let settled = false;

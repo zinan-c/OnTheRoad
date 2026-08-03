@@ -35,13 +35,18 @@ export class InMemoryAttachmentGalleryRepository {
     return clone(attachment);
   }
 
-  /** @param {string} ownerId @param {string} itemId @param {number} expectedVersion @param {string[]} orderedIds */
+  /** @param {string} ownerId @param {string} itemId @param {number | Record<string, number>} expectedVersion @param {string[]} orderedIds */
   reorder(ownerId, itemId, expectedVersion, orderedIds) {
     const current = this.list(ownerId, itemId);
     if (current.length !== orderedIds.length || new Set(orderedIds).size !== orderedIds.length || !current.every(({ id }) => orderedIds.includes(id))) {
       throw new AttachmentGalleryError("ATTACHMENT_ORDER_INCOMPLETE", "Order must include every visible attachment.");
     }
-    if (current.some(({ version }) => version !== expectedVersion)) throw new AttachmentGalleryError("ATTACHMENT_VERSION_CONFLICT", "Gallery changed.", 409);
+    if (current.some(({ id, version }) =>
+      version !== (typeof expectedVersion === "number"
+        ? expectedVersion
+        : expectedVersion[id]))) {
+      throw new AttachmentGalleryError("ATTACHMENT_VERSION_CONFLICT", "Gallery changed.", 409);
+    }
     for (const [sortOrder, id] of orderedIds.entries()) this.#owned(ownerId, id).sortOrder = sortOrder;
     for (const id of orderedIds) this.#owned(ownerId, id).version += 1;
     return this.list(ownerId, itemId);
@@ -80,7 +85,7 @@ export class AttachmentGalleryService {
       ...(patch.sortOrder === undefined ? {} : { sortOrder: Number(patch.sortOrder) }),
     });
   }
-  /** @param {string} ownerId @param {string} itemId @param {number} expectedVersion @param {string[]} orderedIds */
+  /** @param {string} ownerId @param {string} itemId @param {number | Record<string, number>} expectedVersion @param {string[]} orderedIds */
   reorder(ownerId, itemId, expectedVersion, orderedIds) { return this.repository.reorder(ownerId, itemId, expectedVersion, orderedIds); }
   /** @param {string} ownerId @param {string} id */
   remove(ownerId, id) { return this.repository.remove(ownerId, id); }

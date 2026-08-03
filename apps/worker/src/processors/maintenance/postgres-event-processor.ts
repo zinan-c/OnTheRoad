@@ -2,21 +2,25 @@ import type { Job } from "bullmq";
 
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { assertJobEvent, type JobEvent } from "@on-the-road/database/jobs";
+import { PostgresRouteRebuildProcessor } from "../directions/postgres-route-rebuild.js";
 
 const SUPPORTED_EVENTS = new Set([
   "itinerary.order.changed",
+  "route.rebuild.requested",
   "trip.created",
   "trip.updated",
 ]);
 
 export class PostgresEventProcessor {
   readonly #database: PostgresExecutor;
+  readonly #routes: PostgresRouteRebuildProcessor;
 
   constructor(databaseUrl: string) {
     this.#database = new PostgresExecutor({
       databaseUrl,
       role: "worker",
     });
+    this.#routes = new PostgresRouteRebuildProcessor(databaseUrl);
   }
 
   async process(job: Job): Promise<{
@@ -32,6 +36,9 @@ export class PostgresEventProcessor {
     const candidate = job.data as Record<string, unknown>;
     assertJobEvent(candidate);
     const event: JobEvent = candidate;
+    if (event.eventType === "route.rebuild.requested") {
+      return this.#routes.process(event);
+    }
     const applied = await this.#database.transaction(async (client) => {
       const inbox = await client.query(
         `INSERT INTO job_inbox (
@@ -63,7 +70,10 @@ export class PostgresEventProcessor {
     return { eventId: event.eventId, applied };
   }
 
-  close(): Promise<void> {
-    return this.#database.close();
+  async close(): Promise<void> {
+    await Promise.all([
+      this.#database.close(),
+      this.#routes.close(),
+    ]);
   }
 }

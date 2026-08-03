@@ -69,6 +69,20 @@ export class PostgresMediaRepository {
     );
   }
 
+  async listRecoverableAttachmentIds(limit = 100) {
+    const result = await this.database.query(
+      `SELECT id
+       FROM attachment
+       WHERE purpose = 'media'
+         AND status = 'uploaded'
+         AND deleted_at IS NULL
+       ORDER BY updated_at, id
+       LIMIT $1`,
+      [limit],
+    );
+    return result.rows.map(({ id }) => id);
+  }
+
   close() {
     return this.database.close();
   }
