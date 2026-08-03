@@ -78,7 +78,7 @@ describe("TC-D04-03 expense summary seed", () => {
           },
         },
         day: {
-          unassigned: {
+          "day-a": {
             originalTotal: "110.0000",
             settledTotal: "172.0000",
             unconverted: "0",

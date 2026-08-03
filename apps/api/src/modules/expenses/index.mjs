@@ -71,8 +71,9 @@ export class ExpenseService {
     const originalCurrency = currency(input.currency);
     const originalAmount = normalizeMoney(input.amount);
     const categoryCode = category(input.categoryCode);
+    let item = null;
     if (input.itineraryItemId) {
-      const item = await this.repository.getItem(input.itineraryItemId);
+      item = await this.repository.getItem(input.itineraryItemId);
       if (
         !item
         || item.ownerId !== ownerId
@@ -96,6 +97,7 @@ export class ExpenseService {
       id: randomUUID(),
       ownerId,
       tripId,
+      tripDayId: item?.tripDayId ?? null,
       itineraryItemId: input.itineraryItemId ?? null,
       destinationId: input.destinationId ?? null,
       transportModeCode: input.transportModeCode ?? null,
