@@ -6,7 +6,7 @@ test("TC-B04-03 creates a Trip through the real HTTP API and restores its sessio
   await page.goto("/");
   const capabilityResponse = await page.evaluate(async () => {
     try {
-      const response = await fetch("http://127.0.0.1:3001/api/v1/system/capabilities", {
+      const response = await fetch("http://localhost:3001/api/v1/system/capabilities", {
         credentials: "include",
       });
       return { ok: response.ok, status: response.status, body: await response.text() };
@@ -32,7 +32,7 @@ test("TC-B04-03 creates a Trip through the real HTTP API and restores its sessio
       path: string,
       init?: RequestInit,
     ): Promise<{ status: number; body: any; etag: string | null }> => {
-      const response = await fetch(`http://127.0.0.1:3001/api/v1${path}`, {
+      const response = await fetch(`http://localhost:3001/api/v1${path}`, {
         ...init,
         credentials: "include",
         headers: {

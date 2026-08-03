@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
-export const apiOrigin = "http://127.0.0.1:3001";
+export const apiOrigin = "http://localhost:3001";
 
 export async function createTripWorkspace(page: Page, name: string) {
   await page.goto("/");

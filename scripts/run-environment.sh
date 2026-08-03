@@ -48,7 +48,7 @@ for attempt in $(seq 1 60); do
   api_ok=false
   web_ok=false
   worker_ok=false
-  curl -fsS "${api_origin}/api/v1/health/ready" >/dev/null 2>&1 && api_ok=true
+  curl -fsS "${api_origin}/health/ready" >/dev/null 2>&1 && api_ok=true
   curl -fsS "${web_origin}/" >/dev/null 2>&1 && web_ok=true
   if [[ -n "${REDIS_URL:-}" ]] && redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:worker:heartbeat:*' 2>/dev/null | grep -q .; then worker_ok=true; fi
   if [[ "${api_ok}" == true && "${web_ok}" == true && "${worker_ok}" == true ]]; then

@@ -34,6 +34,10 @@ describe("TC-A02-01 local stack health", () => {
     assert.ok((compose.match(/cpus:/g) ?? []).length >= 4);
     assert.ok((compose.match(/no-new-privileges:true/g) ?? []).length >= 5);
     assert.match(compose, /minio-init:[\s\S]*?read_only:\s*true/u);
+    assert.match(
+      compose,
+      /mc version enable "local\/\$\$\{MINIO_BUCKET\}"/u,
+    );
     assert.doesNotMatch(
       compose.split(/^ {2}clamav:/m)[1],
       /healthcheck:/,

@@ -227,6 +227,7 @@ start_minio() {
   fi
   stack_wait_until minio minio_probe
   "${MC_CMD}" mb --ignore-existing "otr-native/${MINIO_BUCKET}" >/dev/null
+  "${MC_CMD}" version enable "otr-native/${MINIO_BUCKET}" >/dev/null
   "${MC_CMD}" anonymous set none "otr-native/${MINIO_BUCKET}" >/dev/null
 }
 

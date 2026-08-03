@@ -37,15 +37,25 @@ describe("TC-A02-02 native recovery and scanner degradation", () => {
   });
 
   test("health contract is fail-closed when any required probe fails", async () => {
-    const health = await import("node:fs/promises").then(({ readFile }) =>
-      readFile(
+    const { health, startup } = await import("node:fs/promises").then(
+      async ({ readFile }) => ({
+        health: await readFile(
         new URL("../../scripts/dev-up-native-health.sh", import.meta.url),
         "utf8",
-      ),
+        ),
+        startup: await readFile(
+          new URL("../../scripts/dev-up-native.sh", import.meta.url),
+          "utf8",
+        ),
+      }),
     );
     assert.match(health, /check clamav clamav_ready/);
     assert.match(health, /media processing must remain fail-closed/);
     assert.match(health, /exit 1/);
+    assert.match(
+      startup,
+      /"\$\{MC_CMD\}" version enable "otr-native\/\$\{MINIO_BUCKET\}"/u,
+    );
   });
 
   test.skipIf(!nativeIntegrationEnabled)(

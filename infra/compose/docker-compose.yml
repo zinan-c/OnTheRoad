@@ -101,6 +101,7 @@ services:
       - |
         mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
         mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+        mc version enable "local/$${MINIO_BUCKET}"
         mc anonymous set none "local/$${MINIO_BUCKET}"
         mc stat "local/$${MINIO_BUCKET}"
     mem_limit: 128m

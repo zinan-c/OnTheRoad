@@ -4,6 +4,7 @@ import { Redis } from "ioredis";
 
 import { loadProcessConfig } from "@on-the-road/config/env";
 import { createReferenceDataResponse } from "./modules/system/reference-data.mjs";
+import { minimumCompatibleSchemaVersion } from "@on-the-road/database";
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { CandidateTokenSigner } from "@on-the-road/domain/location";
 import { IMPORT_CONTENT_TYPES, S3ObjectStorage } from "@on-the-road/storage";
@@ -212,10 +213,10 @@ export function createProductionRuntime(
         await database.query("SELECT 1");
         checks.database = true;
         const result = await database.query<{ compatible: boolean }>(`
-          SELECT COALESCE(max(version), 0) >= 13
+          SELECT COALESCE(max(version), 0) >= $1
             AND bool_and(status = 'applied') AS compatible
           FROM otr_schema_migration
-        `);
+        `, [minimumCompatibleSchemaVersion]);
         checks.schema = result.rows[0]?.compatible === true;
       } catch {
         checks.database = false;
