@@ -20,7 +20,12 @@ let dates: TripDateChangeService;
 beforeAll(async () => {
   await prepareTripDatabase();
   if (!tripDatabaseUrl) return;
-  await psql("\\i packages/database/src/migrations/0006_trip_day.sql");
+  const managedSchema = Boolean(
+    await psql("SELECT to_regclass('public.otr_schema_migration')"),
+  );
+  if (!managedSchema) {
+    await psql("\\i packages/database/src/migrations/0006_trip_day.sql");
+  }
   trips = new TripService(new PostgresTripRepository({ databaseUrl: tripDatabaseUrl }));
   dates = new TripDateChangeService(
     new PostgresTripDayRepository({ databaseUrl: tripDatabaseUrl }),

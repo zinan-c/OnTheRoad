@@ -17,12 +17,12 @@ observations are not mistaken for the repository's present state.
 | Finding | Dev status | Remediation commit | Closure evidence / residual scope |
 |---|---|---|---|
 | P0-01 | Closed | `5be8017` | `tests/runtime/real-stack.e2e.spec.ts` starts the real API composition root against migrated PostgreSQL and Redis, persists Trip/Item/Location/upload-entry changes over HTTP, sends the reorder outbox event through BullMQ, and proves the Worker writes the inbox receipt and handled timestamp. The production Worker rejects `runtime.noop` and uses an explicit PostgreSQL event processor. Compose and production release checks remain governed by the release checklist. |
-| P0-02 | Closed | `51b2545` | The required-case manifest and runner fail on missing, skipped, todo, or uncollected M0–M2 Cases. `CI-Test Cases` provisions the dependency stack, migrates/seeds the database, runs required cases, and uploads evidence. Full application Compose parity remains a separate required release gate. |
+| P0-02 | Closed | `51b2545`, M3 closure | The required-case manifest and runner fail on missing, skipped, todo, uncollected, or schema-mutating M0–M3 Cases. `CI-Test Cases` provisions the dependency stack, migrates/seeds the database, starts the real API and Worker with a validated profile, runs required cases, and uploads evidence. Full application Compose parity remains a separate required release gate. |
 | P0-03 | Closed | `caf73ca` | AMAP and deterministic hybrid geocoding adapters are constructible at startup, normalize errors and coordinate systems, isolate caches, and do not silently change the selected Profile. |
 | P1-01 | Closed | `a30d35d` | Production repositories use the bounded `pg`-based `PostgresExecutor` with parameter binding, timeout controls, transaction support, redacted errors, and shutdown tests; per-operation `psql` subprocesses were removed. |
 | P1-02 | Closed | `1b81b8b` | `packages/database` is a workspace package with unified migrate/status/seed commands, checksummed history, dirty-state recovery, minimum-compatible schema checks, and clean-database integration tests. |
 | P1-03 | Closed | `30793a6` | Every non-test OpenAPI operation is mounted on the Nest/Fastify application; route parity and generated-client success/Problem Details are exercised by `apps/api/test/runtime/public-route-parity.e2e.spec.ts`. |
-| P1-04 | Closed for the M0–M2 Dev scope | `0bc6698` | Playwright starts the production API composition root rather than an in-memory repository. `apps/web/browser/trip-session.spec.ts` covers real React creation/session UX and browser-origin HTTP persistence for Item create/update/copy/delete/reorder, stale-version rejection, Location adjustment, refresh and mobile layout. Feature-specific UI interactions and M3 browser paths remain owned by their M3 Tasks. |
+| P1-04 | Closed for the M0–M3 Dev scope | `0bc6698`, M3 closure | Playwright starts the production API composition root rather than an in-memory repository. The browser Gate covers Trip/session and Item editing plus M3 route visualization, map/timeline focus, gallery, cost summary, import mapping, staging preview, and upload-entry paths on desktop and mobile Chromium. |
 | P1-05 | Closed | `e4d02ee` | Core modules are covered by strict TypeScript checks, package source-import boundaries are enforced, and the two remaining isolation exceptions are centrally allowlisted with reasons and removal conditions. |
 | P1-06 | Closed as an enforced release gate | `2362d81` | Shared durable identity state, release-readiness checks, a dedicated `Release Gates` workflow, Compose recovery checks, and the A02/A05 handoff checklist prevent Dev evidence from being treated as production evidence. Real Staging IdP and Compose results must still pass before release. |
 
@@ -121,11 +121,11 @@ The presence of test code does not mean that the tests are continuously executed
 
 **Remediation update — Closed (`51b2545`)**
 
-- `test-manifests/m0-m2.required.json` is the machine-readable required-case
+- `test-manifests/m0-m3.required.json` is the machine-readable required-case
   manifest, and `scripts/run-required-cases.mjs` rejects missing, skipped, todo,
-  uncollected, or failed required Cases.
+  uncollected, failed, or schema-mutating required Cases.
 - `scripts/verify-required-cases.mjs` checks manifest/document/file consistency;
-  the current Gate resolves `103/103` required Cases.
+  the M3 closure Gate resolves and passes `129/129` required Cases.
 - `CI-Test Cases` provisions the native PostgreSQL/PostGIS, Redis, MinIO, ClamAV,
   ImageMagick, and browser dependencies, applies migrations and seeds, and
   uploads its result artifact.

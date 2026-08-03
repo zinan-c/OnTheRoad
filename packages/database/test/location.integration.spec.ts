@@ -26,6 +26,10 @@ async function psql(sql: string): Promise<string> {
 
 async function applyMigration(): Promise<void> {
   if (!databaseUrl) return;
+  const managedSchema = Boolean(
+    await psql("SELECT to_regclass('public.otr_schema_migration')"),
+  );
+  if (managedSchema) return;
   await execFileAsync(
     process.env.PSQL_BIN || "psql",
     [

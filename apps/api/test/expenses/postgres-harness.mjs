@@ -48,6 +48,9 @@ function quote(value) {
 
 export async function prepareExpenseDatabase() {
   if (!expenseDatabaseUrl) return;
+  const managedSchema = Boolean(
+    await psql("SELECT to_regclass('public.otr_schema_migration')"),
+  );
   if (!(await psql("SELECT to_regclass('public.reference_currency')"))) {
     await applyMigration("packages/database/src/migrations/0002_reference_data.sql");
   }
@@ -71,11 +74,13 @@ export async function prepareExpenseDatabase() {
        `(${quote(code)}, ${quote(label)}, ${quote(JSON.stringify(aliases))}::jsonb, ${quote(icon)}, ${quote(color)}, ${quote(lineStyle)})`).join(",")}
      ON CONFLICT (code) DO NOTHING`,
   );
-  await applyMigration("packages/database/src/migrations/0003_trip.sql");
-  await applyMigration("packages/database/src/migrations/0006_trip_day.sql");
-  await applyMigration("packages/database/src/migrations/0005_location.sql");
-  await applyMigration("packages/database/src/migrations/0007_itinerary.sql");
-  await applyMigration("packages/database/src/migrations/0011_expense.sql");
+  if (!managedSchema) {
+    await applyMigration("packages/database/src/migrations/0003_trip.sql");
+    await applyMigration("packages/database/src/migrations/0006_trip_day.sql");
+    await applyMigration("packages/database/src/migrations/0005_location.sql");
+    await applyMigration("packages/database/src/migrations/0007_itinerary.sql");
+    await applyMigration("packages/database/src/migrations/0011_expense.sql");
+  }
 }
 
 export async function cleanOwner(ownerId) {

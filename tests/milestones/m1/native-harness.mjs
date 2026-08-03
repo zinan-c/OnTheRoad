@@ -34,6 +34,9 @@ export async function applyMigration(file) {
 
 export async function prepareTripDatabase() {
   if (!databaseUrl) return;
+  const managedSchema = Boolean(
+    await psql("SELECT to_regclass('public.otr_schema_migration')"),
+  );
   if (!(await psql("SELECT to_regclass('public.reference_currency')"))) {
     await applyMigration("packages/database/src/migrations/0002_reference_data.sql");
   }
@@ -47,8 +50,10 @@ export async function prepareTripDatabase() {
     ON CONFLICT (code) DO UPDATE
     SET label = EXCLUDED.label, aliases = EXCLUDED.aliases
   `);
-  await applyMigration("packages/database/src/migrations/0003_trip.sql");
-  await applyMigration("packages/database/src/migrations/0006_trip_day.sql");
+  if (!managedSchema) {
+    await applyMigration("packages/database/src/migrations/0003_trip.sql");
+    await applyMigration("packages/database/src/migrations/0006_trip_day.sql");
+  }
 }
 
 export async function prepareJobsDatabase() {

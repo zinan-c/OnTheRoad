@@ -19,7 +19,12 @@ const liveOwner = "tc-b09-transport-mode-owner";
 beforeAll(async () => {
   if (!itineraryDatabaseUrl) return;
   await prepareItineraryDatabase();
-  await applyMigration("packages/database/src/migrations/0008_transport_mode.sql");
+  const managedSchema = Boolean(
+    await psql("SELECT to_regclass('public.otr_schema_migration')"),
+  );
+  if (!managedSchema) {
+    await applyMigration("packages/database/src/migrations/0008_transport_mode.sql");
+  }
   await cleanOwner(liveOwner);
 });
 afterAll(async () => cleanOwner(liveOwner));

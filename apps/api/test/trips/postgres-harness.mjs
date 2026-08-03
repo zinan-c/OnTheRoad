@@ -21,6 +21,9 @@ export async function psql(sql, options = {}) {
 
 export async function prepareTripDatabase() {
   if (!tripDatabaseUrl) return;
+  const managedSchema = Boolean(
+    await psql("SELECT to_regclass('public.otr_schema_migration')"),
+  );
   const referenceTable = await psql("SELECT to_regclass('public.reference_currency')");
   if (!referenceTable) {
     await execFileAsync(
@@ -46,18 +49,20 @@ export async function prepareTripDatabase() {
      ON CONFLICT (code) DO UPDATE
      SET label = EXCLUDED.label, aliases = EXCLUDED.aliases`,
   );
-  await execFileAsync(
-    process.env.PSQL_BIN || "psql",
-    [
-      tripDatabaseUrl,
-      "-X",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-f",
-      "packages/database/src/migrations/0003_trip.sql",
-    ],
-    { cwd: new URL("../../../..", import.meta.url), maxBuffer: 2 * 1024 * 1024 },
-  );
+  if (!managedSchema) {
+    await execFileAsync(
+      process.env.PSQL_BIN || "psql",
+      [
+        tripDatabaseUrl,
+        "-X",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "packages/database/src/migrations/0003_trip.sql",
+      ],
+      { cwd: new URL("../../../..", import.meta.url), maxBuffer: 2 * 1024 * 1024 },
+    );
+  }
 }
 
 export async function cleanOwner(ownerId) {

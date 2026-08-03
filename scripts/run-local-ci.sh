@@ -87,6 +87,8 @@ OTR_DATABASE_MIGRATION_TEST_URL="${DATABASE_URL}" \
 export OTR_TRIP_DATABASE_URL="${DATABASE_URL}"
 export OTR_M1_DATABASE_URL="${DATABASE_URL}"
 export OTR_M1_REDIS_URL="${REDIS_URL}"
+export OTR_B05_DATABASE_URL="${DATABASE_URL}"
+export OTR_B07_DATABASE_URL="${DATABASE_URL}"
 export OTR_C03_DATABASE_URL="${DATABASE_URL}"
 export OTR_D01_DATABASE_URL="${DATABASE_URL}"
 export OTR_D02_DATABASE_URL="${DATABASE_URL}"
@@ -95,15 +97,18 @@ export OTR_E02_DATABASE_URL="${DATABASE_URL}"
 export OTR_C07_DATABASE_URL="${DATABASE_URL}"
 export OTR_E04_DATABASE_URL="${DATABASE_URL}"
 export OTR_M3_DATABASE_URL="${DATABASE_URL}"
+export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="${DATABASE_URL}"
 export OTR_RUN_CLAMAV_INTEGRATION="1"
 export OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}"
 
 echo "Starting M3 API and Worker runtimes..."
 pnpm --filter @on-the-road/api run build
 pnpm --filter @on-the-road/worker run build
-pnpm --filter @on-the-road/api start > test-results/m3-api.log 2>&1 &
+pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
+  > test-results/m3-api.log 2>&1 &
 API_PID=$!
-pnpm --filter @on-the-road/worker start > test-results/m3-worker.log 2>&1 &
+pnpm run profile:dev -- pnpm --filter @on-the-road/worker start \
+  > test-results/m3-worker.log 2>&1 &
 WORKER_PID=$!
 for attempt in $(seq 1 60); do
   if curl --fail --silent http://127.0.0.1:3001/health/ready > /dev/null; then

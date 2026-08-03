@@ -68,6 +68,8 @@ jobs:
           export OTR_TRIP_DATABASE_URL="$DATABASE_URL"
           export OTR_M1_DATABASE_URL="$DATABASE_URL"
           export OTR_M1_REDIS_URL="$REDIS_URL"
+          export OTR_B05_DATABASE_URL="$DATABASE_URL"
+          export OTR_B07_DATABASE_URL="$DATABASE_URL"
           export OTR_C03_DATABASE_URL="$DATABASE_URL"
           export OTR_D01_DATABASE_URL="$DATABASE_URL"
           export OTR_D02_DATABASE_URL="$DATABASE_URL"
@@ -76,12 +78,15 @@ jobs:
           export OTR_C07_DATABASE_URL="$DATABASE_URL"
           export OTR_E04_DATABASE_URL="$DATABASE_URL"
           export OTR_M3_DATABASE_URL="$DATABASE_URL"
+          export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="$DATABASE_URL"
           mkdir -p test-results
           pnpm --filter @on-the-road/api run build
           pnpm --filter @on-the-road/worker run build
-          pnpm --filter @on-the-road/api start > test-results/m3-api.log 2>&1 &
+          pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
+            > test-results/m3-api.log 2>&1 &
           api_pid=$!
-          pnpm --filter @on-the-road/worker start > test-results/m3-worker.log 2>&1 &
+          pnpm run profile:dev -- pnpm --filter @on-the-road/worker start \
+            > test-results/m3-worker.log 2>&1 &
           worker_pid=$!
           cleanup_runtimes() {
             kill "$api_pid" "$worker_pid" 2>/dev/null || true

@@ -24,17 +24,29 @@ let tripId: string;
 let dayId: string;
 let itemIds: string[];
 let orderService: ItineraryOrderService;
+let initialDayState: { version: number; routeGeneration: number };
 
 describe("TC-B07-02 Concurrent reorder barrier", () => {
   beforeAll(async () => {
     if (!itineraryDatabaseUrl) return;
     await prepareItineraryDatabase();
+    const managedSchema = Boolean(
+      await psql("SELECT to_regclass('public.otr_schema_migration')"),
+    );
     if (!(await psql("SELECT to_regclass('public.job_outbox')"))) {
       await applyMigration("packages/database/src/migrations/0001_jobs.sql");
     }
-    await applyMigration(
-      "packages/database/src/migrations/0010_itinerary_reorder.sql",
-    );
+    if (
+      !managedSchema
+      &&
+      !(await psql(
+        "SELECT to_regprocedure('reorder_itinerary_items(text,uuid,uuid,integer,jsonb)')",
+      ))
+    ) {
+      await applyMigration(
+        "packages/database/src/migrations/0010_itinerary_reorder.sql",
+      );
+    }
     tripId = await psql(`INSERT INTO trip (
       owner_id, name, start_date, end_date, travelers,
       default_currency, timezone, map_profile
@@ -70,6 +82,10 @@ describe("TC-B07-02 Concurrent reorder barrier", () => {
       }));
     }
     itemIds = items.map(({ id }) => id);
+    initialDayState = JSON.parse(await psql(`SELECT jsonb_build_object(
+      'version', version,
+      'routeGeneration', route_generation
+    )::text FROM trip_day WHERE id = '${dayId}'`));
     orderService = new ItineraryOrderService(
       new PostgresItineraryOrderRepository({
         databaseUrl: itineraryDatabaseUrl,
@@ -129,8 +145,8 @@ describe("TC-B07-02 Concurrent reorder barrier", () => {
     );
     expect(orders).toContainEqual(persisted.orderedIds);
     expect(persisted).toMatchObject({
-      version: 2,
-      routeGeneration: 1,
+      version: initialDayState.version + 1,
+      routeGeneration: initialDayState.routeGeneration + 1,
       sortOrders: [1024, 2048, 3072],
       events: 1,
     });

@@ -56,11 +56,15 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(testWorkflow, /export OTR_E04_DATABASE_URL="\$DATABASE_URL"/);
   assert.match(
     testWorkflow,
-    /@on-the-road\/api start > test-results\/m3-api\.log 2>&1 &/,
+    /export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="\$DATABASE_URL"/,
   );
   assert.match(
     testWorkflow,
-    /@on-the-road\/worker start > test-results\/m3-worker\.log 2>&1 &/,
+    /profile:dev -- pnpm --filter @on-the-road\/api start[\s\\]*> test-results\/m3-api\.log 2>&1 &/,
+  );
+  assert.match(
+    testWorkflow,
+    /profile:dev -- pnpm --filter @on-the-road\/worker start[\s\\]*> test-results\/m3-worker\.log 2>&1 &/,
   );
   assert.match(
     testWorkflow,
@@ -121,6 +125,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /export OTR_M1_REDIS_URL="\$\{REDIS_URL\}"/);
   assert.match(localCi, /export OTR_C07_DATABASE_URL="\$\{DATABASE_URL\}"/);
   assert.match(localCi, /export OTR_E04_DATABASE_URL="\$\{DATABASE_URL\}"/);
+  assert.match(
+    localCi,
+    /export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="\$\{DATABASE_URL\}"/,
+  );
   assert.doesNotMatch(playwrightConfig, /start:dev/);
   assert.match(
     playwrightConfig,

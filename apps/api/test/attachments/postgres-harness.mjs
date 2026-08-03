@@ -21,6 +21,11 @@ export async function psql(sql) {
 
 export async function prepareAttachmentDatabase() {
   if (!attachmentDatabaseUrl) return;
+  if (
+    (await psql("SELECT to_regclass('public.attachment') IS NULL")) !== "t"
+  ) {
+    return;
+  }
   await execFileAsync(
     process.env.PSQL_BIN || "psql",
     [

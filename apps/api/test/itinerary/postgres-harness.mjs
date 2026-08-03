@@ -47,6 +47,9 @@ export async function applyMigration(file) {
 
 export async function prepareItineraryDatabase() {
   if (!itineraryDatabaseUrl) return;
+  const managedSchema = Boolean(
+    await psql("SELECT to_regclass('public.otr_schema_migration')"),
+  );
   if (!(await psql("SELECT to_regclass('public.reference_currency')"))) {
     await applyMigration("packages/database/src/migrations/0002_reference_data.sql");
   }
@@ -76,10 +79,12 @@ export async function prepareItineraryDatabase() {
          color = EXCLUDED.color,
          line_style = EXCLUDED.line_style`,
   );
-  await applyMigration("packages/database/src/migrations/0003_trip.sql");
-  await applyMigration("packages/database/src/migrations/0006_trip_day.sql");
-  await applyMigration("packages/database/src/migrations/0005_location.sql");
-  await applyMigration("packages/database/src/migrations/0007_itinerary.sql");
+  if (!managedSchema) {
+    await applyMigration("packages/database/src/migrations/0003_trip.sql");
+    await applyMigration("packages/database/src/migrations/0006_trip_day.sql");
+    await applyMigration("packages/database/src/migrations/0005_location.sql");
+    await applyMigration("packages/database/src/migrations/0007_itinerary.sql");
+  }
 }
 
 export async function cleanOwner(ownerId) {

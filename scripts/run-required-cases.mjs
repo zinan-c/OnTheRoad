@@ -14,6 +14,8 @@ const root = resolve(new URL("..", import.meta.url).pathname);
 const reportPath = process.env.OTR_REQUIRED_CASE_REPORT
   ? resolve(root, process.env.OTR_REQUIRED_CASE_REPORT)
   : undefined;
+const schemaImmutabilityDatabaseUrl =
+  process.env.OTR_SCHEMA_IMMUTABILITY_DATABASE_URL;
 let temporaryDirectory;
 let vitestRuns = [];
 let nodeRun;
@@ -60,6 +62,9 @@ try {
 
   temporaryDirectory = await mkdtemp(resolve(tmpdir(), "otr-required-cases-"));
   const vitestResult = { testResults: [] };
+  const schemaBaseline = schemaImmutabilityDatabaseUrl
+    ? schemaFingerprint(schemaImmutabilityDatabaseUrl)
+    : undefined;
   for (const [groupRoot, files] of groupVitestFiles(verification.vitestTestFiles)) {
     const outputName = groupRoot === "."
       ? "root"
@@ -88,6 +93,7 @@ try {
     );
     if (vitestRun.error) throw vitestRun.error;
     if (vitestRun.stderr) process.stderr.write(vitestRun.stderr);
+    assertSchemaUnchanged(schemaBaseline, `Vitest group ${groupRoot}`);
     vitestRuns.push({ groupRoot, ...vitestRun });
     try {
       const groupResult = JSON.parse(await readFile(vitestOutput, "utf8"));
@@ -121,6 +127,7 @@ try {
   );
   if (nodeRun.error) throw nodeRun.error;
   if (nodeRun.stderr) process.stderr.write(nodeRun.stderr);
+  assertSchemaUnchanged(schemaBaseline, "Node test group");
 
   const playwrightBuild = verification.playwrightTestFiles.length === 0
     ? { status: 0, stdout: "", stderr: "" }
@@ -171,6 +178,7 @@ try {
         },
       );
   if (playwrightRun.error) throw playwrightRun.error;
+  assertSchemaUnchanged(schemaBaseline, "Playwright test group");
 
   vitestResult.testResults.push({
     assertionResults: parseNodeTestAssertions(nodeRun.stdout ?? ""),
@@ -293,6 +301,51 @@ function groupVitestFiles(files) {
     groups.set(groupRoot, grouped);
   }
   return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
+function schemaFingerprint(databaseUrl) {
+  const result = spawnSync(
+    process.env.PSQL_BIN || "psql",
+    [
+      databaseUrl,
+      "-X",
+      "-q",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-At",
+      "-f",
+      resolve(root, "scripts/schema-fingerprint.sql"),
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `Managed database schema fingerprint failed: ${truncateOutput(
+        `${result.stdout ?? ""}${result.stderr ?? ""}`,
+      )}`,
+    );
+  }
+  const fingerprint = result.stdout.trim();
+  if (!/^[0-9a-f]{32}\|\d+$/u.test(fingerprint)) {
+    throw new Error(`Managed database schema fingerprint is invalid: ${fingerprint}`);
+  }
+  return fingerprint;
+}
+
+function assertSchemaUnchanged(baseline, stage) {
+  if (!baseline || !schemaImmutabilityDatabaseUrl) return;
+  const current = schemaFingerprint(schemaImmutabilityDatabaseUrl);
+  if (current !== baseline) {
+    throw new Error(
+      `Required-case ${stage} changed the managed database schema `
+      + `(${baseline} -> ${current}).`,
+    );
+  }
 }
 
 function baseReport(status, requiredCaseIds) {

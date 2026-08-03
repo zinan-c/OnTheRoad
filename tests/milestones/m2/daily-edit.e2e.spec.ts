@@ -37,9 +37,14 @@ describe("TC-M2-INT-01 Daily edit and reorder persistence", () => {
     if (!(await psql("SELECT to_regclass('public.job_outbox')"))) {
       await applyMigration("packages/database/src/migrations/0001_jobs.sql");
     }
-    await applyMigration(
-      "packages/database/src/migrations/0010_itinerary_reorder.sql",
+    const managedSchema = Boolean(
+      await psql("SELECT to_regclass('public.otr_schema_migration')"),
     );
+    if (!managedSchema) {
+      await applyMigration(
+        "packages/database/src/migrations/0010_itinerary_reorder.sql",
+      );
+    }
     fixture = await loadMinimalFiveDay();
   });
 

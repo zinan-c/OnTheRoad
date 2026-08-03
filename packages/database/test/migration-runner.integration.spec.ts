@@ -42,8 +42,8 @@ describe("REVIEW-P1-02 unified migration lifecycle", () => {
     });
     const previousStatus = await previous.migrate();
     expect(previousStatus).toMatchObject({
-      currentVersion: 12,
-      latestVersion: 12,
+      currentVersion: minimumCompatibleSchemaVersion - 1,
+      latestVersion: minimumCompatibleSchemaVersion - 1,
       compatible: true,
       pending: [],
       dirty: [],
@@ -51,14 +51,14 @@ describe("REVIEW-P1-02 unified migration lifecycle", () => {
 
     const latest = new DatabaseMigrator({ pool: pool!, migrations });
     expect(await latest.migrate()).toMatchObject({
-      currentVersion: 13,
-      latestVersion: 13,
+      currentVersion: minimumCompatibleSchemaVersion,
+      latestVersion: minimumCompatibleSchemaVersion,
       compatible: true,
       pending: [],
       dirty: [],
     });
     expect(await latest.migrate()).toMatchObject({
-      currentVersion: 13,
+      currentVersion: minimumCompatibleSchemaVersion,
       pending: [],
       dirty: [],
     });
