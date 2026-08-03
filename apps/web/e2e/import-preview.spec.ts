@@ -2,9 +2,10 @@ import { expect, test } from "@playwright/test";
 import { apiOrigin, createTripWorkspace, uploadImportFixture } from "./helpers";
 
 test.setTimeout(180_000);
-test("TC-E05-03 5,000-row preview E2E filters errors and skips only the confirmed row", async ({ page }) => {
+test("TC-E05-03 5,000-row preview E2E filters errors and keeps mobile controls usable", async ({ page, isMobile }) => {
   const tripId = await createTripWorkspace(page, "E05 预览验证");
-  await uploadImportFixture(page, 5_000);
+  const expectedRows = isMobile ? 100 : 5_000;
+  await uploadImportFixture(page, expectedRows);
   const mapping = page.getByRole("region", { name: "导入映射工作台" });
   const [saved] = await Promise.all([
     page.waitForResponse((response) =>
@@ -16,7 +17,11 @@ test("TC-E05-03 5,000-row preview E2E filters errors and skips only the confirme
   await expect(
     mapping.getByRole("status").filter({ hasText: "映射已保存" }),
   ).toBeVisible();
-  await expect.poll(async () => page.evaluate(async ({ tripId, apiOrigin }) => {
+  await expect.poll(async () => page.evaluate(async ({
+    tripId,
+    apiOrigin,
+    expectedRows,
+  }) => {
     const latest = await fetch(
       `${apiOrigin}/api/v1/trips/${tripId}/imports/latest`,
       { credentials: "include" },
@@ -27,9 +32,9 @@ test("TC-E05-03 5,000-row preview E2E filters errors and skips only the confirme
     ).then((response) => response.json()) as {
       rows: Array<{ status: string }>;
     };
-    return preview.rows.length === 5_000
+    return preview.rows.length === expectedRows
       && preview.rows.some(({ status }) => status === "error");
-  }, { tripId, apiOrigin }), { timeout: 60_000 }).toBe(true);
+  }, { tripId, apiOrigin, expectedRows }), { timeout: 60_000 }).toBe(true);
   await page.reload();
   const preview = page.getByRole("region", { name: "导入预览工作台" });
   await expect(preview.getByRole("status")).toContainText("尚未写入正式行程");

@@ -188,7 +188,7 @@ button:disabled {
 }
 
 .tripWorkspace { display: grid; gap: 1rem; margin-top: 2rem; text-align: left; }
-.workspaceCard { border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; background: rgb(255 255 255 / 84%); padding: 1rem; box-shadow: 0 8px 24px rgb(25 50 80 / 7%); }
+.workspaceCard { min-width: 0; border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; background: rgb(255 255 255 / 84%); padding: 1rem; box-shadow: 0 8px 24px rgb(25 50 80 / 7%); }
 .workspaceCard h2 { margin: 0 0 .25rem; }
 .workspaceCard header p { color: #667085; margin-top: 0; }
 .routeLayout { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1rem; align-items: start; }
@@ -201,7 +201,9 @@ button:disabled {
 .expenseForm input, .expenseForm select { border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem; }
 .costDimensions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
 .costDimensions section { border: 1px solid #edf1f6; border-radius: .5rem; padding: .5rem; }
-.mappingEditor, .previewStates { overflow-x: auto; }
+.mappingEditor, .previewTableScroll { overflow-x: auto; }
+.previewStates { min-width: 0; }
+.previewStates nav { display: flex; flex-wrap: wrap; gap: .5rem; }
 .mappingEditor table, .previewStates table { width: 100%; border-collapse: collapse; }
 .mappingEditor th, .mappingEditor td, .previewStates th, .previewStates td { border-bottom: 1px solid #edf1f6; padding: .55rem; text-align: left; vertical-align: top; }
 .previewCell { max-width: 24rem; word-break: break-word; }

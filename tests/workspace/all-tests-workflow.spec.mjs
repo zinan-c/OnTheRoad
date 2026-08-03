@@ -46,12 +46,22 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     /cp infra\/local-stack\.env\.example infra\/local-stack\.env[\s\S]*docker compose --env-file infra\/local-stack\.env/,
   );
   assert.match(testWorkflow, /bash scripts\/dev-up\.sh --track compose/);
-  assert.match(testWorkflow, /OTR_REQUIRED_CASE_REPORT: test-results\/m0-m2-required\.json/);
+  assert.match(testWorkflow, /OTR_REQUIRED_CASE_REPORT: test-results\/m0-m3-required\.json/);
   assert.match(
     testWorkflow,
     /: "\$\{REDIS_URL:\?infra\/local-stack\.env must define REDIS_URL\}"/,
   );
   assert.match(testWorkflow, /export OTR_M1_REDIS_URL="\$REDIS_URL"/);
+  assert.match(testWorkflow, /export OTR_C07_DATABASE_URL="\$DATABASE_URL"/);
+  assert.match(testWorkflow, /export OTR_E04_DATABASE_URL="\$DATABASE_URL"/);
+  assert.match(
+    testWorkflow,
+    /@on-the-road\/api start > test-results\/m3-api\.log 2>&1 &/,
+  );
+  assert.match(
+    testWorkflow,
+    /@on-the-road\/worker start > test-results\/m3-worker\.log 2>&1 &/,
+  );
   assert.match(
     testWorkflow,
     /Initialize required-case diagnostic artifact[\s\S]*node scripts\/initialize-required-case-report\.mjs[\s\S]*Start real integration dependencies/,
@@ -109,6 +119,8 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /trap cleanup EXIT/);
   assert.match(localCi, /psql redis-cli magick/);
   assert.match(localCi, /export OTR_M1_REDIS_URL="\$\{REDIS_URL\}"/);
+  assert.match(localCi, /export OTR_C07_DATABASE_URL="\$\{DATABASE_URL\}"/);
+  assert.match(localCi, /export OTR_E04_DATABASE_URL="\$\{DATABASE_URL\}"/);
   assert.doesNotMatch(playwrightConfig, /start:dev/);
   assert.match(
     playwrightConfig,

@@ -15,7 +15,7 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 const TEST_ROOTS = ["apps", "packages", "spikes", "tests"];
 
-export async function loadRequiredCaseManifest(root, manifestPath = "test-manifests/m0-m2.required.json") {
+export async function loadRequiredCaseManifest(root, manifestPath = "test-manifests/m0-m3.required.json") {
   const absolutePath = resolve(root, manifestPath);
   const manifest = JSON.parse(await readFile(absolutePath, "utf8"));
   return {
@@ -164,6 +164,38 @@ export function collectVitestFailureDiagnostics(root, result) {
         messages,
       };
     });
+}
+
+export function parsePlaywrightAssertions(result) {
+  const assertions = [];
+  visitPlaywrightSuites(result.suites ?? [], assertions);
+  return assertions;
+}
+
+function visitPlaywrightSuites(suites, assertions) {
+  for (const suite of suites) {
+    for (const spec of suite.specs ?? []) {
+      for (const entry of spec.tests ?? []) {
+        const statuses = (entry.results ?? []).map(({ status }) => status);
+        assertions.push({
+          fullName: `${spec.title} [${entry.projectName ?? "playwright"}]`,
+          status: statuses.includes("failed") || statuses.includes("timedOut")
+            || statuses.includes("interrupted")
+            ? "failed"
+            : statuses.includes("skipped")
+              ? "pending"
+              : statuses.length > 0 && statuses.every((status) => status === "passed")
+                ? "passed"
+                : "failed",
+          failureMessages: (entry.results ?? [])
+            .flatMap(({ errors }) => errors ?? [])
+            .map(({ message }) => message)
+            .filter(Boolean),
+        });
+      }
+    }
+    visitPlaywrightSuites(suite.suites ?? [], assertions);
+  }
 }
 
 async function walk(directory, files) {

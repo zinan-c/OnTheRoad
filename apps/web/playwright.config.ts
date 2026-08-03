@@ -12,8 +12,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command:
-      "pnpm --filter @on-the-road/web build && pnpm --filter @on-the-road/web start",
+    command: process.env.OTR_PLAYWRIGHT_PREBUILT === "1"
+      ? "pnpm --filter @on-the-road/web start"
+      : "pnpm --filter @on-the-road/web build && pnpm --filter @on-the-road/web start",
     cwd: "../..",
     port: 3000,
     reuseExistingServer: false,

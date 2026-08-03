@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 
 import {
   collectVitestFailureDiagnostics,
+  parsePlaywrightAssertions,
   summarizeVitestResult,
   verifyRequiredCases,
 } from "./required-cases-lib.mjs";
@@ -14,7 +15,7 @@ const reportPath = process.env.OTR_REQUIRED_CASE_REPORT
   ? resolve(root, process.env.OTR_REQUIRED_CASE_REPORT)
   : undefined;
 let temporaryDirectory;
-let vitestRun;
+let vitestRuns = [];
 let nodeRun;
 let playwrightRun;
 let report = baseReport("running", []);
@@ -42,7 +43,10 @@ try {
     {
       cwd: root,
       encoding: "utf8",
-      env: process.env,
+      env: {
+        ...process.env,
+        NODE_ENV: "production",
+      },
       maxBuffer: 64 * 1024 * 1024,
     },
   );
@@ -55,31 +59,49 @@ try {
   }
 
   temporaryDirectory = await mkdtemp(resolve(tmpdir(), "otr-required-cases-"));
-  const vitestOutput = resolve(temporaryDirectory, "vitest.json");
-  vitestRun = spawnSync(
-    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-    [
-      "exec",
-      "vitest",
-      "run",
-      ...verification.vitestTestFiles,
-      "--root",
-      ".",
-      "--reporter=json",
-      `--outputFile=${vitestOutput}`,
-      "--no-file-parallelism",
-      "--maxWorkers=1",
-    ],
-    {
-      cwd: root,
-      encoding: "utf8",
-      env: process.env,
-      maxBuffer: 64 * 1024 * 1024,
-    },
-  );
-  if (vitestRun.error) throw vitestRun.error;
-  if (vitestRun.stderr) process.stderr.write(vitestRun.stderr);
-  const vitestResult = JSON.parse(await readFile(vitestOutput, "utf8"));
+  const vitestResult = { testResults: [] };
+  for (const [groupRoot, files] of groupVitestFiles(verification.vitestTestFiles)) {
+    const outputName = groupRoot === "."
+      ? "root"
+      : groupRoot.replaceAll("/", "-");
+    const vitestOutput = resolve(temporaryDirectory, `vitest-${outputName}.json`);
+    const vitestRun = spawnSync(
+      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+      [
+        "exec",
+        "vitest",
+        "run",
+        ...files.map((file) => relative(groupRoot, file)),
+        "--root",
+        groupRoot,
+        "--reporter=json",
+        `--outputFile=${vitestOutput}`,
+        "--no-file-parallelism",
+        "--maxWorkers=1",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: process.env,
+        maxBuffer: 64 * 1024 * 1024,
+      },
+    );
+    if (vitestRun.error) throw vitestRun.error;
+    if (vitestRun.stderr) process.stderr.write(vitestRun.stderr);
+    vitestRuns.push({ groupRoot, ...vitestRun });
+    try {
+      const groupResult = JSON.parse(await readFile(vitestOutput, "utf8"));
+      vitestResult.testResults.push(...(groupResult.testResults ?? []));
+    } catch (error) {
+      if (vitestRun.status === 0) throw error;
+      vitestResult.testResults.push({
+        name: resolve(root, groupRoot),
+        status: "failed",
+        message: `Vitest ${groupRoot} group did not produce JSON results.`,
+        assertionResults: [],
+      });
+    }
+  }
 
   nodeRun = spawnSync(
     process.execPath,
@@ -100,6 +122,31 @@ try {
   if (nodeRun.error) throw nodeRun.error;
   if (nodeRun.stderr) process.stderr.write(nodeRun.stderr);
 
+  const playwrightBuild = verification.playwrightTestFiles.length === 0
+    ? { status: 0, stdout: "", stderr: "" }
+    : spawnSync(
+        process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+        ["--filter", "@on-the-road/web", "run", "build"],
+        {
+          cwd: root,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            NODE_ENV: "production",
+          },
+          maxBuffer: 64 * 1024 * 1024,
+        },
+      );
+  if (playwrightBuild.error) throw playwrightBuild.error;
+  if (playwrightBuild.status !== 0) {
+    process.stderr.write(
+      `${playwrightBuild.stdout ?? ""}${playwrightBuild.stderr ?? ""}`,
+    );
+    throw new Error(
+      `Required-case Playwright build failed with exit code ${playwrightBuild.status}.`,
+    );
+  }
+
   playwrightRun = verification.playwrightTestFiles.length === 0
     ? { status: 0, stdout: "", stderr: "" }
     : spawnSync(
@@ -110,12 +157,16 @@ try {
           "test",
           ...verification.playwrightTestFiles,
           "--config=apps/web/playwright.config.ts",
-          "--reporter=line",
+          "--reporter=json",
         ],
         {
           cwd: root,
           encoding: "utf8",
-          env: process.env,
+          env: {
+            ...process.env,
+            NODE_ENV: "production",
+            OTR_PLAYWRIGHT_PREBUILT: "1",
+          },
           maxBuffer: 64 * 1024 * 1024,
         },
       );
@@ -123,6 +174,17 @@ try {
 
   vitestResult.testResults.push({
     assertionResults: parseNodeTestAssertions(nodeRun.stdout ?? ""),
+  });
+  let playwrightResult;
+  try {
+    playwrightResult = verification.playwrightTestFiles.length === 0
+      ? { suites: [] }
+      : JSON.parse(playwrightRun.stdout ?? "");
+  } catch {
+    playwrightResult = { suites: [] };
+  }
+  vitestResult.testResults.push({
+    assertionResults: parsePlaywrightAssertions(playwrightResult),
   });
   const summary = summarizeVitestResult(verification.requiredCaseIds, vitestResult);
   const vitestFailures = collectVitestFailureDiagnostics(root, vitestResult);
@@ -141,7 +203,11 @@ try {
     cases: summary.cases,
     diagnostics: {
       vitest: {
-        exitCode: vitestRun.status,
+        exitCode: vitestRuns.every(({ status }) => status === 0) ? 0 : 1,
+        groups: vitestRuns.map(({ groupRoot, status }) => ({
+          root: groupRoot,
+          exitCode: status,
+        })),
         failedFiles: vitestFailures,
       },
       nodeTest: {
@@ -162,7 +228,7 @@ try {
       },
     },
   };
-  const passed = vitestRun.status === 0
+  const passed = vitestRuns.every(({ status }) => status === 0)
     && nodeRun.status === 0
     && playwrightRun.status === 0
     && summary.failed === 0
@@ -215,11 +281,25 @@ function parseNodeTestAssertions(output) {
   return assertions;
 }
 
+function groupVitestFiles(files) {
+  const groups = new Map();
+  for (const file of files) {
+    const segments = file.split("/");
+    const groupRoot = ["apps", "packages", "spikes"].includes(segments[0])
+      ? `${segments[0]}/${segments[1]}`
+      : ".";
+    const grouped = groups.get(groupRoot) ?? [];
+    grouped.push(file);
+    groups.set(groupRoot, grouped);
+  }
+  return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
 function baseReport(status, requiredCaseIds) {
   return {
     schemaVersion: 1,
     status,
-    scope: "M0-M2 required cases",
+    scope: "M0-M3 required cases",
     generatedAt: new Date().toISOString(),
     commit: process.env.GITHUB_SHA ?? process.env.OTR_COMMIT_SHA ?? null,
     node: process.version,

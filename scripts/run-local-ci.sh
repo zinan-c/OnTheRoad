@@ -3,10 +3,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
-REPORT_PATH="test-results/local-m0-m2-required.json"
+REPORT_PATH="test-results/local-m0-m3-required.json"
 STACK_STARTED=0
+API_PID=""
+WORKER_PID=""
 
 cleanup() {
+  if [[ -n "${API_PID}" ]]; then
+    kill "${API_PID}" 2>/dev/null || true
+  fi
+  if [[ -n "${WORKER_PID}" ]]; then
+    kill "${WORKER_PID}" 2>/dev/null || true
+  fi
   if [[ "${STACK_STARTED}" -eq 1 ]]; then
     bash "${SCRIPT_DIR}/dev-down.sh" --track compose
   fi
@@ -84,10 +92,31 @@ export OTR_D01_DATABASE_URL="${DATABASE_URL}"
 export OTR_D02_DATABASE_URL="${DATABASE_URL}"
 export OTR_D04_DATABASE_URL="${DATABASE_URL}"
 export OTR_E02_DATABASE_URL="${DATABASE_URL}"
+export OTR_C07_DATABASE_URL="${DATABASE_URL}"
+export OTR_E04_DATABASE_URL="${DATABASE_URL}"
+export OTR_M3_DATABASE_URL="${DATABASE_URL}"
 export OTR_RUN_CLAMAV_INTEGRATION="1"
 export OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}"
 
-echo "Running every required M0-M2 case without skips..."
+echo "Starting M3 API and Worker runtimes..."
+pnpm --filter @on-the-road/api run build
+pnpm --filter @on-the-road/worker run build
+pnpm --filter @on-the-road/api start > test-results/m3-api.log 2>&1 &
+API_PID=$!
+pnpm --filter @on-the-road/worker start > test-results/m3-worker.log 2>&1 &
+WORKER_PID=$!
+for attempt in $(seq 1 60); do
+  if curl --fail --silent http://127.0.0.1:3001/health/ready > /dev/null; then
+    break
+  fi
+  if [ "${attempt}" -eq 60 ]; then
+    cat test-results/m3-api.log
+    exit 1
+  fi
+  sleep 1
+done
+
+echo "Running every required M0-M3 case without skips..."
 pnpm run test:cases:required
 
 echo "Running the clean-checkout smoke gate..."

@@ -7,16 +7,17 @@ import { describe, test } from "vitest";
 
 import {
   collectVitestFailureDiagnostics,
+  parsePlaywrightAssertions,
   summarizeVitestResult,
   verifyRequiredCases,
 } from "../../scripts/required-cases-lib.mjs";
 
 const root = resolve(new URL("../..", import.meta.url).pathname);
 
-describe("M0-M2 required-case gate", () => {
+describe("M0-M3 required-case gate", () => {
   test("resolves every active documented Case ID to an executable test", async () => {
     const result = await verifyRequiredCases(root);
-    assert.equal(result.requiredCaseIds.length, 103);
+    assert.equal(result.requiredCaseIds.length, 129);
     assert.deepEqual(result.missingFromDocumentation, []);
     assert.deepEqual(result.missingTestFiles, []);
     assert.deepEqual(result.deprecatedRequired, []);
@@ -93,6 +94,37 @@ describe("M0-M2 required-case gate", () => {
     }]);
   });
 
+  test("folds every Playwright project result into required-case counts", () => {
+    assert.deepEqual(parsePlaywrightAssertions({
+      suites: [{
+        specs: [{
+          title: "TC-C08-03 route visual E2E",
+          tests: [
+            { projectName: "desktop-chromium", results: [{ status: "passed" }] },
+            {
+              projectName: "mobile-chromium",
+              results: [{
+                status: "failed",
+                errors: [{ message: "mobile assertion failed" }],
+              }],
+            },
+          ],
+        }],
+      }],
+    }), [
+      {
+        fullName: "TC-C08-03 route visual E2E [desktop-chromium]",
+        status: "passed",
+        failureMessages: [],
+      },
+      {
+        fullName: "TC-C08-03 route visual E2E [mobile-chromium]",
+        status: "failed",
+        failureMessages: ["mobile assertion failed"],
+      },
+    ]);
+  });
+
   test("persists a diagnostic report when the test command cannot start", async () => {
     const temporaryDirectory = await mkdtemp(join(tmpdir(), "otr-required-report-"));
     const reportPath = join(temporaryDirectory, "required.json");
@@ -113,7 +145,7 @@ describe("M0-M2 required-case gate", () => {
       assert.equal(result.status, 1);
       const report = JSON.parse(await readFile(reportPath, "utf8"));
       assert.equal(report.status, "execution-error");
-      assert.equal(report.counts.expected, 103);
+      assert.equal(report.counts.expected, 129);
       assert.match(report.error.message, /pnpm/u);
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
@@ -126,7 +158,7 @@ describe("M0-M2 required-case gate", () => {
       "utf8",
     );
     const buildPosition = runner.indexOf('["run", "build"]');
-    const vitestPosition = runner.indexOf('"vitest",\n      "run"');
+    const vitestPosition = runner.indexOf('"vitest",');
     assert.ok(buildPosition >= 0, "required-case runner must build package exports");
     assert.ok(vitestPosition >= 0, "required-case runner must invoke Vitest");
     assert.ok(
@@ -154,8 +186,8 @@ describe("M0-M2 required-case gate", () => {
       assert.equal(result.status, 0, result.stderr);
       const report = JSON.parse(await readFile(reportPath, "utf8"));
       assert.equal(report.status, "not-started");
-      assert.equal(report.counts.expected, 103);
-      assert.equal(report.counts.notCollected, 103);
+      assert.equal(report.counts.expected, 129);
+      assert.equal(report.counts.notCollected, 129);
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
     }

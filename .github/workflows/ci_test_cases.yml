@@ -40,7 +40,7 @@ jobs:
           sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils redis-tools
       - name: Initialize required-case diagnostic artifact
         env:
-          OTR_REQUIRED_CASE_REPORT: test-results/m0-m2-required.json
+          OTR_REQUIRED_CASE_REPORT: test-results/m0-m3-required.json
         run: node scripts/initialize-required-case-report.mjs
       - name: Start real integration dependencies
         run: bash scripts/dev-up.sh --track compose
@@ -55,10 +55,10 @@ jobs:
           OTR_DATABASE_MIGRATION_TEST_URL="$DATABASE_URL" \
             pnpm --filter @on-the-road/database exec vitest run \
               test/migration-runner.spec.ts test/migration-runner.integration.spec.ts
-      - name: Run every required M0-M2 case without skips
+      - name: Run every required M0-M3 case without skips
         env:
           OTR_RUN_CLAMAV_INTEGRATION: "1"
-          OTR_REQUIRED_CASE_REPORT: test-results/m0-m2-required.json
+          OTR_REQUIRED_CASE_REPORT: test-results/m0-m3-required.json
         run: |
           set -a
           source infra/local-stack.env
@@ -73,6 +73,30 @@ jobs:
           export OTR_D02_DATABASE_URL="$DATABASE_URL"
           export OTR_D04_DATABASE_URL="$DATABASE_URL"
           export OTR_E02_DATABASE_URL="$DATABASE_URL"
+          export OTR_C07_DATABASE_URL="$DATABASE_URL"
+          export OTR_E04_DATABASE_URL="$DATABASE_URL"
+          export OTR_M3_DATABASE_URL="$DATABASE_URL"
+          mkdir -p test-results
+          pnpm --filter @on-the-road/api run build
+          pnpm --filter @on-the-road/worker run build
+          pnpm --filter @on-the-road/api start > test-results/m3-api.log 2>&1 &
+          api_pid=$!
+          pnpm --filter @on-the-road/worker start > test-results/m3-worker.log 2>&1 &
+          worker_pid=$!
+          cleanup_runtimes() {
+            kill "$api_pid" "$worker_pid" 2>/dev/null || true
+          }
+          trap cleanup_runtimes EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3001/health/ready > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              cat test-results/m3-api.log
+              exit 1
+            fi
+            sleep 1
+          done
           pnpm run test:cases:required
       - name: Run the real API, database, queue, and Worker smoke
         run: |
@@ -88,8 +112,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: m0-m2-required-case-result
-          path: test-results/m0-m2-required.json
+          name: m0-m3-required-case-evidence
+          path: |
+            test-results/
+            apps/web/test-results/
           if-no-files-found: error
       - name: Stop integration dependencies
         if: always()
