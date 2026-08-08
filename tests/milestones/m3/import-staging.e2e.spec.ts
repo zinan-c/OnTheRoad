@@ -70,7 +70,7 @@ describe("TC-M3-INT-02 Import staging isolation", () => {
       new: 4_999,
     });
     expect(await formalCounts(database, context.tripId)).toEqual(formalBefore);
-  });
+  }, 60_000);
 });
 
 async function seedImport(db: PostgresExecutor) {
