@@ -103,8 +103,9 @@ export OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}"
 export OTR_COMMIT_SHA="$(git rev-parse HEAD)"
 
 echo "Starting M3 API and Worker runtimes..."
-pnpm --filter @on-the-road/api run build
-pnpm --filter @on-the-road/worker run build
+pnpm exec turbo run build \
+  --filter=@on-the-road/api \
+  --filter=@on-the-road/worker
 pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
   > test-results/m3-api.log 2>&1 &
 API_PID=$!

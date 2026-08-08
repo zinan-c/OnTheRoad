@@ -21,6 +21,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     new URL("scripts/run-local-ci.sh", root),
     "utf8",
   );
+  const runEnvironment = await readFile(
+    new URL("scripts/run-environment.sh", root),
+    "utf8",
+  );
   const playwrightConfig = await readFile(
     new URL("apps/web/playwright.config.ts", root),
     "utf8",
@@ -57,6 +61,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(
     testWorkflow,
     /export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="\$DATABASE_URL"/,
+  );
+  assert.match(
+    testWorkflow,
+    /pnpm exec turbo run build[\s\\]*--filter=@on-the-road\/api[\s\\]*--filter=@on-the-road\/worker/,
   );
   assert.match(
     testWorkflow,
@@ -130,6 +138,14 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(
     localCi,
     /export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="\$\{DATABASE_URL\}"/,
+  );
+  assert.match(
+    localCi,
+    /pnpm exec turbo run build[\s\\]*--filter=@on-the-road\/api[\s\\]*--filter=@on-the-road\/worker/,
+  );
+  assert.match(
+    runEnvironment,
+    /pnpm exec turbo run build[\s\\]*--filter=@on-the-road\/api[\s\\]*--filter=@on-the-road\/worker[\s\\]*--filter=@on-the-road\/web/,
   );
   assert.doesNotMatch(playwrightConfig, /start:dev/);
   assert.match(

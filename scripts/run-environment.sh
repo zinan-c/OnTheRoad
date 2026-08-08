@@ -26,9 +26,10 @@ CLAMAV_HOST="${OTR_ENV_CLAMAV_HOST:-${CLAMAV_HOST:-}}"
 CLAMAV_PORT="${OTR_ENV_CLAMAV_PORT:-${CLAMAV_PORT:-3310}}"
 export DATABASE_URL REDIS_URL OBJECT_STORAGE_ENDPOINT OBJECT_STORAGE_ACCESS_KEY
 export OBJECT_STORAGE_SECRET_KEY OBJECT_STORAGE_BUCKET CLAMAV_HOST CLAMAV_PORT
-pnpm --filter @on-the-road/api build
-pnpm --filter @on-the-road/worker build
-pnpm --filter @on-the-road/web build
+pnpm exec turbo run build \
+  --filter=@on-the-road/api \
+  --filter=@on-the-road/worker \
+  --filter=@on-the-road/web
 
 pids=()
 cleanup() {

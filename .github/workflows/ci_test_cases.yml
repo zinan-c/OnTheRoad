@@ -80,8 +80,9 @@ jobs:
           export OTR_M3_DATABASE_URL="$DATABASE_URL"
           export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="$DATABASE_URL"
           mkdir -p test-results
-          pnpm --filter @on-the-road/api run build
-          pnpm --filter @on-the-road/worker run build
+          pnpm exec turbo run build \
+            --filter=@on-the-road/api \
+            --filter=@on-the-road/worker
           pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
             > test-results/m3-api.log 2>&1 &
           api_pid=$!
