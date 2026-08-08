@@ -88,15 +88,17 @@ function reachable(host: string, port: number, timeoutMs = 1_000): Promise<boole
   });
 }
 
-async function storageReachable(endpoint: URL): Promise<boolean> {
+export async function storageReachable(
+  endpoint: URL,
+  request: typeof fetch = fetch,
+): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 1_000);
   try {
-    const response = await fetch(endpoint, {
-      method: "HEAD",
+    const response = await request(new URL("/minio/health/ready", endpoint), {
       signal: controller.signal,
     });
-    return response.status < 500;
+    return response.ok;
   } catch {
     return false;
   } finally {

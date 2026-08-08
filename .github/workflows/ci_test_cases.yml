@@ -94,11 +94,16 @@ jobs:
           }
           trap cleanup_runtimes EXIT
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:3001/health/ready > /dev/null; then
+            curl --silent http://127.0.0.1:3001/health/ready \
+              > test-results/m3-readiness.json || true
+            if grep --quiet '"status":"ready"' test-results/m3-readiness.json; then
               break
             fi
             if [ "$attempt" -eq 60 ]; then
+              cat test-results/m3-readiness.json
               cat test-results/m3-api.log
+              cat test-results/m3-worker.log
+              bash scripts/dev-up-health.sh --track compose || true
               exit 1
             fi
             sleep 1

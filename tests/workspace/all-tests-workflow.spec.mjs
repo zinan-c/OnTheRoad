@@ -76,6 +76,11 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.match(
     testWorkflow,
+    /health\/ready[\s\\]*> test-results\/m3-readiness\.json/,
+  );
+  assert.match(testWorkflow, /cat test-results\/m3-readiness\.json/);
+  assert.match(
+    testWorkflow,
     /Initialize required-case diagnostic artifact[\s\S]*node scripts\/initialize-required-case-report\.mjs[\s\S]*Start real integration dependencies/,
   );
   assert.match(testWorkflow, /uses: actions\/upload-artifact@v6/);
