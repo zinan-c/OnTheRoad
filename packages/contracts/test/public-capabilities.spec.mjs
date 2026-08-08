@@ -27,9 +27,21 @@ const REQUIRED_PUBLIC_OPERATIONS = [
   "queueImportInspection",
   "getJob",
   "getCapabilities",
+  "createLocation",
+  "listRouteSegments",
+  "listItemGallery",
+  "reorderItemGallery",
+  "updateGalleryAttachment",
+  "deleteGalleryAttachment",
+  "retryAttachmentProcessing",
+  "getImportMapping",
+  "saveImportMapping",
+  "getLatestImportJob",
+  "getImportPreview",
+  "skipImportPreviewRows",
 ];
 
-test("P1-03 OpenAPI covers every M0-M2 public capability and generated operation", async () => {
+test("P1-03 OpenAPI covers every M0-M3 public capability and generated operation", async () => {
   const contract = await readContract();
   const operations = collectOperations(contract);
 

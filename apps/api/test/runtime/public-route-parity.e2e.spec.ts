@@ -1,6 +1,7 @@
 import { IdentityService } from "../../src/modules/identity/service.mjs";
 import { createApiApplication } from "../../src/app.js";
 import type { ApiRuntime } from "../../src/runtime.js";
+import { readFile } from "node:fs/promises";
 import {
   ApiProblemError,
   generatedOperations,
@@ -111,6 +112,23 @@ describe("REVIEW-P1-03 public transport parity", () => {
     }
   });
 
+  test("documents every public Nest/Fastify controller route in OpenAPI", async () => {
+    const source = await readFile(new URL("../../src/app.ts", import.meta.url), "utf8");
+    const controllerRoutes = [...source.matchAll(
+      /@(Get|Post|Put|Patch|Delete)\("([^"]+)"\)/gu,
+    )]
+      .map((match) => ({
+        method: String(match[1]).toUpperCase(),
+        path: `/${String(match[2]).replaceAll(/:([^/]+)/gu, "{$1}")}`,
+      }))
+      .filter(({ path }) => !path.startsWith("/health/"));
+    const contractedRoutes = Object.values(generatedOperations)
+      .filter(({ contractTestOnly }) => !contractTestOnly)
+      .map(({ method, path }) => ({ method, path }));
+
+    expect(controllerRoutes.sort(routeOrder)).toEqual(contractedRoutes.sort(routeOrder));
+  });
+
   test("uses the generated client against real controllers and Problem Details", async () => {
     const runtime = createRuntime();
     app = await createApiApplication(runtime);
@@ -182,3 +200,10 @@ describe("REVIEW-P1-03 public transport parity", () => {
     } satisfies Partial<ApiProblemError>);
   });
 });
+
+function routeOrder(
+  left: { method: string; path: string },
+  right: { method: string; path: string },
+) {
+  return `${left.method} ${left.path}`.localeCompare(`${right.method} ${right.path}`);
+}

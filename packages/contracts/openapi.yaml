@@ -848,6 +848,42 @@
         }
       }
     },
+    "/trips/{tripId}/locations": {
+      "post": {
+        "operationId": "createLocation",
+        "summary": "Create an owner-scoped unresolved location",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created Location",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/trips/{tripId}/locations/{locationId}/candidate": {
       "post": {
         "operationId": "confirmLocationCandidate",
@@ -1217,6 +1253,355 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/routes": {
+      "get": {
+        "operationId": "listRouteSegments",
+        "summary": "List current owner-scoped route segments for a trip",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current route segments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteSegment"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/itinerary-items/{itemId}/gallery": {
+      "get": {
+        "operationId": "listItemGallery",
+        "summary": "List persisted gallery entries for an itinerary item",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/ItineraryItemId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gallery entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GalleryAttachment"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/itinerary-items/{itemId}/gallery/reorder": {
+      "post": {
+        "operationId": "reorderItemGallery",
+        "summary": "Atomically reorder gallery entries",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/ItineraryItemId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GalleryReorderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reordered gallery entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GalleryAttachment"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/attachments/{attachmentId}/gallery": {
+      "patch": {
+        "operationId": "updateGalleryAttachment",
+        "summary": "Update gallery caption or cover state",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/AttachmentId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GalleryUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated gallery entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryAttachment"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteGalleryAttachment",
+        "summary": "Logically delete a gallery entry",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/AttachmentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted gallery entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryAttachment"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/attachments/{attachmentId}/retry": {
+      "post": {
+        "operationId": "retryAttachmentProcessing",
+        "summary": "Retry processing for a failed attachment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/AttachmentId"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Attachment accepted for retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/imports/{jobId}/mapping": {
+      "get": {
+        "operationId": "getImportMapping",
+        "summary": "Get the canonical mapping for an import job",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import mapping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportMapping"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveImportMapping",
+        "summary": "Validate and persist a canonical import mapping",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMappingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved import mapping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportMapping"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/imports/latest": {
+      "get": {
+        "operationId": "getLatestImportJob",
+        "summary": "Get the latest import job summary for a trip",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest import job summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobSummary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/imports/{jobId}/preview": {
+      "get": {
+        "operationId": "getImportPreview",
+        "summary": "List staged import rows and status counts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged import preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreviewPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/imports/{jobId}/preview/skip": {
+      "post": {
+        "operationId": "skipImportPreviewRows",
+        "summary": "Mark explicitly selected staged rows as skipped",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPreviewSkipInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated skipped-row count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreviewSkipResult"
                 }
               }
             }
@@ -2659,6 +3044,25 @@
           }
         }
       },
+      "LocationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "inputText"
+        ],
+        "properties": {
+          "inputText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
       "AttachmentUploadInput": {
         "type": "object",
         "additionalProperties": false,
@@ -3002,6 +3406,309 @@
           },
           "updatedAt": {
             "$ref": "#/components/schemas/UtcDateTime"
+          }
+        }
+      },
+      "RouteSegment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "tripDayId",
+          "kind",
+          "status",
+          "sourceVersion",
+          "sourceContext"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "tripDayId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "fromItineraryItemId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "toItineraryItemId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "transportModeCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quality": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "resolving",
+              "resolved",
+              "failed"
+            ]
+          },
+          "geometry": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "sourceVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sourceContext": {
+            "type": "object"
+          }
+        }
+      },
+      "GalleryAttachment": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "status",
+          "sortOrder",
+          "isCover",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "itemId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "status": {
+            "type": "string"
+          },
+          "caption": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "isCover": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "GalleryReorderInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expectedVersions",
+          "orderedIds"
+        ],
+        "properties": {
+          "expectedVersions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "orderedIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceId"
+            }
+          }
+        }
+      },
+      "GalleryUpdateInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "caption": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "isCover": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ImportMappingInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mapping",
+          "sourceColumns"
+        ],
+        "properties": {
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "sourceColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredTargets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sheetNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ImportMapping": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "jobId",
+          "ownerId",
+          "mapping",
+          "hash",
+          "version",
+          "updatedAt"
+        ],
+        "properties": {
+          "jobId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          }
+        }
+      },
+      "ImportJobSummary": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "status": {
+            "type": "string"
+          },
+          "mappingVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          }
+        }
+      },
+      "ImportPreviewPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "job",
+          "rows"
+        ],
+        "properties": {
+          "job": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "ImportPreviewSkipInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceId"
+            }
+          }
+        }
+      },
+      "ImportPreviewSkipResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "jobId",
+          "skipped"
+        ],
+        "properties": {
+          "jobId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceId"
+            }
           }
         }
       },
