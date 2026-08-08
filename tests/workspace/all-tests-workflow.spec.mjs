@@ -1,8 +1,121 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { test } from "vitest";
 
 const root = new URL("../../", import.meta.url);
+
+test("clean-checkout dev profile uses authenticated local-stack values", async () => {
+  const fixtureRoot = await mkdtemp(resolve(tmpdir(), "otr-profile-loader-"));
+  try {
+    await mkdir(resolve(fixtureRoot, "scripts"), { recursive: true });
+    await mkdir(resolve(fixtureRoot, "infra"), { recursive: true });
+    await writeFile(
+      resolve(fixtureRoot, "scripts/run-profile.sh"),
+      await readFile(new URL("../../scripts/run-profile.sh", import.meta.url), "utf8"),
+    );
+    await writeFile(resolve(fixtureRoot, ".env.example"), [
+      "OTR_ENV_DATABASE_URL=postgresql://placeholder@localhost:5432/placeholder",
+      "OTR_ENV_REDIS_URL=redis://localhost:6379",
+      "OTR_ENV_OBJECT_STORAGE_ENDPOINT=http://localhost:9000",
+      "OTR_ENV_OBJECT_STORAGE_ACCESS_KEY=placeholder-access",
+      "OTR_ENV_OBJECT_STORAGE_SECRET_KEY=placeholder-secret",
+      "OTR_ENV_OBJECT_STORAGE_BUCKET=placeholder-bucket",
+      "OTR_ENV_OBJECT_STORAGE_REGION=placeholder-region",
+      "OTR_ENV_CLAMAV_HOST=localhost",
+      "OTR_ENV_CLAMAV_PORT=3310",
+      "OTR_ENV_SESSION_SECRET=example-session-secret",
+      "",
+    ].join("\n"));
+    await writeFile(resolve(fixtureRoot, "infra/local-stack.env"), [
+      "DATABASE_URL=postgresql://stack-user:stack-password@127.0.0.1:15432/stack-db",
+      "REDIS_URL=redis://:stack-password@127.0.0.1:16379/0",
+      "S3_ENDPOINT=http://127.0.0.1:19000",
+      "S3_ACCESS_KEY=stack-access",
+      "S3_SECRET_KEY=stack-secret",
+      "MINIO_BUCKET=stack-bucket",
+      "S3_REGION=stack-region",
+      "CLAMAV_HOST=127.0.0.1",
+      "CLAMAV_PORT=13310",
+      "",
+    ].join("\n"));
+
+    const environmentProbe = `console.log(JSON.stringify({
+      database: process.env.DATABASE_URL,
+      redis: process.env.REDIS_URL,
+      storageEndpoint: process.env.OBJECT_STORAGE_ENDPOINT,
+      storageAccessKey: process.env.OBJECT_STORAGE_ACCESS_KEY,
+      storageSecretKey: process.env.OBJECT_STORAGE_SECRET_KEY,
+      storageBucket: process.env.OBJECT_STORAGE_BUCKET,
+      storageRegion: process.env.OBJECT_STORAGE_REGION,
+      clamavHost: process.env.CLAMAV_HOST,
+      clamavPort: process.env.CLAMAV_PORT,
+      sessionSecret: process.env.SESSION_SECRET,
+    }))`;
+    const result = spawnSync("bash", [
+      resolve(fixtureRoot, "scripts/run-profile.sh"),
+      "dev",
+      "--",
+      process.execPath,
+      "-e",
+      environmentProbe,
+    ], { encoding: "utf8" });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      database: "postgresql://stack-user:stack-password@127.0.0.1:15432/stack-db",
+      redis: "redis://:stack-password@127.0.0.1:16379/0",
+      storageEndpoint: "http://127.0.0.1:19000",
+      storageAccessKey: "stack-access",
+      storageSecretKey: "stack-secret",
+      storageBucket: "stack-bucket",
+      storageRegion: "stack-region",
+      clamavHost: "127.0.0.1",
+      clamavPort: "13310",
+      sessionSecret: "example-session-secret",
+    });
+
+    const injected = {
+      OTR_RUNTIME_PROFILE: "qa",
+      OTR_ENV_DATABASE_URL: "postgresql://remote-user:remote-password@db.example:5432/remote-db",
+      OTR_ENV_REDIS_URL: "rediss://:remote-password@redis.example:6380/0",
+      OTR_ENV_OBJECT_STORAGE_ENDPOINT: "https://storage.example",
+      OTR_ENV_OBJECT_STORAGE_ACCESS_KEY: "remote-access",
+      OTR_ENV_OBJECT_STORAGE_SECRET_KEY: "remote-secret",
+      OTR_ENV_OBJECT_STORAGE_BUCKET: "remote-bucket",
+      OTR_ENV_OBJECT_STORAGE_REGION: "remote-region",
+      OTR_ENV_CLAMAV_HOST: "clamav.example",
+      OTR_ENV_CLAMAV_PORT: "3310",
+      OTR_ENV_SESSION_SECRET: "remote-session-secret",
+    };
+    const qaResult = spawnSync("bash", [
+      resolve(fixtureRoot, "scripts/run-profile.sh"),
+      "qa",
+      "--",
+      process.execPath,
+      "-e",
+      environmentProbe,
+    ], { encoding: "utf8", env: { ...process.env, ...injected } });
+
+    assert.equal(qaResult.status, 0, qaResult.stderr);
+    assert.deepEqual(JSON.parse(qaResult.stdout), {
+      database: injected.OTR_ENV_DATABASE_URL,
+      redis: injected.OTR_ENV_REDIS_URL,
+      storageEndpoint: injected.OTR_ENV_OBJECT_STORAGE_ENDPOINT,
+      storageAccessKey: injected.OTR_ENV_OBJECT_STORAGE_ACCESS_KEY,
+      storageSecretKey: injected.OTR_ENV_OBJECT_STORAGE_SECRET_KEY,
+      storageBucket: injected.OTR_ENV_OBJECT_STORAGE_BUCKET,
+      storageRegion: injected.OTR_ENV_OBJECT_STORAGE_REGION,
+      clamavHost: injected.OTR_ENV_CLAMAV_HOST,
+      clamavPort: injected.OTR_ENV_CLAMAV_PORT,
+      sessionSecret: injected.OTR_ENV_SESSION_SECRET,
+    });
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
 
 test("TC-A01-03 every push runs the development test gate", async () => {
   const testWorkflow = await readFile(
