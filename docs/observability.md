@@ -50,3 +50,32 @@ diagnostic through the failed sink.
 
 The collector-down behavior is executable in
 `tests/observability/sink-failure.e2e.spec.ts`.
+
+## M3 runtime coverage
+
+The production API adapter now creates a request context for every request,
+returns `traceparent` and `x-request-id`, and emits the following bounded
+telemetry using the Fastify route template rather than a concrete URL:
+
+- `http.server.requests{method,route,status_code}`;
+- `http.server.duration{method,route,status_code}`;
+- `http.request.completed` spans;
+- sanitized `http.request.failed` logs containing only route template, method,
+  and stable error code.
+
+The production Worker emits `queue.jobs` and `queue.duration` with only the
+bounded `queue` and `outcome` labels for import inspection, import staging, and
+media processing. It also emits a completion span and a sanitized failure log.
+Job, Trip, owner, Attachment, source-row, address, file content, credentials,
+signed URLs, and concrete request paths are not metric labels or log payloads.
+
+`apps/api/test/runtime/public-route-parity.e2e.spec.ts` proves an M3 route emits
+template-based metrics, a span, and correlation headers without entity IDs or
+session credentials. `apps/worker/test/runtime/telemetry.spec.ts` proves the
+Worker's bounded queue telemetry. The existing redaction and collector-failure
+suites remain authoritative for recursive PII/Secret removal and fail-open
+telemetry delivery.
+
+The database remains authoritative for route generation/status, Attachment
+processing state, Expense facts, and ImportJob/ImportRow state. Telemetry is
+diagnostic and never substitutes for those persisted facts.

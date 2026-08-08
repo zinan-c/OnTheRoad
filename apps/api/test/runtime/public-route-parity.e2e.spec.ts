@@ -2,12 +2,14 @@ import { IdentityService } from "../../src/modules/identity/service.mjs";
 import { createApiApplication } from "../../src/app.js";
 import type { ApiRuntime } from "../../src/runtime.js";
 import { readFile } from "node:fs/promises";
+import { InMemoryTelemetrySink } from "@on-the-road/observability";
 import {
   ApiProblemError,
   generatedOperations,
   OnTheRoadClient,
 } from "@on-the-road/contracts";
 import { afterEach, describe, expect, test } from "vitest";
+import { createApiTelemetry } from "../../src/telemetry.js";
 
 let app: Awaited<ReturnType<typeof createApiApplication>> | undefined;
 
@@ -71,6 +73,9 @@ function createRuntime(): ApiRuntime {
       create: async () => ({ id: "expense-1" }),
       summary: async () => ({ settledActualTotal: "42.00" }),
       setRate: async () => ({ fromCurrency: "USD", toCurrency: "CNY" }),
+    },
+    routes: {
+      list: async () => [],
     },
     attachments: {
       createSession: async () => ({ attachmentId: "attachment-1" }),
@@ -198,6 +203,38 @@ describe("REVIEW-P1-03 public transport parity", () => {
         code: "SESSION_REQUIRED",
       },
     } satisfies Partial<ApiProblemError>);
+  });
+
+  test("emits bounded route-template metrics without entity IDs or credentials", async () => {
+    const sink = new InMemoryTelemetrySink();
+    const runtime = createRuntime();
+    app = await createApiApplication(runtime, {
+      telemetry: createApiTelemetry([sink]),
+    });
+    const server = app.getHttpAdapter().getInstance();
+    const login = await runtime.identity.loginWithDevelopmentIdentity({
+      subject: "telemetry-owner",
+      origin: runtime.appOrigin,
+    });
+    const sessionCookie = login.setCookie.split(";", 1)[0];
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/api/v1/trips/11111111-1111-4111-8111-111111111111/routes",
+      headers: {
+        cookie: sessionCookie,
+        "x-request-id": "m3-telemetry-request",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["x-request-id"]).toBe("m3-telemetry-request");
+    const serialized = JSON.stringify(sink.entries);
+    expect(serialized).toContain("/api/v1/trips/:tripId/routes");
+    expect(serialized).not.toContain("11111111-1111-4111-8111-111111111111");
+    expect(serialized).not.toContain(sessionCookie);
+    expect(sink.entries.filter(({ kind }) => kind === "metric")).toHaveLength(2);
+    expect(sink.entries.filter(({ kind }) => kind === "span")).toHaveLength(1);
   });
 });
 

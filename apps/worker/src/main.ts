@@ -18,6 +18,7 @@ import { MediaPipeline } from "./processors/media/media-pipeline.js";
 import { PostgresMediaRepository } from "./processors/media/postgres-media-repository.mjs";
 import { OutboxReconciler } from "./processors/maintenance/outbox-reconciler.js";
 import { PostgresRecoverableOutbox } from "./processors/maintenance/postgres-outbox-repository.js";
+import { recordWorkerPipeline, workerTelemetry } from "./telemetry.js";
 
 export async function startWorker(
   environment: Readonly<Record<string, string | undefined>> = process.env,
@@ -75,6 +76,9 @@ export async function startWorker(
         1,
       );
       if (!result) continue;
+      const startedAt = performance.now();
+      let outcome: "succeeded" | "failed" = "succeeded";
+      let errorCode: string | undefined;
       try {
         const payload = JSON.parse(result[1]) as {
           jobId?: string;
@@ -91,7 +95,15 @@ export async function startWorker(
           await media.process(payload.attachmentId);
         }
       } catch (error) {
-        console.error("Worker pipeline failed", error);
+        outcome = "failed";
+        errorCode = error instanceof Error ? error.name : "UnknownError";
+      } finally {
+        recordWorkerPipeline(workerTelemetry, {
+          queue: result[0],
+          outcome,
+          durationMs: performance.now() - startedAt,
+          ...(errorCode ? { errorCode } : {}),
+        });
       }
     }
   })();

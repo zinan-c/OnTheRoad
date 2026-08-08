@@ -9,6 +9,7 @@
     "@on-the-road/database": "workspace:*",
     "@on-the-road/domain": "workspace:*",
     "@on-the-road/importer": "workspace:*",
+    "@on-the-road/observability": "workspace:*",
     "@on-the-road/providers": "workspace:*",
     "@on-the-road/storage": "workspace:*",
     "@nestjs/common": "11.1.28",

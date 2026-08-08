@@ -103,6 +103,7 @@ jobs:
             sleep 1
           done
           pnpm run test:cases:required
+          pnpm run test:cases:evidence
       - name: Run the real API, database, queue, and Worker smoke
         run: |
           set -a

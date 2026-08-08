@@ -30,6 +30,7 @@
     "test:runtime-smoke": "bash scripts/run-profile.sh dev -- vitest run tests/runtime/real-stack.e2e.spec.ts",
     "test:cases:verify": "node scripts/verify-required-cases.mjs",
     "test:cases:required": "node scripts/run-required-cases.mjs",
+    "test:cases:evidence": "node scripts/verify-required-case-report.mjs",
     "package-boundaries:check": "node scripts/verify-package-boundaries.mjs",
     "typescript-exceptions:check": "node scripts/verify-typescript-exceptions.mjs",
     "db:migrate": "pnpm --filter @on-the-road/database run build && node packages/database/dist/cli.js migrate",

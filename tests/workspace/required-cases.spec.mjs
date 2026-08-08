@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, test } from "vitest";
@@ -165,6 +165,50 @@ describe("M0-M3 required-case gate", () => {
       buildPosition < vitestPosition,
       "workspace build must finish before Vitest resolves package exports",
     );
+  });
+
+  test("accepts only clean exact-commit passing evidence", async () => {
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), "otr-required-verify-"));
+    const reportPath = join(temporaryDirectory, "required.json");
+    const commit = "1111111111111111111111111111111111111111";
+    const node = `v${(await readFile(resolve(root, ".nvmrc"), "utf8")).trim()}`;
+    try {
+      await writeFile(reportPath, JSON.stringify({
+        status: "passed",
+        commit,
+        worktreeClean: true,
+        node,
+        counts: {
+          expected: 129,
+          collected: 129,
+          executed: 129,
+          passed: 129,
+          failed: 0,
+          skipped: 0,
+          notCollected: 0,
+        },
+      }));
+      const valid = spawnSync(
+        process.execPath,
+        [resolve(root, "scripts/verify-required-case-report.mjs"), reportPath, commit],
+        { cwd: root, encoding: "utf8" },
+      );
+      assert.equal(valid.status, 0, valid.stderr);
+
+      const wrongCommit = spawnSync(
+        process.execPath,
+        [
+          resolve(root, "scripts/verify-required-case-report.mjs"),
+          reportPath,
+          "0000000000000000000000000000000000000000",
+        ],
+        { cwd: root, encoding: "utf8" },
+      );
+      assert.equal(wrongCommit.status, 1);
+      assert.match(wrongCommit.stderr, /does not match/u);
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
   });
 
   test("initializes an uploadable report before integration dependencies start", async () => {

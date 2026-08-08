@@ -26,9 +26,11 @@ import {
   type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { acceptRequestContext, injectTraceHeaders } from "@on-the-road/observability";
 
 import { toProblemDetails, ProblemDetailsError } from "./common/problem-details/index.mjs";
 import type { ApiRuntime } from "./runtime.js";
+import { apiTelemetry, type ApiTelemetry } from "./telemetry.js";
 
 const RUNTIME = Symbol("API_RUNTIME");
 
@@ -806,7 +808,10 @@ class ApiController {
 @Module({})
 class ApiModule {}
 
-export async function createApiApplication(runtime: ApiRuntime): Promise<NestFastifyApplication> {
+export async function createApiApplication(
+  runtime: ApiRuntime,
+  options: { readonly telemetry?: ApiTelemetry } = {},
+): Promise<NestFastifyApplication> {
   const module = {
     module: ApiModule,
     controllers: [HealthController, ApiController],
@@ -823,7 +828,62 @@ export async function createApiApplication(runtime: ApiRuntime): Promise<NestFas
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   app.useGlobalFilters(new ApiExceptionFilter());
+  installHttpTelemetry(app, options.telemetry ?? apiTelemetry);
   app.enableShutdownHooks();
   await app.init();
   return app;
+}
+
+function installHttpTelemetry(app: NestFastifyApplication, telemetry: ApiTelemetry) {
+  const requests = new WeakMap<object, {
+    readonly context: ReturnType<typeof acceptRequestContext>;
+    readonly startedAt: number;
+  }>();
+  const server = app.getHttpAdapter().getInstance();
+  server.addHook("onRequest", async (request, reply) => {
+    const context = acceptRequestContext({
+      ...(typeof request.headers.traceparent === "string"
+        ? { traceparent: request.headers.traceparent }
+        : {}),
+      ...(typeof request.headers["x-request-id"] === "string"
+        ? { "x-request-id": request.headers["x-request-id"] }
+        : {}),
+    });
+    requests.set(request, { context, startedAt: performance.now() });
+    reply.headers(injectTraceHeaders(context));
+  });
+  server.addHook("onResponse", async (request, reply) => {
+    const state = requests.get(request);
+    if (!state) return;
+    const route = request.routeOptions.url ?? "unmatched";
+    const labels = {
+      method: request.method,
+      route,
+      status_code: String(reply.statusCode),
+    };
+    telemetry.metric("http.server.requests", 1, labels, state.context);
+    telemetry.metric(
+      "http.server.duration",
+      performance.now() - state.startedAt,
+      labels,
+      state.context,
+    );
+    telemetry.span("http.request.completed", {
+      context: state.context,
+      attributes: labels,
+    });
+  });
+  server.addHook("onError", async (request, _reply, error) => {
+    const state = requests.get(request);
+    telemetry.log(
+      error.statusCode && error.statusCode < 500 ? "warn" : "error",
+      "http.request.failed",
+      {
+        route: request.routeOptions.url ?? "unmatched",
+        method: request.method,
+        code: error.code ?? "INTERNAL_ERROR",
+      },
+      state?.context,
+    );
+  });
 }

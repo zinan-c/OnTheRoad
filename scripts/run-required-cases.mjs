@@ -354,7 +354,8 @@ function baseReport(status, requiredCaseIds) {
     status,
     scope: "M0-M3 required cases",
     generatedAt: new Date().toISOString(),
-    commit: process.env.GITHUB_SHA ?? process.env.OTR_COMMIT_SHA ?? null,
+    commit: resolveCommit(),
+    worktreeClean: repositoryIsClean(),
     node: process.version,
     counts: {
       expected: requiredCaseIds.length,
@@ -371,6 +372,24 @@ function baseReport(status, requiredCaseIds) {
       assertions: 0,
     })),
   };
+}
+
+function resolveCommit() {
+  const configured = process.env.GITHUB_SHA ?? process.env.OTR_COMMIT_SHA;
+  if (configured) return configured;
+  const result = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function repositoryIsClean() {
+  const result = spawnSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  return result.status === 0 && result.stdout.trim().length === 0;
 }
 
 function normalizeError(error) {

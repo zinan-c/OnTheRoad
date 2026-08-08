@@ -1,6 +1,6 @@
 # M3 development gate
 
-- Status: **M3 Complete for the Dev Track**
+- Status: **M3 Done for the Dev Track**
 - Date: 2026-08-03
 - Baseline: macOS arm64, Node 26.0.0, pnpm 9.15.4
 - Runtime: native PostgreSQL 17/PostGIS, authenticated Redis, native MinIO,
@@ -112,6 +112,13 @@ migration; M4 must not mutate the M3 history.
 The Product Owner accepted the integration result, M3 acceptance result, and
 written demonstration record on 2026-08-08. The signed record is archived in
 `docs/reports/m3-product-acceptance.md` against technical baseline `565365a`.
+
+## Final R&D closure review
+
+The final R&D review closed commit binding, M3 security/privacy review,
+production API/Worker observability, documentation, and formal DRI/automated-QA
+evidence sign-off. The complete ten-rule decision is archived in
+`docs/reports/m3-rnd-final-review.md`.
 
 ## Release handoff
 

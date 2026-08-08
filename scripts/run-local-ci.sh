@@ -100,6 +100,7 @@ export OTR_M3_DATABASE_URL="${DATABASE_URL}"
 export OTR_SCHEMA_IMMUTABILITY_DATABASE_URL="${DATABASE_URL}"
 export OTR_RUN_CLAMAV_INTEGRATION="1"
 export OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}"
+export OTR_COMMIT_SHA="$(git rev-parse HEAD)"
 
 echo "Starting M3 API and Worker runtimes..."
 pnpm --filter @on-the-road/api run build
@@ -123,6 +124,7 @@ done
 
 echo "Running every required M0-M3 case without skips..."
 pnpm run test:cases:required
+pnpm run test:cases:evidence
 
 echo "Running the clean-checkout smoke gate..."
 pnpm run ci:smoke

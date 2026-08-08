@@ -71,6 +71,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     /Initialize required-case diagnostic artifact[\s\S]*node scripts\/initialize-required-case-report\.mjs[\s\S]*Start real integration dependencies/,
   );
   assert.match(testWorkflow, /uses: actions\/upload-artifact@v6/);
+  assert.match(testWorkflow, /pnpm run test:cases:evidence/);
   assert.doesNotMatch(
     `${testWorkflow}\n${qualityWorkflow}\n${releaseWorkflow}`,
     /uses: (?:actions\/(?:checkout|setup-node|upload-artifact)|pnpm\/action-setup)@v4(?:\s|$)/m,
@@ -115,6 +116,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     "pnpm run db:migrate",
     "pnpm run db:seed",
     "pnpm run test:cases:required",
+    "pnpm run test:cases:evidence",
     "pnpm run ci:smoke",
     "git diff --exit-code",
   ]) {
