@@ -2,7 +2,7 @@
 
 - Status: **M3 Complete for the Dev Track**
 - Date: 2026-08-03
-- Baseline: macOS arm64, Node 24.14.0, pnpm 9.15.4
+- Baseline: macOS arm64, Node 26.0.0, pnpm 9.15.4
 - Runtime: native PostgreSQL 17/PostGIS, authenticated Redis, native MinIO,
   ClamAV, ImageMagick, real Nest/Fastify API, BullMQ Worker, Next.js, and
   Playwright Chromium
@@ -106,6 +106,12 @@ The E04 staging contract is frozen at the M3 boundary:
 E06 and E07 must rebase on this contract. Any change to these fields, states,
 or uniqueness rules requires the documented `LOCK-IMPORT-SCHEMA` and a new
 migration; M4 must not mutate the M3 history.
+
+## Product acceptance
+
+The Product Owner accepted the integration result, M3 acceptance result, and
+written demonstration record on 2026-08-08. The signed record is archived in
+`docs/reports/m3-product-acceptance.md` against technical baseline `565365a`.
 
 ## Release handoff
 
