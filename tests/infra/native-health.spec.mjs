@@ -62,6 +62,7 @@ describe("TC-A02-01 native bootstrap and health", () => {
       assert.match(environment, new RegExp(`^${host}=127\\.0\\.0\\.1$`, "m"));
     }
     assert.match(environment, /^CLAMAV_REQUIRED=true$/m);
+    assert.match(environment, /^REDIS_URL=redis:\/\/default:/m);
   });
 
   test("unsafe broad runtime targets are rejected before startup", async () => {

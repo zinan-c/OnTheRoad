@@ -10,6 +10,8 @@ import { MemoryIdentityStore } from "./store.mjs";
 const DEV_ISSUER = "https://dev-identity.local";
 const SESSION_COOKIE = "__Host-otr_session";
 const TRANSACTION_COOKIE = "__Host-otr_oidc";
+const DEVELOPMENT_SESSION_COOKIE = "otr_dev_session";
+const DEVELOPMENT_TRANSACTION_COOKIE = "otr_dev_oidc";
 const SUBJECT_PATTERN = /^[A-Za-z0-9._:@/-]{1,255}$/u;
 
 /**
@@ -42,9 +44,9 @@ function createPrincipal({ issuer, subject }) {
   });
 }
 
-/** @param {string} name @param {string} value @param {number} maxAgeSeconds */
-function hardenedCookie(name, value, maxAgeSeconds) {
-  return `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+/** @param {string} name @param {string} value @param {number} maxAgeSeconds @param {boolean} secure */
+function hardenedCookie(name, value, maxAgeSeconds, secure) {
+  return `${name}=${value}; Path=/; HttpOnly;${secure ? " Secure;" : ""} SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 }
 
 /** @param {string} actual @param {string} expected */
@@ -115,7 +117,21 @@ export class IdentityService {
     }
     this.environment = environment;
     this.developmentIdentityEnabled = developmentIdentityEnabled;
-    this.appOrigin = new URL(appOrigin).origin;
+    const parsedAppOrigin = new URL(appOrigin);
+    this.appOrigin = parsedAppOrigin.origin;
+    this.secureCookies = parsedAppOrigin.protocol === "https:";
+    if (!this.secureCookies && environment !== "development") {
+      throw new IdentityConfigurationError(
+        "SECURE_COOKIE_ORIGIN_REQUIRED",
+        "Non-development identity requires an HTTPS application origin",
+      );
+    }
+    this.sessionCookieName = this.secureCookies
+      ? SESSION_COOKIE
+      : DEVELOPMENT_SESSION_COOKIE;
+    this.transactionCookieName = this.secureCookies
+      ? TRANSACTION_COOKIE
+      : DEVELOPMENT_TRANSACTION_COOKIE;
     this.signingKeys = signingKeys;
     this.sessionTtlMs = sessionTtlMs;
     this.transactionTtlMs = transactionTtlMs;
@@ -182,9 +198,10 @@ export class IdentityService {
       state,
       transactionCookie: transactionId,
       setCookie: hardenedCookie(
-        TRANSACTION_COOKIE,
+        this.transactionCookieName,
         transactionId,
         Math.ceil(this.transactionTtlMs / 1000),
+        this.secureCookies,
       ),
     };
   }
@@ -221,7 +238,12 @@ export class IdentityService {
     );
     return {
       ...session,
-      clearTransactionCookie: hardenedCookie(TRANSACTION_COOKIE, "", 0),
+      clearTransactionCookie: hardenedCookie(
+        this.transactionCookieName,
+        "",
+        0,
+        this.secureCookies,
+      ),
     };
   }
 
@@ -270,7 +292,12 @@ export class IdentityService {
       session: sessionId ? fingerprint(sessionId) : "invalid",
     });
     return {
-      setCookie: hardenedCookie(SESSION_COOKIE, "", 0),
+      setCookie: hardenedCookie(
+        this.sessionCookieName,
+        "",
+        0,
+        this.secureCookies,
+      ),
     };
   }
 
@@ -295,9 +322,10 @@ export class IdentityService {
       principal,
       token,
       setCookie: hardenedCookie(
-        SESSION_COOKIE,
+        this.sessionCookieName,
         token,
         Math.ceil(this.sessionTtlMs / 1000),
+        this.secureCookies,
       ),
     };
   }

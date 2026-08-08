@@ -31,7 +31,7 @@ test("clean-checkout dev profile uses authenticated local-stack values", async (
     ].join("\n"));
     await writeFile(resolve(fixtureRoot, "infra/local-stack.env"), [
       "DATABASE_URL=postgresql://stack-user:stack-password@127.0.0.1:15432/stack-db",
-      "REDIS_URL=redis://:stack-password@127.0.0.1:16379/0",
+      "REDIS_URL=redis://default:stack-password@127.0.0.1:16379/0",
       "S3_ENDPOINT=http://127.0.0.1:19000",
       "S3_ACCESS_KEY=stack-access",
       "S3_SECRET_KEY=stack-secret",
@@ -66,7 +66,7 @@ test("clean-checkout dev profile uses authenticated local-stack values", async (
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), {
       database: "postgresql://stack-user:stack-password@127.0.0.1:15432/stack-db",
-      redis: "redis://:stack-password@127.0.0.1:16379/0",
+      redis: "redis://default:stack-password@127.0.0.1:16379/0",
       storageEndpoint: "http://127.0.0.1:19000",
       storageAccessKey: "stack-access",
       storageSecretKey: "stack-secret",

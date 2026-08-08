@@ -117,7 +117,7 @@ describe("REVIEW-P0-01 real API/DB/queue/Worker smoke", () => {
       );
       expect(loginResponse.status).toBe(201);
       const sessionCookie = loginResponse.headers.getSetCookie()[0]?.split(";", 1)[0];
-      expect(sessionCookie).toContain("__Host-otr_session=");
+      expect(sessionCookie).toContain("otr_dev_session=");
       const authenticatedFetch: typeof fetch = (input, init) =>
         fetch(input, {
           ...init,

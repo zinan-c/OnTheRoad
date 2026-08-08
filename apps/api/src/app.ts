@@ -43,7 +43,7 @@ function cookie(request: FastifyRequest, name: string): string | undefined {
 }
 
 async function owner(runtime: ApiRuntime, request: FastifyRequest): Promise<string> {
-  const token = cookie(request, "__Host-otr_session");
+  const token = cookie(request, runtime.identity.sessionCookieName);
   if (!token) {
     throw new ProblemDetailsError({
       status: 401,
@@ -176,7 +176,10 @@ class ApiController {
       provider: this.runtime.oidcProvider,
       code,
       state,
-      transactionCookie: cookie(request, "__Host-otr_oidc") ?? "",
+      transactionCookie: cookie(
+        request,
+        this.runtime.identity.transactionCookieName,
+      ) ?? "",
       origin: origin ?? this.runtime.appOrigin,
     });
     return reply
@@ -192,7 +195,7 @@ class ApiController {
   @Get("identity/session")
   async session(@Req() request: FastifyRequest) {
     return { principal: await this.runtime.identity.authenticate(
-      cookie(request, "__Host-otr_session") ?? "",
+      cookie(request, this.runtime.identity.sessionCookieName) ?? "",
     ) };
   }
 
@@ -203,7 +206,7 @@ class ApiController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const result = await this.runtime.identity.logout({
-      token: cookie(request, "__Host-otr_session") ?? "",
+      token: cookie(request, this.runtime.identity.sessionCookieName) ?? "",
       origin: origin ?? this.runtime.appOrigin,
     });
     reply.header("set-cookie", result.setCookie).status(HttpStatus.NO_CONTENT);

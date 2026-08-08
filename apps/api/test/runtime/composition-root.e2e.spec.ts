@@ -159,7 +159,7 @@ describe("REVIEW-P0-01 API composition root", () => {
     });
     expect(login.statusCode).toBe(201);
     const sessionCookie = login.headers["set-cookie"]?.split(";")[0];
-    expect(sessionCookie).toContain("__Host-otr_session=");
+    expect(sessionCookie).toContain("otr_dev_session=");
 
     const trip = await server.inject({
       method: "POST",

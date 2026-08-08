@@ -47,6 +47,27 @@ describe("TC-A05-01 Login/session contract", () => {
     await assert.rejects(service.authenticate(login.token), SessionError);
   });
 
+  test("HTTP development uses a browser-compatible host-only cookie", async () => {
+    const service = new IdentityService({
+      environment: "development",
+      developmentIdentityEnabled: true,
+      appOrigin: "http://localhost:3000",
+      signingKeys: {
+        active: { id: "key-v1", secret: "test-signing-key-v1-at-least-32-bytes" },
+      },
+    });
+    const login = await service.loginWithDevelopmentIdentity({
+      subject: "local-user",
+      origin: "http://localhost:3000",
+    });
+
+    assert.equal(service.sessionCookieName, "otr_dev_session");
+    assert.match(login.setCookie, /^otr_dev_session=/u);
+    assert.match(login.setCookie, /HttpOnly/u);
+    assert.match(login.setCookie, /SameSite=Lax/u);
+    assert.doesNotMatch(login.setCookie, /(?:^|;\s*)Secure(?:;|$)/u);
+  });
+
   test("mock OIDC enforces PKCE, state, nonce and transaction expiry", async () => {
     const service = createService();
     const provider = new MockOidcProvider({ issuer: "https://idp.example.test" });
