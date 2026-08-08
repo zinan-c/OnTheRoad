@@ -68,11 +68,19 @@ failure never silently changes the configured profile.
 
 ## Required server variables
 
-API, Worker and PDF Worker require:
+Profile files and deployment injection use the `OTR_ENV_*` vocabulary. The
+profile launcher validates it and exports the application-facing aliases before
+starting a process; application code does not independently merge profile
+files. API, Worker and PDF Worker require:
 
 - `OTR_ENV_DATABASE_URL`, `OTR_ENV_REDIS_URL`;
 - `OTR_ENV_OBJECT_STORAGE_ENDPOINT`, region, access key, secret key and bucket;
 - `OTR_ENV_CLAMAV_HOST` and optional `OTR_ENV_CLAMAV_PORT`;
-- `SESSION_SECRET`.
+- `OTR_ENV_SESSION_SECRET` (exported to the process as `SESSION_SECRET`).
 
 Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities.
+
+`OTR_COMMIT_SHA`, `GITHUB_SHA`, and `OTR_REQUIRED_CASE_REPORT` are Gate/evidence
+inputs, not application configuration. The required-case runner records the
+full commit and clean-worktree state; the verifier rejects a report that does
+not match the current closure candidate.

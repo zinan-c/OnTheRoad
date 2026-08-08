@@ -4,6 +4,7 @@
 - Review role: **M3 R&D / Milestone DRI and automated QA evidence reviewer**
 - Product acceptance: `docs/reports/m3-product-acceptance.md`
 - Decision: **M3 Done for the Dev Track**
+- Exact closure SHA: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
 
 ## Review scope
 
@@ -30,8 +31,10 @@ after the required-case Gate. GitHub uploads the report and browser artifacts;
 the local equivalent is `test-results/local-m0-m3-required.json`. These paths
 are test artifacts rather than version-controlled historical claims.
 
-The final exact-SHA Gate is executed from the clean closure commit. Its report
-is verified with `pnpm run test:cases:evidence`, so the evidence cannot silently
+The final exact-SHA Gate was executed from clean closure commit
+`10d7c1d03c7a1df579ac37f79b71bbfef5919424`. Its report was verified with
+`pnpm run test:cases:evidence`: 129 expected, collected, executed, and passed;
+zero failed, skipped, or uncollected. The evidence therefore cannot silently
 refer to an older or dirty source tree.
 
 ## Security and privacy review

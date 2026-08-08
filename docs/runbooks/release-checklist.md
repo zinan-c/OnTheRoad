@@ -1,5 +1,17 @@
 # Release checklist
 
+## Current development baseline
+
+M3 is Done for the Dev Track at closure SHA
+`10d7c1d03c7a1df579ac37f79b71bbfef5919424`; see the
+[M3 Gate report](../reports/m3-gate.md). That result proves the native Dev
+runtime and all 129 M0–M3 required Cases. It does not check any box below.
+
+Run release checks only against an immutable, clean release-candidate SHA.
+Archive the full SHA, workflow run, environment, image versions, timestamps,
+approvers, and machine-readable results. A skipped, blocked, stale-SHA, or
+partially completed workflow is not release evidence.
+
 ## A02 Compose parity gate
 
 This section is mandatory before the first production release whenever the

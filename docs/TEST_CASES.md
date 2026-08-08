@@ -4,6 +4,7 @@
 > 日期：2026-07-26
 > 执行顺序：[DEVELOP_EXECUTION_PLAN.md](./DEVELOP_EXECUTION_PLAN.md)
 > 验收基线：[DEVELOPMENT_MILESTONE.md](./DEVELOPMENT_MILESTONE.md)
+> 当前 Gate：`test-manifests/m0-m3.required.json` 定义 129 个 M0–M3 required Cases；最终 M3 Dev Gate 在精确 closure SHA 上 129/129 通过，详见 [M3 Gate](./reports/m3-gate.md)。
 
 ## 0. 用例执行规范
 
@@ -26,8 +27,8 @@
 
 ### 0.3 固定 fixture
 
-- `minimal-five-day`：M0–M2 契约/Spike。
-- `full-five-day`：M3–M6 E2E/PDF。
+- `minimal-five-day`：M0–M3 契约、Spike 和确定性集成路径。
+- `full-five-day`：M3–M6 完整 E2E/PDF；M3 可使用其相关子集，但不得把未实现的 M4–M6 行为计入已通过范围。
 - `geo-golden`：至少 10 个中外 WGS84/GCJ-02/BD-09 点及同名候选。
 - `imports/{standard,error,duplicate,malicious}`：xlsx/xls/csv。
 - `media/{benign,eicar,wrong-mime,decode-bomb}`。
@@ -99,7 +100,7 @@
 
 - `TC-A05-01` — Login/session contract；代码：`apps/api/test/identity/session.e2e-spec.ts`。开发身份和 mock OIDC 登录/登出；断言 HttpOnly/Secure/SameSite、state/nonce 和过期行为。
 - `TC-A05-02` — Owner/BOLA and environment boundary；代码：`tests/security/owner-access.e2e.spec.ts`、`apps/api/test/identity/environment-guard.spec.ts`。User B 猜测 User A 的各资源 ID，并分别以 development/staging/production 配置启动开发身份；断言跨 owner 返回 404/403 且无存在性泄露，开发身份在非 development 环境 fail closed。
-- `TC-A05-03` — Dev gate/Staging IdP handoff；代码：`tests/identity/dev-auth-gate.e2e.spec.ts`。运行开发身份和 mock OIDC 完整流程并模拟新旧签名 key 轮换，断言 Principal/Session/owner 语义一致且 Secret 不进日志。真实 Staging IdP 验证由独立的 Release Gates 工作流执行，不计入 M0–M2 required suite；缺少 HTTPS 元数据、外置 Secret、Redis identity store 或 provider driver 时必须失败，不能以 handoff 或 mock 结果替代发布证据。
+- `TC-A05-03` — Dev gate/Staging IdP handoff；代码：`tests/identity/dev-auth-gate.e2e.spec.ts`。运行开发身份和 mock OIDC 完整流程并模拟新旧签名 key 轮换，断言 Principal/Session/owner 语义一致且 Secret 不进日志。真实 Staging IdP 验证由独立的 Release Gates 工作流执行，不计入 M0–M3 required suite；缺少 HTTPS 元数据、外置 Secret、Redis identity store 或 provider driver 时必须失败，不能以 handoff 或 mock 结果替代发布证据。
 
 ### A06
 
@@ -525,8 +526,9 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
   },
   "fixtureVersion": "minimal-five-day@1",
   "environment": {
-    "commit": "<sha>",
-    "node": "24.x",
+    "commit": "<full-40-character-sha>",
+    "worktreeClean": true,
+    "node": "v26.0.0",
     "databaseMigration": "<version>"
   },
   "evidence": ["<ci-artifact-or-report>"],
@@ -540,3 +542,8 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 - 失败后重试必须保留首次失败 evidence，便于判断 flaky 或真实回归。
 - fixture/golden 更新必须在结果中记录新版本和批准原因。
 - Milestone Gate 只能读取主干对应 commit 的测试结果，不接受其他分支或本地口头结果。
+- M0–M3 聚合 Gate 使用 `pnpm run test:cases:required` 生成报告，并立即用
+  `pnpm run test:cases:evidence` 验证：完整 SHA、clean worktree、`.nvmrc`
+  版本、expected/collected/executed/passed 全等且 failed/skipped/notCollected
+  均为零。默认本地路径为 `test-results/local-m0-m3-required.json`；该路径
+  是 ignored 诊断产物，CI 上传的 artifact 才是持久机器证据。

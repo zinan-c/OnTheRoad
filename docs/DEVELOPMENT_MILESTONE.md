@@ -5,6 +5,7 @@
 > 依赖文档：[DESIGN.md](./DESIGN.md)、[DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md)
 > 计划基线：58 个有效 P0 任务，合计约 223 理想人日；G08 以 Deprecated 历史编号保留但不计入任务数/人日；1 周 Sprint 0 + 5 个两周功能 Sprint + 2 周稳定/灰度，第 14 周为显式缓冲。
 > 文档用途：研发排期、TDD、里程碑评审、演示验收及 Go/No-Go 签署。
+> 执行状态：M0–M3 已完成 Dev Track Gate；M4–M6 尚未宣称完成。当前成熟度和 Gate 入口见 [文档状态索引](./README.md)。
 
 ## 0. 需求理解、假设与执行口径
 
@@ -41,15 +42,15 @@ MVP 必须形成真实、可恢复、可验证的完整链路：
 
 ### 0.4 里程碑总览与依赖
 
-| Milestone | 时间盒 | 任务 | 理想人日 | 核心产物 |
-|---|---:|---|---:|---|
-| M0 风险定案与工程基线 | Sprint 0，1 周 | A01–A04、A08–A12 | 21 | CI、契约、四类 Spike、最小 fixture |
-| M1 旅行基础与异步底座 | Sprint 1，2 周 | A05–A07、B01–B04、C01、C03、D01 | 33 | Trip/Day、身份、Job、Location/Storage 契约 |
-| M2 行程编辑与地点确认 | Sprint 2，2 周 | B05–B09、C02、C04–C06、D02、D04、E01–E02 | 55 | 可持久编辑的一天、地点确认、媒体安全底座、导入入口 |
-| M3 路线、图片、费用与导入 staging | Sprint 3，2 周 | C07–C09、D03、D05、E03–E05 | 36 | 地图路线联动、图片 UX、费用统计、Excel 校验预览 |
-| M4 Excel 闭环与 PDF 骨架 | Sprint 4，2 周 | E06–E09、F01–F03、F05 | 40 | 幂等正式导入、媒体子任务、冻结快照、可运行打印 Worker |
-| M5 PDF 闭环与功能冻结 | Sprint 5，2 周 | F04、F06–F07、G01 | 15 | 中文完整 PDF、下载/取消/重试、完整五日样例 |
-| M6 稳定、灰度与 GA 门禁 | 稳定/灰度 2 周 | G02–G07 | 23 | E2E/安全/容量证据、监控 Runbook、发布签署 |
+| Milestone | 时间盒 | 任务 | 理想人日 | 当前状态 | 核心产物 |
+|---|---:|---|---:|---|---|
+| M0 风险定案与工程基线 | Sprint 0，1 周 | A01–A04、A08–A12 | 21 | Dev Track Done | CI、契约、四类 Spike、最小 fixture |
+| M1 旅行基础与异步底座 | Sprint 1，2 周 | A05–A07、B01–B04、C01、C03、D01 | 33 | Dev Track Done | Trip/Day、身份、Job、Location/Storage 契约 |
+| M2 行程编辑与地点确认 | Sprint 2，2 周 | B05–B09、C02、C04–C06、D02、D04、E01–E02 | 55 | Dev Track Done | 可持久编辑的一天、地点确认、媒体安全底座、导入入口 |
+| M3 路线、图片、费用与导入 staging | Sprint 3，2 周 | C07–C09、D03、D05、E03–E05 | 36 | Dev Track Done | 地图路线联动、图片 UX、费用统计、Excel 校验预览 |
+| M4 Excel 闭环与 PDF 骨架 | Sprint 4，2 周 | E06–E09、F01–F03、F05 | 40 | Next / Planned | 幂等正式导入、媒体子任务、冻结快照、可运行打印 Worker |
+| M5 PDF 闭环与功能冻结 | Sprint 5，2 周 | F04、F06–F07、G01 | 15 | Planned | 中文完整 PDF、下载/取消/重试、完整五日样例 |
+| M6 稳定、灰度与 GA 门禁 | 稳定/灰度 2 周 | G02–G07 | 23 | Planned | E2E/安全/容量证据、监控 Runbook、发布签署 |
 
 ```mermaid
 flowchart LR
@@ -1120,7 +1121,7 @@ stateDiagram-v2
 
 1. 在 issue tracker 中以 Milestone → Task → Test Case 建三层结构；有效 Task 标题保留 A01–G07 ID，G08 仅以 Deprecated 历史 ID 保留且不得复用。
 2. 每个 `P0 / Critical` Task 先提交测试/fixture/契约 PR，再提交实现 PR；并发竞态必须在实现前确定 barrier。
-3. M0、M2、M4、M5 结束时分别做一次架构/安全复审，不把所有风险堆到 M6。
+3. M0、M2、M3、M4、M5 结束时分别做一次架构/安全复审，不把所有风险堆到 M6；M3 复审见 `docs/reports/m3-rnd-final-review.md`。
 4. G01/G02/G03/G04/G05 自动化从对应功能进入主干时增量建设，M6 只完成最终矩阵和签署。
 5. 任何 Task 的预计文件跨越新模块边界时先补 ADR；`apps/*` 不相互 import，共享契约只进入 `packages/*`。
 6. 每次里程碑演示使用固定五日 fixture，同时保留一条从空账号开始的真实操作路径，防止 seed 掩盖创建/权限问题。

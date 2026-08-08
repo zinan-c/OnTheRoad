@@ -21,7 +21,7 @@ observations are not mistaken for the repository's present state.
 | P0-03 | Closed | `caf73ca` | AMAP and deterministic hybrid geocoding adapters are constructible at startup, normalize errors and coordinate systems, isolate caches, and do not silently change the selected Profile. |
 | P1-01 | Closed | `a30d35d` | Production repositories use the bounded `pg`-based `PostgresExecutor` with parameter binding, timeout controls, transaction support, redacted errors, and shutdown tests; per-operation `psql` subprocesses were removed. |
 | P1-02 | Closed | `1b81b8b` | `packages/database` is a workspace package with unified migrate/status/seed commands, checksummed history, dirty-state recovery, minimum-compatible schema checks, and clean-database integration tests. |
-| P1-03 | Closed | `30793a6` | Every non-test OpenAPI operation is mounted on the Nest/Fastify application; route parity and generated-client success/Problem Details are exercised by `apps/api/test/runtime/public-route-parity.e2e.spec.ts`. |
+| P1-03 | Closed | `30793a6`, `565365a` | Every M0–M3 public OpenAPI operation is mounted on the Nest/Fastify application; bidirectional route parity and generated-client success/Problem Details are exercised by `apps/api/test/runtime/public-route-parity.e2e.spec.ts`. |
 | P1-04 | Closed for the M0–M3 Dev scope | `0bc6698`, M3 closure | Playwright starts the production API composition root rather than an in-memory repository. The browser Gate covers Trip/session and Item editing plus M3 route visualization, map/timeline focus, gallery, cost summary, import mapping, staging preview, and upload-entry paths on desktop and mobile Chromium. |
 | P1-05 | Closed | `e4d02ee` | Core modules are covered by strict TypeScript checks, package source-import boundaries are enforced, and the two remaining isolation exceptions are centrally allowlisted with reasons and removal conditions. |
 | P1-06 | Closed as an enforced release gate | `2362d81` | Shared durable identity state, release-readiness checks, a dedicated `Release Gates` workflow, Compose recovery checks, and the A02/A05 handoff checklist prevent Dev evidence from being treated as production evidence. Real Staging IdP and Compose results must still pass before release. |
@@ -42,9 +42,12 @@ The current `M2 Complete for Dev Track` status should be separated into the foll
 - The default CI pipeline does not continuously execute all critical persistence and recovery tests.
 - Production release gates such as Compose parity and the real Staging IdP remain open.
 
-At the original review point, the P0 findings needed to be closed before expanding
-the M3 feature scope. P0-01 is now closed for the Dev Track; the other findings
-retain their recorded status unless explicitly listed in the remediation table.
+At the original review point, the P0 findings needed to be closed before
+expanding the M3 feature scope. All P0/P1 findings are now closed at the maturity
+shown in the remediation table. The repository is M3 Done for the Dev Track;
+production release evidence remains independently governed by the release
+checklist. Current milestone maturity is centralized in
+[`docs/README.md`](./README.md).
 
 ## 2. P0 — Immediate Blockers
 
@@ -273,11 +276,11 @@ Application services and the public API contract have evolved separately. A pass
 - Run compatibility checks across all new paths and schemas.
 - Do not allow production Web code to handcraft request DTOs that diverge from OpenAPI.
 
-**Remediation update — Closed (`30793a6`)**
+**Remediation update — Closed (`30793a6`, completed through M3 by `565365a`)**
 
-- OpenAPI now describes the M0–M2 public identity/session, Trip/date/day,
+- OpenAPI now describes the M0–M3 public identity/session, Trip/date/day,
   Itinerary, Location, Attachment, Expense, Import, Job, reference-data, and
-  capability routes.
+  capability routes, including M3 gallery, route, mapping, and preview actions.
 - The Nest/Fastify composition root mounts every non-test generated operation.
 - `apps/api/test/runtime/public-route-parity.e2e.spec.ts` compares generated
   operations with the real router and exercises generated-client success and
@@ -327,9 +330,11 @@ The test-level naming overstates the coverage level, causing Milestone reports t
   stale-version `409`, Location coordinate adjustment, and persisted reload.
 - Desktop and mobile Chromium passed `4/4` cases on 2026-08-01 against a fresh
   migrated temporary database. The full `pnpm run quality` Gate also passed.
-- UI-specific mouse/touch/keyboard reordering, offline/degraded behavior, and
-  feature-specific M3 screens remain requirements of their owning M3 Tasks; this
-  closure does not claim those future UI paths are already implemented.
+- The later M3 browser Gate covers route visualization, map/timeline focus,
+  gallery, cost summary, import mapping/staging preview, and upload-entry paths
+  on desktop and mobile Chromium. Mouse/touch/keyboard and degraded-state
+  requirements remain owned by their named executable Cases rather than being
+  inferred from unit tests.
 
 ### P1-05 Core modules make extensive use of `@ts-nocheck`
 
@@ -425,6 +430,16 @@ Task status relies primarily on manual reports and historical command descriptio
 - Make the Gate verify that the result commit matches the closure candidate commit.
 - Distinguish historical local evidence from current CI evidence.
 
+**Remediation update — Closed at the M3 Gate**
+
+- `test-manifests/m0-m3.required.json` defines the completed Dev scope and is
+  checked against documentation and executable files.
+- The runner records full commit SHA, clean-worktree state, pinned Node version,
+  counts, per-Case results, and failure diagnostics.
+- `scripts/verify-required-case-report.mjs` rejects dirty, wrong-commit,
+  skipped, uncollected, or otherwise incomplete evidence; GitHub uploads the
+  durable artifact while local `test-results/` paths remain diagnostics.
+
 ### P2-02 README, Gate reports, and actual repository status conflict
 
 **Current state**
@@ -448,6 +463,15 @@ The word “complete” currently covers module implementation, environment veri
 - Make README, Milestone reports, and the release checklist reference the same status source.
 - Do not use one `Complete` label for different maturity levels.
 - Update README and the status index as part of every Milestone closure.
+
+**Remediation update — Closed after the M3 closure documentation audit**
+
+- [`docs/README.md`](./README.md) is the canonical status index and separates
+  implemented, runtime-integrated, CI-verified, and release-verified maturity.
+- The root README, milestone plans, M3 reports, and release checklist now point
+  to the same Dev-versus-release boundary.
+- Historical Gate reports retain the environment and claims true at their
+  original review date instead of being rewritten as current execution logs.
 
 ### P2-03 Toolchain pinning is not enforced by normal quality gates
 
@@ -522,6 +546,11 @@ Although some OpenAPI tools can parse it, the extension misleads maintainers and
 - Remove `.DS_Store` files from the repository root and `docs/`.
 - Update `.gitignore`.
 - Ensure clean-install/source-digest tests do not copy operating-system metadata.
+
+**Remediation update — Closed**
+
+No `.DS_Store` file is tracked. Repository ignore rules and the clean-checkout
+source filter exclude operating-system metadata.
 
 ### P3-03 E2E naming and forwarding files are duplicated
 

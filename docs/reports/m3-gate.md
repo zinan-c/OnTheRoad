@@ -1,7 +1,9 @@
 # M3 development gate
 
 - Status: **M3 Done for the Dev Track**
-- Date: 2026-08-03
+- Gate execution date: 2026-08-03
+- Final closure review date: 2026-08-08
+- Exact closure SHA: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
 - Baseline: macOS arm64, Node 26.0.0, pnpm 9.15.4
 - Runtime: native PostgreSQL 17/PostGIS, authenticated Redis, native MinIO,
   ClamAV, ImageMagick, real Nest/Fastify API, BullMQ Worker, Next.js, and
@@ -20,8 +22,9 @@
 | E04 | `70d3c5f` | `a71f495` |
 | E05 | `f313418` | `98e67aa` |
 
-The final integration and evidence chain is recorded by `c13288e`, `82a24be`,
-`abecb57`, and `506e8fd`, followed by this closure commit.
+The integration and evidence chain is recorded by `c13288e`, `82a24be`,
+`abecb57`, and `506e8fd`. Public-contract closure, Product acceptance, and the
+final R&D/evidence review are recorded by `565365a`, `232387b`, and `10d7c1d`.
 
 ## Milestone gate evidence
 
@@ -87,9 +90,11 @@ configuration.
   0 skipped / 0 not collected`.
 - Managed schema fingerprint before and after:
   `e2cba4c9fedb534e0aef180bc61737ca|1611`.
-- Local machine-readable evidence:
-  `test-results/m3-gate-required-cases.json`. The GitHub workflow uploads the
-  commit-bound artifact after push.
+- Final local machine-readable evidence:
+  `test-results/local-m0-m3-required.json`, verified against full SHA
+  `10d7c1d03c7a1df579ac37f79b71bbfef5919424` with `worktreeClean=true` and
+  Node `v26.0.0`. This is an ignored diagnostic path; the GitHub workflow
+  uploads the durable commit-bound artifact after push.
 
 ## E04 contract freeze and M4 handoff
 

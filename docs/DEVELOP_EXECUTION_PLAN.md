@@ -5,6 +5,7 @@
 > 上游基线：[DEVELOPMENT_MILESTONE.md](./DEVELOPMENT_MILESTONE.md)
 > 测试明细：[TEST_CASES.md](./TEST_CASES.md)
 > 用途：供多个 AI agent 按 Milestone → Task → Test Case 领取、实现、验证和交接。
+> 当前游标：M0–M3 Dev Track 已关门；后续工作从 M4 开始，并以 M3 冻结的 E04 staging contract 为输入。当前状态见 [文档状态索引](./README.md)。
 
 ## 0. 执行约束
 
@@ -21,7 +22,7 @@
 7. 运行 `01 + 02 + 03`、受影响包测试和当前 Milestone 已可运行的 Integration Case。
 8. 交接时报告：修改文件、测试命令/结果、migration/contract 变化、共享锁释放、未解决风险和下一 Task 的可启动状态。
 
-M0、M2、M4、M5 Gate 还必须提交一次架构/安全差异复审记录，检查模块边界、Provider/文件/网络攻击面、状态机和 Plan B 是否因本里程碑实现发生变化。每次 Gate 演示同时运行固定五日 fixture 和一条从空账号开始的真实路径；fixture 不能替代创建、权限与持久化验证。
+M0、M2、M3、M4、M5 Gate 还必须提交一次架构/安全差异复审记录，检查模块边界、Provider/文件/网络攻击面、状态机和 Plan B 是否因本里程碑实现发生变化。M3 的补充复审与签署归档在 `docs/reports/m3-rnd-final-review.md`。每次 Gate 演示同时运行固定五日 fixture 和一条从空账号开始的真实路径；fixture 不能替代创建、权限与持久化验证。
 
 A02 使用双轨状态：Native Track 的启动、恢复和 dev gate 全绿即可标记当前阶段 `A02 Complete` 并放行后续开发。Compose Track 必须在本轮尝试；若环境不可用，记录原因并转入发布 checklist，不阻断当前 Milestone，但发布前必须补齐。
 

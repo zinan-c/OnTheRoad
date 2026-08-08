@@ -6,27 +6,34 @@ PostGIS, Redis, S3-compatible object storage, and ClamAV.
 
 ## Project status
 
-M0, M1, and M2 are complete for the **Dev Track**. The repository currently
+M0 through M3 are complete for the **Dev Track**. M4 is the next planned
+milestone. The repository currently
 includes:
 
 - runnable Web, API, Worker, and PDF Worker processes;
 - development identity and production OIDC release guards;
 - Trip, Day, and itinerary-item persistence with optimistic concurrency;
 - owner-scoped Location search, candidate confirmation, and coordinate editing;
-- secure attachment intake and image processing;
-- expenses, exchange rates, and safe Excel inspection;
+- generation-safe routing, map/timeline interaction, and explicit degraded
+  route presentation;
+- secure attachment intake, image processing, and gallery management;
+- expenses, exchange rates, multidimensional summaries, and safe Excel
+  staging/preview isolation;
 - a generated OpenAPI client and real HTTP route-parity tests;
 - a real API → PostgreSQL → Redis/BullMQ → Worker smoke test;
 - desktop and mobile Playwright coverage against the production composition
   root.
 
-The post-M2 P0/P1 findings are closed at their documented maturity level. M3
-feature work has not been declared complete. Dev Track completion is also not
-production approval: full Compose parity and a real Staging IdP remain mandatory
-release gates.
+The post-M2 P0/P1 findings and the M3 closure review are closed at their
+documented Dev maturity level. Dev Track completion is not production approval:
+full Compose/Linux parity, a real Staging IdP, and the remaining protected
+release checks remain mandatory release gates.
 
-See [CODE_REVIEW](./docs/CODE_REVIEW.md) for remediation evidence and
-[the M2 Gate report](./docs/reports/m2-gate.md) for the milestone boundary.
+Use the [documentation status index](./docs/README.md) as the canonical current
+status entry point. Detailed evidence is in [CODE_REVIEW](./docs/CODE_REVIEW.md),
+the [M3 Gate report](./docs/reports/m3-gate.md), the
+[Product acceptance record](./docs/reports/m3-product-acceptance.md), and the
+[final R&D review](./docs/reports/m3-rnd-final-review.md).
 
 ## Repository layout
 
@@ -139,10 +146,12 @@ pnpm run ci:local
 ```
 
 `pnpm run ci:local` must run from a clean, committed worktree. It verifies the
-current SHA, provisions the dependency stack, applies and checks migrations,
-and executes every required M0–M2 Vitest, `node:test`, and Playwright Case
-without skips. Diagnostics are written to
-`test-results/local-m0-m2-required.json`.
+current full SHA, provisions the dependency stack, applies and checks
+migrations, starts the real API and Worker, and executes every required M0–M3
+Vitest, `node:test`, and Playwright Case without skips. The Gate rejects dirty,
+wrong-commit, failed, skipped, todo, or uncollected evidence. Diagnostics are
+written to `test-results/local-m0-m3-required.json` and validated by
+`pnpm run test:cases:evidence`.
 
 The local aggregate Gate requires Docker Compose v2, Playwright Chromium,
 Poppler, ImageMagick, `redis-cli`, and the pinned native `minio`/`mc` test
@@ -183,9 +192,14 @@ cannot be waived by a green Dev Gate.
 
 ## Documentation
 
+- [Current milestone and evidence status](./docs/README.md)
 - [Product and technical design](./docs/DESIGN.md)
 - [Development plan and Task ownership](./docs/DEVELOPMENT_PLAN.md)
+- [Milestone acceptance plan](./docs/DEVELOPMENT_MILESTONE.md)
+- [Execution and handoff plan](./docs/DEVELOP_EXECUTION_PLAN.md)
 - [Test Cases and Gate rules](./docs/TEST_CASES.md)
 - [Code review and remediation ledger](./docs/CODE_REVIEW.md)
+- [Configuration reference](./docs/configuration.md)
+- [Observability baseline](./docs/observability.md)
 - [Local dependency runbook](./docs/runbooks/local-stack.md)
 - [Release checklist](./docs/runbooks/release-checklist.md)

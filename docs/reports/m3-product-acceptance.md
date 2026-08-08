@@ -4,6 +4,7 @@
 - Decision: **Accepted for the Dev Track**
 - Review date: **2026-08-08 (Asia/Shanghai)**
 - Product baseline: `565365a` (`fix(m3): close public contract gate`)
+- Subsequent technical closure: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
 - Signatory role: **Product Owner**
 - Signatory: **Codex, acting under the repository owner's explicit instruction**
 
@@ -12,8 +13,10 @@
 The Product Owner reviewed the M3 scope and acceptance criteria in
 `docs/DEVELOPMENT_MILESTONE.md`, the executable Case definitions in
 `docs/TEST_CASES.md`, the technical Gate report in `docs/reports/m3-gate.md`,
-and the machine-readable required-case result in
-`test-results/m3-gate-required-cases.json`.
+and the machine-readable required-case result. The final exact-SHA rerun is
+recorded locally at `test-results/local-m0-m3-required.json` and summarized in
+the M3 Gate report; local `test-results/` files are ignored diagnostics and CI
+uploads the durable artifact.
 
 The archived Gate result reports:
 
@@ -28,6 +31,8 @@ The archived Gate result reports:
 The public API contract gap found during the post-Gate review was closed by
 `565365a`. All M0–M3 public controller routes are now represented in OpenAPI
 and the generated client, with bidirectional runtime/contract parity enforced.
+The later R&D closure commit `10d7c1d` added commit-bound verification and reran
+the complete Gate without changing this Product Owner acceptance decision.
 
 ## Acceptance result
 
