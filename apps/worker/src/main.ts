@@ -19,14 +19,20 @@ import { PostgresMediaRepository } from "./processors/media/postgres-media-repos
 import { OutboxReconciler } from "./processors/maintenance/outbox-reconciler.js";
 import { PostgresRecoverableOutbox } from "./processors/maintenance/postgres-outbox-repository.js";
 import { recordWorkerPipeline, workerTelemetry } from "./telemetry.js";
+import { createFixtureProvider } from "@on-the-road/providers";
 
 export async function startWorker(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
   const config = loadProcessConfig("worker", environment);
   if (!config.server) throw new Error("Worker server configuration is required.");
+  if (config.map.profile !== "fixture") {
+    throw new Error(`DIRECTIONS_PROVIDER_UNAVAILABLE:${config.map.profile}`);
+  }
+  const provider = createFixtureProvider();
   const eventProcessor = new PostgresEventProcessor(
     config.server.databaseUrl.href,
+    { provider: provider.directions, name: "fixture" },
   );
   const processRuntime = createQueueProcess({
     redisUrl: config.server.redisUrl.href,

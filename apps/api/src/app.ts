@@ -223,8 +223,8 @@ class ApiController {
     return {
       geocoding: map.search,
       reverseGeocoding: map.reverse,
-      directions: false,
-      staticMaps: false,
+      directions: map.provider === "fixture",
+      staticMaps: map.provider === "fixture",
       imports: true,
       exports: false,
     };

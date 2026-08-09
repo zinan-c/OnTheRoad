@@ -1,23 +1,31 @@
 // @ts-nocheck -- owner: Web Maps; reason: MapLibre browser adapter isolation; remove after its runtime facade is converted to TypeScript.
 // The host loads this adapter only after its approved MapLibre dependency is available.
 // Keeping the import dynamic lets the fixture/neutral-grid path work without WebGL.
-export async function loadMapLibreRuntime() {
+export async function loadMapLibreRuntime(options = {}) {
   const imported = await import("maplibre-gl");
-  return createMapLibreRuntime(imported.default ?? imported);
+  return createMapLibreRuntime(imported.default ?? imported, options);
 }
 
-export function createMapLibreRuntime(maplibregl) {
+export function createMapLibreRuntime(maplibregl, options = {}) {
   return {
-    createMap({ container, onTileError, onMarkerClick = undefined, onMapClick = undefined, onMarkerDragEnd = undefined, draggableMarkers = false }) {
+    createMap({ container, onTileError, onMarkerClick = undefined, onRouteClick = undefined, onMapClick = undefined, onMarkerDragEnd = undefined, draggableMarkers = false }) {
+      const basemap = options.tileTemplate ? {
+        "otr-basemap": {
+          type: "raster",
+          tiles: [options.tileTemplate],
+          tileSize: 256,
+          attribution: options.attribution ?? "地图数据 © On The Road fixture",
+        },
+      } : {};
       const map = new maplibregl.Map({
         container,
-        attributionControl: false,
+        attributionControl: Boolean(options.tileTemplate),
         style: {
           version: 8,
-          sources: {},
+          sources: basemap,
           layers: [{ id: "otr-background", type: "background", paint: {
             "background-color": "#F5F7FA",
-          } }],
+          } }, ...(options.tileTemplate ? [{ id: "otr-basemap", type: "raster", source: "otr-basemap" }] : [])],
         },
       });
       let geojson = { type: "FeatureCollection", features: [] };
@@ -39,6 +47,10 @@ export function createMapLibreRuntime(maplibregl) {
           latitude: event.lngLat.lat,
           crs: "WGS84",
         });
+      });
+      map.on("click", "otr-route-lines", (event) => {
+        const routeId = event.features?.[0]?.id;
+        if (routeId !== undefined && routeId !== null) onRouteClick?.(String(routeId));
       });
       map.on("load", () => {
         ready = true;
@@ -102,7 +114,7 @@ function ensureSourceAndLayers(map) {
     });
   }
   if (!map.getSource("otr-routes")) map.addSource("otr-routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  if (!map.getLayer("otr-route-lines")) map.addLayer({ id: "otr-route-lines", type: "line", source: "otr-routes", paint: { "line-color": ["get", "color"], "line-width": 4, "line-opacity": 0.85 } });
+  if (!map.getLayer("otr-route-lines")) map.addLayer({ id: "otr-route-lines", type: "line", source: "otr-routes", paint: { "line-color": ["get", "color"], "line-width": ["case", ["boolean", ["get", "selected"], false], 7, 4], "line-opacity": 0.85, "line-dasharray": ["get", "dasharray"] } });
 }
 
 function applyGeoJson(map, geojson) {

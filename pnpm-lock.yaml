@@ -186,6 +186,9 @@ importers:
       '@on-the-road/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@on-the-road/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@on-the-road/storage':
         specifier: workspace:*
         version: link:../../packages/storage

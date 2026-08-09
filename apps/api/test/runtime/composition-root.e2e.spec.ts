@@ -138,6 +138,15 @@ function runtime(readiness: Record<string, boolean>): ApiRuntime {
 }
 
 describe("REVIEW-P0-01 API composition root", () => {
+  test("advertises the composed fixture directions and static map capabilities", async () => {
+    app = await createApiApplication(runtime({}));
+    const server = app.getHttpAdapter().getInstance();
+    const response = await server.inject({ method: "GET", url: "/api/v1/system/capabilities" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ directions: true, staticMaps: true });
+  });
+
   test("liveness is independent while readiness fails closed", async () => {
     app = await createApiApplication(runtime({
       database: true,

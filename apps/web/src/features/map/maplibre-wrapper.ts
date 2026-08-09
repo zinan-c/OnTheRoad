@@ -11,6 +11,7 @@ export type MapRuntimeOptions = {
   container: unknown;
   onTileError: (error: Error) => void;
   onMarkerClick?: (itemId: string) => void;
+  onRouteClick?: (routeId: string) => void;
   onMapClick?: (point: { longitude: number; latitude: number; crs: "WGS84" }) => void;
   onMarkerDragEnd?: (itemId: string, point: { longitude: number; latitude: number; crs: "WGS84" }, inputMode: "mouse" | "touch") => void;
   draggableMarkers?: boolean;
@@ -81,6 +82,7 @@ export class MapLibreWrapper {
     items: readonly MapItem[],
     filter: MapFilter = { kind: "all" },
     onMarkerClick?: (itemId: string) => void,
+    onRouteClick?: (routeId: string) => void,
   ): Promise<void> {
     this.items = [...items];
     const model = buildMapModel(this.items, filter);
@@ -96,6 +98,7 @@ export class MapLibreWrapper {
         this.state = { ...this.state, mode: "neutral-grid", degradationReason: "底图不可用" };
       } };
       if (onMarkerClick) mapOptions.onMarkerClick = onMarkerClick;
+      if (onRouteClick) mapOptions.onRouteClick = onRouteClick;
       const handle = await this.runtime.createMap(mapOptions);
       this.runtimeHandle = handle;
       handle.setGeoJson(model.geojson);

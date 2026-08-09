@@ -173,11 +173,19 @@ export function createFixtureProvider(options: FixtureProviderOptions = {}): Pro
         assertWgs84Point(request.from);
         assertWgs84Point(request.to);
         return {
-          kind: "approximate",
+          kind: "resolved",
           mode: request.mode,
           geometry: {
             type: "LineString",
-            coordinates: [request.from, request.to],
+            coordinates: [
+              request.from,
+              {
+                longitude: (request.from.longitude + request.to.longitude) / 2 + 0.002,
+                latitude: (request.from.latitude + request.to.latitude) / 2 + 0.001,
+                crs: "WGS84",
+              },
+              request.to,
+            ],
           },
           attribution,
         };

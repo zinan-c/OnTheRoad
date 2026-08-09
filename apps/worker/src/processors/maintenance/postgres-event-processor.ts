@@ -3,6 +3,7 @@ import type { Job } from "bullmq";
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { assertJobEvent, type JobEvent } from "@on-the-road/database/jobs";
 import { PostgresRouteRebuildProcessor } from "../directions/postgres-route-rebuild.js";
+import type { DirectionsProvider } from "@on-the-road/providers";
 
 const SUPPORTED_EVENTS = new Set([
   "itinerary.order.changed",
@@ -15,12 +16,15 @@ export class PostgresEventProcessor {
   readonly #database: PostgresExecutor;
   readonly #routes: PostgresRouteRebuildProcessor;
 
-  constructor(databaseUrl: string) {
+  constructor(databaseUrl: string, directions: { provider: DirectionsProvider; name: string }) {
     this.#database = new PostgresExecutor({
       databaseUrl,
       role: "worker",
     });
-    this.#routes = new PostgresRouteRebuildProcessor(databaseUrl);
+    this.#routes = new PostgresRouteRebuildProcessor(databaseUrl, {
+      directions: directions.provider,
+      providerName: directions.name,
+    });
   }
 
   async process(job: Job): Promise<{

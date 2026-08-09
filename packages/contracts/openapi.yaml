@@ -3718,7 +3718,27 @@
             ],
             "format": "uuid"
           },
+          "fromLocationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "toLocationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
           "transportModeCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
             "type": [
               "string",
               "null"
@@ -3728,6 +3748,13 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "actual",
+              "approximate",
+              "manual",
+              "unknown",
+              null
             ]
           },
           "status": {
@@ -3736,7 +3763,8 @@
               "pending",
               "resolving",
               "resolved",
-              "failed"
+              "failed",
+              "manual"
             ]
           },
           "geometry": {
@@ -3746,8 +3774,7 @@
             ]
           },
           "sourceVersion": {
-            "type": "integer",
-            "minimum": 0
+            "type": "string"
           },
           "sourceContext": {
             "type": "object"

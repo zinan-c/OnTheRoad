@@ -20,7 +20,10 @@ export class PostgresRouteRepository {
              'kind', segment.segment_kind,
              'fromItineraryItemId', segment.from_itinerary_item_id,
              'toItineraryItemId', segment.to_itinerary_item_id,
+             'fromLocationId', segment.from_location_id,
+             'toLocationId', segment.to_location_id,
              'transportModeCode', segment.transport_mode_code,
+             'provider', segment.route_provider,
              'quality', segment.route_quality,
              'status', segment.status,
              'geometry', CASE

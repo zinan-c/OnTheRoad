@@ -8,6 +8,7 @@
     "@on-the-road/domain": "workspace:*",
     "@on-the-road/importer": "workspace:*",
     "@on-the-road/observability": "workspace:*",
+    "@on-the-road/providers": "workspace:*",
     "@on-the-road/storage": "workspace:*",
     "bullmq": "6.0.2",
     "ioredis": "5.11.1"

@@ -38,6 +38,7 @@ export interface RouteRequest {
   readonly from: Wgs84Point;
   readonly to: Wgs84Point;
   readonly mode: string;
+  readonly mapProfile?: string;
 }
 
 export interface RouteGeometry {

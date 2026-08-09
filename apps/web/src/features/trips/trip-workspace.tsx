@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { MappingEditor, type MappingRow } from "../imports/mapping/mapping-editor";
 import { PreviewStates } from "../imports/preview/preview-states";
 import { type PreviewRow } from "../imports/preview/preview-model";
 import { CostSummaryPanel } from "../expenses/cost-summary-panel";
-import { routeStyle } from "../map/route-style";
-import { RealRouteMap } from "../map/real-route-map";
-import { MapTimelineSelectionStore } from "../map/store";
+import { RouteMapWorkspace } from "../map/route-map-workspace";
 import { TripGallery } from "../attachments/trip-gallery";
 import { ItineraryPanel } from "../itinerary/itinerary-panel";
 import type { TransportModeView } from "./settings/transport-modes";
 
-type Point = { readonly longitude: number; readonly latitude: number };
-type Item = { readonly id: string; readonly target: string; readonly dayNumber?: number; readonly location?: { readonly point?: Point | null } | null; readonly transportModeCode?: string | null };
+type Item = { readonly id: string; readonly target: string; readonly dayNumber?: number; readonly locationId?: string | null; readonly transportModeCode?: string | null };
 type Day = { readonly id: string; readonly dayNumber: number; readonly items?: Item[] };
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:3001";
@@ -57,9 +54,6 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [importJobId, setImportJobId] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [tripTransportModes, setTripTransportModes] = useState<TransportModeView[]>([]);
-  const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
-  const selectionState = useSyncExternalStore((listener) => selectionStore.subscribe(() => listener()), () => selectionStore.state, () => selectionStore.state);
-  const selectedId = selectionState.selected?.itemId ?? null;
 
   useEffect(() => {
     void (async () => {
@@ -70,8 +64,6 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
       setDays(loadedDays);
       setSummary(loadedSummary);
       setTripTransportModes(loadedTransportModes);
-      const firstItem = flattenDays(loadedDays)[0];
-      if (firstItem) selectionStore.selectFromTimeline(firstItem.id, `day-${firstItem.dayNumber}`);
       if (loadedMapping && Object.keys(loadedMapping.mapping).length > 0) {
         setMappingRows((rows) => rows.map((row) => ({ ...row, target: loadedMapping.mapping[row.source] ?? "" })));
       }
@@ -80,14 +72,6 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }, [tripId]);
 
   const items = useMemo(() => flattenDays(days), [days]);
-  const actualLocated = useMemo(() => items.flatMap((item) => item.location?.point ? [{ item, point: item.location.point }] : []), [items]);
-  const located = useMemo(() => items.map((item, index) => ({ item, point: item.location?.point ?? { longitude: 121.49 + index * 0.01, latitude: 31.24 - index * 0.006 } })), [items]);
-  const bounds = useMemo(() => {
-    const longitudes = located.map(({ point }) => point.longitude);
-    const latitudes = located.map(({ point }) => point.latitude);
-    return { minLon: Math.min(...longitudes, 121.4), maxLon: Math.max(...longitudes, 121.6), minLat: Math.min(...latitudes, 31.1), maxLat: Math.max(...latitudes, 31.3) };
-  }, [located]);
-  const svgPoint = (point: Point) => ({ x: 40 + ((point.longitude - bounds.minLon) / Math.max(bounds.maxLon - bounds.minLon, 0.01)) * 320, y: 190 - ((point.latitude - bounds.minLat) / Math.max(bounds.maxLat - bounds.minLat, 0.01)) * 150 });
 
   async function addExpense(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -156,26 +140,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
 
   return <div className="tripWorkspace">
     <ItineraryPanel tripId={tripId} onTransportModesChange={setTripTransportModes} />
-    {actualLocated.length > 0 ? <RealRouteMap transportModes={tripTransportModes} items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => selectionStore.selectFromMarker(id)} /> : null}
-    <section aria-label="路线地图" className="workspaceCard routeWorkspace">
-      <header><h2>路线与时间线</h2><p>点击路线点或时间线项目，两个视图会保持同一选中状态。</p></header>
-      <div className="routeLayout">
-        <svg viewBox="0 0 400 220" role="img" aria-label="路线示意图" className="routeMap">
-          {located.slice(1).map(({ item, point }, index) => {
-            const from = located[index]?.point;
-            if (!from) return null;
-            const start = svgPoint(from); const end = svgPoint(point);
-            const modeCode = item.transportModeCode ?? null;
-            const customMode = tripTransportModes.find(({ code }) => code === modeCode);
-            const style = routeStyle({ modeCode, quality: "approximate", ...(customMode ? { customMode } : {}) });
-            return <line key={`${located[index]?.item.id}-${item.id}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={style.color} strokeDasharray={style.dasharray.join(" ")} strokeWidth={4} data-route-mode={style.label} />;
-          })}
-          {located.map(({ item, point }) => { const position = svgPoint(point); return <circle key={item.id} cx={position.x} cy={position.y} r={selectedId === item.id ? 9 : 6} tabIndex={0} role="button" aria-label={`地图点 ${item.target}`} aria-pressed={selectedId === item.id} fill={selectedId === item.id ? "#d9485f" : "#2563eb"} onClick={() => selectionStore.selectFromMarker(item.id)} onKeyDown={(event) => { if (event.key === "Enter") selectionStore.selectFromMarker(item.id); }} />; })}
-        </svg>
-        <ol aria-label="行程时间线" className="workspaceTimeline">{items.map((item) => <li key={item.id}><button type="button" aria-pressed={selectedId === item.id} data-selected={selectedId === item.id} onClick={() => selectionStore.selectFromTimeline(item.id, `day-${item.dayNumber}`)}>{item.target}</button></li>)}</ol>
-      </div>
-      {selectedId ? <p role="status">当前选择：{items.find(({ id }) => id === selectedId)?.target ?? selectedId}</p> : null}
-    </section>
+    <RouteMapWorkspace tripId={tripId} transportModes={tripTransportModes} />
 
     <section aria-label="费用工作台" className="workspaceCard"><header><h2>费用统计</h2><p>费用保存后重新读取真实 API 汇总。</p></header>{summary ? <CostSummaryPanel summary={summary} budget={null} /> : <p>正在载入费用…</p>}{expenseError ? <p role="alert">{expenseError}</p> : null}<form aria-label="新增费用" onSubmit={(event) => void addExpense(event)} className="expenseForm"><input name="amount" aria-label="金额" placeholder="金额" required /><select name="currency" aria-label="币种" defaultValue="CNY"><option>CNY</option><option>USD</option></select><select name="category" aria-label="费用类别" defaultValue="DINING"><option>DINING</option><option>TRANSPORT</option><option>TICKET</option></select><button type="submit">添加费用</button></form></section>
 

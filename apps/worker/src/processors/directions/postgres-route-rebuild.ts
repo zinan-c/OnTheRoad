@@ -1,6 +1,7 @@
 import { generateRouteWindow } from "@on-the-road/domain/routing";
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import type { JobEvent } from "@on-the-road/database/jobs";
+import type { DirectionsProvider, RouteResult } from "@on-the-road/providers";
 
 type RouteItemRow = {
   id: string;
@@ -46,16 +47,31 @@ type RouteCandidate = {
   toLocation: { id: string; point: { longitude: number; latitude: number } } | null;
 };
 
+type ResolvedCandidate = RouteCandidate & {
+  route: RouteResult | null;
+  routeProvider: string | null;
+  routeQuality: "actual" | "approximate" | "unknown";
+  mapProfile: string;
+};
+
 export class PostgresRouteRebuildProcessor {
   readonly #database: PostgresExecutor;
   readonly #beforeCommit: (() => Promise<void>) | undefined;
+  readonly #directions: DirectionsProvider;
+  readonly #providerName: string;
 
   constructor(
     databaseUrl: string,
-    options: Readonly<{ beforeCommit?: () => Promise<void> }> = {},
+    options: Readonly<{
+      beforeCommit?: () => Promise<void>;
+      directions: DirectionsProvider;
+      providerName: string;
+    }>,
   ) {
     this.#database = new PostgresExecutor({ databaseUrl, role: "worker" });
     this.#beforeCommit = options.beforeCommit;
+    this.#directions = options.directions;
+    this.#providerName = options.providerName;
   }
 
   async process(event: JobEvent): Promise<{ eventId: string; applied: boolean }> {
@@ -64,6 +80,12 @@ export class PostgresRouteRebuildProcessor {
       items: context.items,
       routeGenerations: context.routeGenerations,
     }) as RouteCandidate[];
+    const resolvedCandidates = await resolveRouteCandidates(
+      candidates,
+      this.#directions,
+      this.#providerName,
+      context.mapProfile,
+    );
     await this.#beforeCommit?.();
 
     const applied = await this.#database.transaction(async (client) => {
@@ -99,7 +121,7 @@ export class PostgresRouteRebuildProcessor {
            AND status <> 'obsolete'`,
         [context.tripId],
       );
-      for (const candidate of candidates) {
+      for (const candidate of resolvedCandidates) {
         await insertCandidate(client, context, candidate);
       }
       await markHandled(client, event);
@@ -113,8 +135,8 @@ export class PostgresRouteRebuildProcessor {
   }
 
   async #loadContext(dayId: string) {
-    const day = (await this.#database.query<{ trip_id: string; owner_id: string }>(
-      `SELECT day.trip_id, trip.owner_id
+    const day = (await this.#database.query<{ trip_id: string; owner_id: string; map_profile: string }>(
+      `SELECT day.trip_id, trip.owner_id, trip.map_profile
        FROM trip_day day
        JOIN trip ON trip.id = day.trip_id
        WHERE day.id = $1::uuid`,
@@ -160,6 +182,7 @@ export class PostgresRouteRebuildProcessor {
     return {
       tripId: day.trip_id,
       ownerId: day.owner_id,
+      mapProfile: day.map_profile,
       routeGenerations: Object.fromEntries(
         generations.map(({ id, route_generation }) => [id, route_generation]),
       ),
@@ -198,6 +221,36 @@ export class PostgresRouteRebuildProcessor {
   }
 }
 
+export async function resolveRouteCandidates(
+  candidates: RouteCandidate[],
+  directions: DirectionsProvider,
+  providerName: string,
+  mapProfile: string,
+): Promise<ResolvedCandidate[]> {
+  return Promise.all(candidates.map(async (candidate) => {
+    if (
+      candidate.blockers.length > 0
+      || !candidate.fromLocation?.point
+      || !candidate.toLocation?.point
+    ) {
+      return { ...candidate, route: null, routeProvider: null, routeQuality: "unknown", mapProfile };
+    }
+    const route = await directions.route({
+      from: { ...candidate.fromLocation.point, crs: "WGS84" },
+      to: { ...candidate.toLocation.point, crs: "WGS84" },
+      mode: candidate.transportModeCode,
+      mapProfile,
+    });
+    return {
+      ...candidate,
+      route,
+      routeProvider: providerName,
+      routeQuality: route.kind === "resolved" ? "actual" : "approximate",
+      mapProfile,
+    };
+  }));
+}
+
 function routeLocation(
   id: string | null,
   version: number | null,
@@ -228,11 +281,13 @@ function sameGenerations(
 async function insertCandidate(
   client: { query: (sql: string, values?: unknown[]) => Promise<unknown> },
   context: { tripId: string; ownerId: string },
-  candidate: RouteCandidate,
+  candidate: ResolvedCandidate,
 ): Promise<void> {
-  const resolved = candidate.blockers.length === 0
-    && candidate.fromLocation?.point
-    && candidate.toLocation?.point;
+  const resolved = candidate.route !== null;
+  const geometry = candidate.route ? {
+    type: candidate.route.geometry.type,
+    coordinates: candidate.route.geometry.coordinates.map((point) => [point.longitude, point.latitude]),
+  } : null;
   await client.query(
     `INSERT INTO route_segment (
        trip_id, owner_id, trip_day_id, segment_kind,
@@ -243,13 +298,10 @@ async function insertCandidate(
      ) VALUES (
        $1::uuid, $2, $3::uuid, $4,
        $5::uuid, $6::uuid, $7::uuid, $8::uuid, $9,
-       CASE WHEN $10::double precision IS NULL THEN NULL ELSE
-         ST_SetSRID(ST_MakeLine(
-           ST_MakePoint($10, $11),
-           ST_MakePoint($12, $13)
-         ), 4326)
+       CASE WHEN $10::jsonb IS NULL THEN NULL ELSE
+         ST_SetSRID(ST_GeomFromGeoJSON($10::jsonb), 4326)
        END,
-       $14, $15, $16, $17, $18::jsonb
+       $11, $12, $13, $14, $15::jsonb
      )`,
     [
       context.tripId,
@@ -261,17 +313,19 @@ async function insertCandidate(
       candidate.fromLocation?.id ?? null,
       candidate.toLocation?.id ?? null,
       candidate.transportModeCode,
-      resolved ? candidate.fromLocation!.point.longitude : null,
-      resolved ? candidate.fromLocation!.point.latitude : null,
-      resolved ? candidate.toLocation!.point.longitude : null,
-      resolved ? candidate.toLocation!.point.latitude : null,
-      resolved ? "approximate-dev" : null,
-      resolved ? "approximate" : "unknown",
+      geometry ? JSON.stringify(geometry) : null,
+      candidate.routeProvider,
+      candidate.routeQuality,
       resolved ? "resolved" : "pending",
       candidate.sourceVersion,
       JSON.stringify({
         ...candidate.sourceContext,
         blockers: candidate.blockers,
+        ...(candidate.route ? {
+          attribution: candidate.route.attribution,
+          mapProfile: candidate.mapProfile,
+          providerMode: candidate.route.mode,
+        } : {}),
       }),
     ],
   );

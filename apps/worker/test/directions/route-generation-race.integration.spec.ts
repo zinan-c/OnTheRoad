@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import type { JobEvent } from "@on-the-road/database/jobs";
+import { createFixtureProvider } from "@on-the-road/providers";
 import { PostgresRouteRebuildProcessor } from "../../src/processors/directions/postgres-route-rebuild.js";
 
 const databaseUrl = process.env.OTR_C07_DATABASE_URL
@@ -10,6 +11,7 @@ const liveTest = databaseUrl ? test : test.skip;
 const ownerId = "m3-c07-route-race";
 let database: PostgresExecutor | undefined;
 const processors: PostgresRouteRebuildProcessor[] = [];
+const directions = createFixtureProvider().directions;
 
 afterEach(async () => {
   if (database) {
@@ -35,6 +37,8 @@ describe("TC-C07-02 generation/sourceVersion race", () => {
       releaseOld = resolve;
     });
     const oldProcessor = new PostgresRouteRebuildProcessor(databaseUrl!, {
+      directions,
+      providerName: "fixture",
       beforeCommit: async () => {
         oldLoaded();
         await oldRelease;
@@ -53,7 +57,10 @@ describe("TC-C07-02 generation/sourceVersion race", () => {
       [context.secondLocationId],
     );
     const newEvent = await latestRouteEvent(database, context.dayId);
-    const newProcessor = new PostgresRouteRebuildProcessor(databaseUrl!);
+    const newProcessor = new PostgresRouteRebuildProcessor(databaseUrl!, {
+      directions,
+      providerName: "fixture",
+    });
     processors.push(newProcessor);
 
     await expect(newProcessor.process(newEvent)).resolves.toMatchObject({

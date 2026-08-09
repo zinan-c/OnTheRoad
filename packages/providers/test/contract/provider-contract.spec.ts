@@ -46,7 +46,8 @@ describe("TC-C01-01 provider interface contract", () => {
       attribution: "On The Road fixture",
     }));
     expect(result.reverse?.id).toBe("fixture:loc-bund");
-    expect(result.route.kind).toBe("approximate");
+    expect(result.route.kind).toBe("resolved");
+    expect(result.route.geometry.coordinates).toHaveLength(3);
     expect(result.staticMap.mediaType).toBe("image/svg+xml");
 
     for (const candidate of result.search) assertWgs84Point(candidate.point);
