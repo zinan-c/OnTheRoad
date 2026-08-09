@@ -21,6 +21,7 @@ export type MapRuntimeHandle = {
   setGeoJson: (geojson: MapModel["geojson"]) => void;
   setMarkers: (markers: readonly MapMarker[]) => void;
   setRouteGeoJson: (geojson: unknown) => void;
+  setSelectedItem?: (itemId: string | null) => void;
   fitBounds: (bounds: Bounds, options: { padding: number; maxZoom: number }) => void;
   resize: () => void;
   destroy: () => void;
@@ -75,6 +76,10 @@ export class MapLibreWrapper {
 
   setRouteGeoJson(geojson: unknown): void {
     this.runtimeHandle?.setRouteGeoJson(geojson);
+  }
+
+  selectItem(itemId: string | null): void {
+    this.runtimeHandle?.setSelectedItem?.(itemId);
   }
 
   async mount(

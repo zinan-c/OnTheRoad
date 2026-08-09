@@ -33,6 +33,7 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
       let markerModels = [];
       let ready = false;
       let markers = [];
+      let selectedItemId = null;
       let suppressMapClick = false;
       const markerDragEnd = (itemId, point, inputMode) => {
         suppressMapClick = true;
@@ -57,7 +58,7 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
         ensureSourceAndLayers(map);
         applyGeoJson(map, geojson);
         applyRouteGeoJson(map, routeGeojson);
-        markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick, markerDragEnd, draggableMarkers);
+        markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick, markerDragEnd, draggableMarkers, selectedItemId);
       });
 
       return {
@@ -71,7 +72,11 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
         },
         setMarkers(next) {
           markerModels = [...next];
-          if (ready) markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick, markerDragEnd, draggableMarkers);
+          if (ready) markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick, markerDragEnd, draggableMarkers, selectedItemId);
+        },
+        setSelectedItem(itemId) {
+          selectedItemId = itemId;
+          applyMarkerSelection(markers, selectedItemId);
         },
         fitBounds(bounds, options) {
           map.fitBounds(bounds, options);
@@ -125,7 +130,7 @@ function applyRouteGeoJson(map, geojson) {
   map.getSource("otr-routes")?.setData(geojson);
 }
 
-function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick, onMarkerDragEnd, draggableMarkers) {
+function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick, onMarkerDragEnd, draggableMarkers, selectedItemId) {
   current.forEach((marker) => marker.remove());
   return markerModels.map((model) => {
     const element = document.createElement("button");
@@ -133,7 +138,8 @@ function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick, o
     element.type = "button";
     element.textContent = String(model.daySequence);
     element.style.borderColor = model.dayColor;
-    element.setAttribute("aria-label", model.markerLabel);
+    element.setAttribute("aria-label", model.tooltip);
+    element.setAttribute("data-item-id", model.itemId);
     element.title = model.tooltip;
     element.addEventListener("click", () => onMarkerClick?.(model.itemId));
     const marker = new maplibregl.Marker({ element, draggable: draggableMarkers })
@@ -146,7 +152,19 @@ function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick, o
       const inputMode = original?.pointerType === "touch" || original?.touches ? "touch" : "mouse";
       onMarkerDragEnd?.(model.itemId, { longitude: point.lng, latitude: point.lat, crs: "WGS84" }, inputMode);
     });
+    applyMarkerSelection([marker], selectedItemId);
     return marker;
+  });
+}
+
+function applyMarkerSelection(markers, selectedItemId) {
+  markers.forEach((marker) => {
+    const element = marker.getElement?.();
+    if (!element) return;
+    const selected = element.getAttribute("data-item-id") === selectedItemId
+      || element.getAttribute("data-item-id")?.startsWith(`${selectedItemId}:`);
+    element.classList.toggle("is-selected", Boolean(selected));
+    element.setAttribute("aria-pressed", String(Boolean(selected)));
   });
 }
 

@@ -60,11 +60,15 @@ export function LocationProductPicker({
   tripId,
   locationId,
   initialText = "",
+  legend = "地点",
+  inputLabel = "地点文字",
   onLocationChange,
 }: {
   readonly tripId: string;
   readonly locationId: string;
   readonly initialText?: string;
+  readonly legend?: string;
+  readonly inputLabel?: string;
   readonly onLocationChange: (locationId: string, inputText: string) => void;
 }) {
   const [inputText, setInputText] = useState(initialText);
@@ -146,8 +150,8 @@ export function LocationProductPicker({
   }
 
   return <fieldset className="locationProductPicker">
-    <legend>地点</legend>
-    <label>地点文字<input aria-label="地点文字" value={inputText} disabled={location?.status === "resolved"} onChange={(event) => setInputText(event.target.value)} /></label>
+    <legend>{legend}</legend>
+    <label>{inputLabel}<input aria-label={inputLabel} value={inputText} disabled={location?.status === "resolved"} onChange={(event) => setInputText(event.target.value)} /></label>
     {!location || location.status === "unresolved" || location.status === "failed"
       ? <button type="button" disabled={pending} onClick={() => void explicitSearch()}>{pending ? "正在搜索…" : "显式搜索地点"}</button>
       : null}
