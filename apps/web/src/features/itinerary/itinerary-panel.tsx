@@ -205,9 +205,11 @@ function draftFingerprint(draft: ItemDraft) {
 export function ItineraryPanel({
   tripId,
   onTransportModesChange,
+  onItemsChange,
 }: {
   readonly tripId: string;
   readonly onTransportModesChange?: (modes: TransportModeView[]) => void;
+  readonly onItemsChange?: (dayId: string, items: ProductItem[]) => void;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [selectedDayId, setSelectedDayId] = useState("");
@@ -236,14 +238,16 @@ export function ItineraryPanel({
   const loadItems = useCallback(async (dayId: string) => {
     setStatus("loading");
     try {
-      setItems(await itineraryApi<ProductItem[]>(`/trips/${tripId}/days/${dayId}/itinerary-items`));
+      const loaded = await itineraryApi<ProductItem[]>(`/trips/${tripId}/days/${dayId}/itinerary-items`);
+      setItems(loaded);
+      onItemsChange?.(dayId, loaded);
       setError(null);
       setStatus("idle");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法载入当天行程");
       setStatus("error");
     }
-  }, [tripId]);
+  }, [onItemsChange, tripId]);
 
   useEffect(() => {
     void itineraryApi<ProductDay[]>(`/trips/${tripId}/days`).then((loaded) => {

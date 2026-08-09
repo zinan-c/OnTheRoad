@@ -26,6 +26,7 @@ describe("E2E-019 expense product workspace", () => {
       const method = init?.method ?? "GET";
       if (method !== "GET") writes.push({ url, method, body: JSON.parse(String(init?.body)) });
       if (url.endsWith("/system/reference-data")) return new Response("{}", { status: 503 });
+      if (url.endsWith("/trips/trip-19")) return Response.json({ destinations: [{ id: "dest-a", name: "上海" }, { id: "dest-b", name: "舟山" }] });
       if (url.endsWith("/expenses/summary")) return Response.json(summary);
       if (url.endsWith("/exchange-rates") && method === "GET") return Response.json([]);
       if (url.endsWith("/exchange-rates") && method === "PUT") return Response.json({ fromCurrency: "USD", toCurrency: "CNY", rate: "7.200000000000", version: 1, reconciledExpenseIds: [] });
@@ -34,13 +35,14 @@ describe("E2E-019 expense product workspace", () => {
       return Response.json({});
     }));
     render(<ExpenseWorkspace tripId="trip-19" items={[
-      { id: "item-dining", target: "晚餐", dayNumber: 1, destinationId: "dest-a", transportModeCode: null },
-      { id: "item-transport", target: "地铁", dayNumber: 2, destinationId: "dest-b", transportModeCode: "METRO" },
+      { id: "item-dining", target: "晚餐", dayNumber: 1, transportModeCode: null },
+      { id: "item-transport", target: "地铁", dayNumber: 2, transportModeCode: "METRO" },
     ]} />);
     const user = userEvent.setup();
     await waitFor(() => expect(screen.getByText("0.0000 CNY")).toBeTruthy());
 
     await user.selectOptions(screen.getByLabelText("费用归属 Item"), "item-transport");
+    await user.selectOptions(screen.getByLabelText("费用归属目的地"), "dest-b");
     await user.type(screen.getByLabelText("金额"), "50.25");
     await user.selectOptions(screen.getByLabelText("币种"), "USD");
     await user.selectOptions(screen.getByLabelText("费用类别"), "TRANSPORT");

@@ -11,9 +11,10 @@ export type ExpenseItem = {
   readonly id: string;
   readonly target: string;
   readonly dayNumber?: number;
-  readonly destinationId?: string | null;
   readonly transportModeCode?: string | null;
 };
+
+type Destination = { readonly id: string; readonly name: string };
 
 type Expense = {
   readonly id: string;
@@ -58,27 +59,35 @@ export function ExpenseWorkspace({
   const [summary, setSummary] = useState<CostSummary>();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [rates, setRates] = useState<ExchangeRate[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [selectedItemId, setSelectedItemId] = useState(items[0]?.id ?? "");
+  const [selectedDestinationId, setSelectedDestinationId] = useState("");
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
 
   const refresh = useCallback(async () => {
-    const [loadedSummary, loadedRates, loadedExpenses] = await Promise.all([
+    const [loadedSummary, loadedRates, loadedExpenses, trip] = await Promise.all([
       request<CostSummary>(`/trips/${tripId}/expenses/summary`),
       request<ExchangeRate[]>(`/trips/${tripId}/exchange-rates`),
       Promise.all(items.map(({ id }) => request<Expense[]>(
         `/trips/${tripId}/itinerary-items/${id}/expenses`,
       ))).then((groups) => groups.flat()),
+      request<{ destinations: Destination[] }>(`/trips/${tripId}`),
     ]);
     setSummary(loadedSummary);
     setRates(loadedRates);
     setExpenses(loadedExpenses);
+    setDestinations(trip.destinations);
   }, [items, tripId]);
 
   useEffect(() => {
     if (!items.some(({ id }) => id === selectedItemId)) setSelectedItemId(items[0]?.id ?? "");
     void refresh().catch(() => setError("费用和汇率载入失败。"));
   }, [items, refresh, selectedItemId]);
+
+  useEffect(() => {
+    if (!destinations.some(({ id }) => id === selectedDestinationId)) setSelectedDestinationId(destinations[0]?.id ?? "");
+  }, [destinations, selectedDestinationId]);
 
   async function addExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,7 +104,7 @@ export function ExpenseWorkspace({
         },
         body: JSON.stringify({
           itineraryItemId: item.id,
-          destinationId: item.destinationId ?? null,
+          destinationId: selectedDestinationId || null,
           transportModeCode: item.transportModeCode ?? null,
           amount: String(form.get("amount")),
           currency: String(form.get("currency")),
@@ -153,10 +162,13 @@ export function ExpenseWorkspace({
       <select aria-label="费用归属 Item" value={selectedItemId} onChange={(event) => setSelectedItemId(event.currentTarget.value)} required>
         {items.map((item) => <option key={item.id} value={item.id}>{item.dayNumber ? `Day ${item.dayNumber} · ` : ""}{item.target}</option>)}
       </select>
+      <select aria-label="费用归属目的地" value={selectedDestinationId} onChange={(event) => setSelectedDestinationId(event.currentTarget.value)} required>
+        {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+      </select>
       <input name="amount" aria-label="金额" placeholder="金额" required />
       <select name="currency" aria-label="币种" defaultValue="CNY">{referenceData.currencies.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select>
       <select name="category" aria-label="费用类别" defaultValue="DINING">{referenceData.costCategories.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select>
-      <button type="submit" disabled={!selectedItemId}>添加费用</button>
+      <button type="submit" disabled={!selectedItemId || !selectedDestinationId}>添加费用</button>
     </form>
     <form aria-label="汇率管理" onSubmit={saveRate} className="exchangeRateForm">
       <h3>手工汇率</h3>

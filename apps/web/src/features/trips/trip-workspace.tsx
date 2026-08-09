@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MappingEditor, type MappingRow } from "../imports/mapping/mapping-editor";
 import { ServerImportPreview } from "../imports/preview/preview-states";
 import { ExpenseWorkspace } from "../expenses/expense-workspace";
 import { RouteMapWorkspace } from "../map/route-map-workspace";
 import { TripGalleryWorkspace } from "../attachments/trip-gallery";
-import { ItineraryPanel } from "../itinerary/itinerary-panel";
+import { ItineraryPanel, type ProductItem } from "../itinerary/itinerary-panel";
 import type { TransportModeView } from "./settings/transport-modes";
 import { useReferenceData } from "../reference-data/use-reference-data";
 
@@ -79,6 +79,10 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }, [tripId]);
 
   const items = useMemo(() => flattenDays(days), [days]);
+  const handleItemsChange = useCallback((dayId: string, loadedItems: ProductItem[]) => {
+    const workspaceItems = loadedItems.map((item) => ({ ...item, target: item.target ?? item.description ?? "未命名事项" }));
+    setDays((current) => current.map((day) => day.id === dayId ? { ...day, items: workspaceItems } : day));
+  }, []);
 
   async function saveMapping() {
     if (!importJobId) return;
@@ -134,7 +138,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }
 
   return <div className="tripWorkspace">
-    <ItineraryPanel tripId={tripId} onTransportModesChange={setTripTransportModes} />
+    <ItineraryPanel tripId={tripId} onTransportModesChange={setTripTransportModes} onItemsChange={handleItemsChange} />
     <RouteMapWorkspace tripId={tripId} transportModes={tripTransportModes} />
 
     <ExpenseWorkspace tripId={tripId} items={items} />
