@@ -1,7 +1,7 @@
 "use client";
 
 import { transportModes } from "@on-the-road/config/reference-data";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { EditorDraft, ItemKind } from "./item-editor";
 
@@ -175,8 +175,10 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
   const [draft, setDraft] = useState<ItemDraft>(() => emptyDraft());
   const [editing, setEditing] = useState<ProductItem | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved" | "error">("loading");
+  const [status, setStatus] = useState<"idle" | "loading" | "dirty" | "saving" | "saved" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const confirmedPayload = useRef("");
+  const saveSequence = useRef(0);
 
   const loadItems = useCallback(async (dayId: string) => {
     setStatus("loading");
@@ -209,6 +211,7 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
 
   function update<K extends keyof ItemDraft>(field: K, value: ItemDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
+    if (editing) setStatus("dirty");
   }
 
   function beginCreate(kind: ItemKind) {
@@ -220,12 +223,61 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
   }
 
   function beginEdit(item: ProductItem) {
+    const nextDraft = itemDraft(item);
     setEditing(item);
-    setDraft(itemDraft(item));
+    setDraft(nextDraft);
+    confirmedPayload.current = JSON.stringify(itemPayload(nextDraft));
     setEditorOpen(true);
     setError(null);
     setStatus("idle");
   }
+
+  const persistEdit = useCallback(async (
+    item: ProductItem,
+    snapshot: ItemDraft,
+    sequence: number,
+  ) => {
+    setStatus("saving");
+    setError(null);
+    try {
+      const saved = await itineraryApi<ProductItem>(`/trips/${tripId}/itinerary-items/${item.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "if-match": String(item.version) },
+        body: JSON.stringify(itemPayload(snapshot)),
+      });
+      if (sequence !== saveSequence.current) return;
+      confirmedPayload.current = JSON.stringify(itemPayload(snapshot));
+      setEditing(saved);
+      setItems((current) => current.map((entry) => entry.id === saved.id ? saved : entry));
+      setStatus("saved");
+    } catch (caught) {
+      if (sequence !== saveSequence.current) return;
+      setError(caught instanceof Error ? caught.message : "保存失败");
+      setStatus("error");
+    }
+  }, [tripId]);
+
+  useEffect(() => {
+    if (!editorOpen || !editing) return;
+    const serialized = JSON.stringify(itemPayload(draft));
+    if (serialized === confirmedPayload.current) return;
+    setStatus("dirty");
+    const sequence = ++saveSequence.current;
+    const timer = window.setTimeout(() => {
+      void persistEdit(editing, structuredClone(draft), sequence);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [draft, editing, editorOpen, persistEdit]);
+
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!["dirty", "saving", "error"].includes(status)) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [status]);
 
   async function save() {
     if (!selectedDayId || (!draft.target.trim() && !draft.description.trim())) {
@@ -235,18 +287,17 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     setStatus("saving");
     setError(null);
     try {
-      const saved = editing
-        ? await itineraryApi<ProductItem>(`/trips/${tripId}/itinerary-items/${editing.id}`, {
-            method: "PATCH",
-            headers: { "content-type": "application/json", "if-match": String(editing.version) },
-            body: JSON.stringify(itemPayload(draft)),
-          })
-        : await itineraryApi<ProductItem>(`/trips/${tripId}/days/${selectedDayId}/itinerary-items`, {
+      if (editing) {
+        const sequence = ++saveSequence.current;
+        await persistEdit(editing, structuredClone(draft), sequence);
+        return;
+      }
+      const saved = await itineraryApi<ProductItem>(`/trips/${tripId}/days/${selectedDayId}/itinerary-items`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(itemPayload(draft)),
           });
-      if (!editing && draft.costAmount) {
+      if (draft.costAmount) {
         await itineraryApi(`/trips/${tripId}/expenses`, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -260,6 +311,7 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
       }
       await loadItems(selectedDayId);
       setEditing(saved);
+      confirmedPayload.current = JSON.stringify(itemPayload(draft));
       setStatus("saved");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "保存失败");
@@ -294,7 +346,10 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
       </li>)}
     </ol>
     {editorOpen ? <form className="itemEditorForm" aria-label={editing ? "编辑事项" : "新增事项"} onSubmit={(event) => { event.preventDefault(); void save(); }}>
-      <header><h3>{editing ? "编辑事项" : `新增 ${draft.kind}`}</h3><button type="button" onClick={() => setEditorOpen(false)}>关闭</button></header>
+      <header><h3>{editing ? "编辑事项" : `新增 ${draft.kind}`}</h3><button type="button" onClick={() => {
+        if (["dirty", "saving", "error"].includes(status) && !window.confirm("仍有未保存修改，确定离开吗？")) return;
+        setEditorOpen(false);
+      }}>关闭</button></header>
       <label>事项类型<select aria-label="事项类型" value={draft.kind} onChange={(event) => update("kind", event.target.value as ItemKind)}>
         <option value="activity">Activity</option><option value="attraction">Attraction</option><option value="dining">Dining</option><option value="accommodation">Hotel</option><option value="transport">Transport</option><option value="other">Other</option>
       </select></label>
@@ -314,7 +369,7 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
       <fieldset><legend>预订与联系</legend><label>预订编号<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>联系人<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>联系电话<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
       {!editing ? <fieldset><legend>费用</legend><div className="formRow"><label>金额<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>币种<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label><label>类别<input value={draft.costCategory} onChange={(event) => update("costCategory", event.target.value.toUpperCase())} /></label></div></fieldset> : null}
       <label>备注<textarea value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
-      <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "正在保存…" : "保存事项"}</button>{status === "saved" ? <span role="status">已保存</span> : null}</footer>
+      <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "正在保存…" : "保存事项"}</button><span role="status">{status === "dirty" ? "有未保存更改" : status === "saving" ? "正在保存…" : status === "saved" ? "已保存" : status === "error" ? "保存失败" : ""}</span></footer>
     </form> : null}
   </section>;
 }
