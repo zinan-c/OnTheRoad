@@ -2,7 +2,7 @@
 
 import { OnTheRoadClient } from "@on-the-road/contracts";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useMemo, useRef, useState } from "react";
 
 export interface CreatedTrip {
   readonly id: string;
@@ -12,7 +12,10 @@ export interface CreatedTrip {
 }
 
 export interface TripCreationGateway {
-  create(input: Record<string, unknown>): Promise<CreatedTrip>;
+  create(
+    input: Record<string, unknown>,
+    options: { readonly idempotencyKey: string },
+  ): Promise<CreatedTrip>;
 }
 
 function apiOrigin(): string {
@@ -22,12 +25,12 @@ function apiOrigin(): string {
 export function browserTripCreationGateway(): TripCreationGateway {
   const client = new OnTheRoadClient(apiOrigin());
   return {
-    async create(input) {
+    async create(input, { idempotencyKey }) {
       await client.request("createDevelopmentSession", {
         body: { subject: "browser-demo-owner" },
       });
       const response = await client.request("createTrip", {
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": idempotencyKey },
         body: input,
       });
       return response.data as CreatedTrip;
@@ -54,6 +57,11 @@ export function TripCreateForm({
   const [endDate, setEndDate] = useState("2026-10-05");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const submittingRef = useRef(false);
+  const retryRef = useRef<{
+    readonly fingerprint: string;
+    readonly idempotencyKey: string;
+  } | undefined>(undefined);
   const totalDays = useMemo(
     () => inclusiveDays(startDate, endDate),
     [endDate, startDate],
@@ -61,30 +69,41 @@ export function TripCreateForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting || totalDays === null) return;
+    if (submittingRef.current || totalDays === null) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError(undefined);
     const data = new FormData(event.currentTarget);
+    const input = {
+      name: String(data.get("name") ?? "").trim(),
+      startDate,
+      endDate,
+      travelers: Number(data.get("travelers")),
+      defaultCurrency: String(data.get("defaultCurrency")),
+      timezone: "Asia/Shanghai",
+      mapProfile: "cn_primary",
+      destinations: String(data.get("destinations") ?? "")
+        .split(/[、,，]/u)
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .map((name) => ({ name, countryCode: "CN" })),
+    };
+    const fingerprint = JSON.stringify(input);
+    const retry = retryRef.current?.fingerprint === fingerprint
+      ? retryRef.current
+      : { fingerprint, idempotencyKey: crypto.randomUUID() };
+    retryRef.current = retry;
     try {
-      const trip = await gateway.create({
-        name: String(data.get("name") ?? "").trim(),
-        startDate,
-        endDate,
-        travelers: Number(data.get("travelers")),
-        defaultCurrency: String(data.get("defaultCurrency")),
-        timezone: "Asia/Shanghai",
-        mapProfile: "cn_primary",
-        destinations: String(data.get("destinations") ?? "")
-          .split(/[、,，]/u)
-          .map((name) => name.trim())
-          .filter(Boolean)
-          .map((name) => ({ name, countryCode: "CN" })),
+      const trip = await gateway.create(input, {
+        idempotencyKey: retry.idempotencyKey,
       });
+      retryRef.current = undefined;
       if (navigate) navigate(trip);
       else router.push(`/trips/${trip.id}`);
     } catch {
       setError("创建失败，请检查服务连接后重试。");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }

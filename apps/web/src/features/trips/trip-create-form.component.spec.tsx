@@ -36,14 +36,17 @@ describe("REVIEW-P1-04 TripCreateForm component", () => {
     await user.dblClick(submit);
 
     expect(create).toHaveBeenCalledTimes(1);
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({
-      name: "东海秋日",
-      travelers: 2,
-      destinations: [
-        { name: "上海", countryCode: "CN" },
-        { name: "舟山", countryCode: "CN" },
-      ],
-    }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "东海秋日",
+        travelers: 2,
+        destinations: [
+          { name: "上海", countryCode: "CN" },
+          { name: "舟山", countryCode: "CN" },
+        ],
+      }),
+      { idempotencyKey: expect.any(String) },
+    );
     expect(
       (screen.getByRole("button", { name: "正在创建…" }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -77,5 +80,35 @@ describe("REVIEW-P1-04 TripCreateForm component", () => {
     await user.type(screen.getByLabelText("结束日期"), "2026-10-05");
     await user.click(screen.getByRole("button", { name: "创建旅行" }));
     expect((await screen.findByRole("alert")).textContent).toContain("创建失败");
+  });
+
+  test("reuses the client idempotency key after a lost response", async () => {
+    const created = {
+      id: "trip-safe-retry",
+      name: "安全重试旅行",
+      startDate: "2026-10-01",
+      endDate: "2026-10-05",
+    };
+    const attempts: string[] = [];
+    const gateway: TripCreationGateway = {
+      async create(_input, { idempotencyKey }) {
+        attempts.push(idempotencyKey);
+        if (attempts.length === 1) throw new Error("response lost after commit");
+        return created;
+      },
+    };
+    const navigate = vi.fn();
+    render(<TripCreateForm gateway={gateway} navigate={navigate} />);
+    const user = userEvent.setup();
+
+    await user.clear(screen.getByLabelText("旅行名称"));
+    await user.type(screen.getByLabelText("旅行名称"), "安全重试旅行");
+    await user.click(screen.getByRole("button", { name: "创建旅行" }));
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "创建旅行" }));
+
+    expect(attempts).toHaveLength(2);
+    expect(attempts[1]).toBe(attempts[0]);
+    expect(navigate).toHaveBeenCalledWith(created);
   });
 });
