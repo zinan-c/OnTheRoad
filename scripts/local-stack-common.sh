@@ -143,8 +143,9 @@ stack_read_owned_pid() {
     rm -f "${pid_file}"
     return 1
   fi
-  command="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
-  current_start="$(ps -p "${pid}" -o lstart= 2>/dev/null || true)"
+  command="$(ps -ww -p "${pid}" -o command= 2>/dev/null || true)"
+  recorded_start="$(printf '%s\n' "${recorded_start}" | awk '{$1=$1; print}')"
+  current_start="$(ps -p "${pid}" -o lstart= 2>/dev/null | awk '{$1=$1; print}' || true)"
   if [[ "${recorded_fingerprint}" != "${fingerprint}" ||
         "${recorded_start}" != "${current_start}" ||
         "${command}" != *"${fingerprint}"* ]]; then
@@ -160,7 +161,18 @@ stack_adopt_owned_pid() {
   local fingerprint="$2"
   local command_name="${3:-${service}}"
   local pid
-  pid="$(ps -axo pid=,comm=,args= 2>/dev/null | awk -v name="${command_name}" -v needle="${fingerprint}" '$2 == name && index($0, needle) { print $1; exit }')"
+  pid="$(LC_ALL=C ps -ww -axo pid=,comm=,args= 2>/dev/null | LC_ALL=C awk -v name="${command_name}" -v needle="${fingerprint}" '
+    {
+      command = $2
+      sub(/^.*\//, "", command)
+      executable = $3
+      sub(/^.*\//, "", executable)
+      if (!matched && (command == name || executable == name) && index($0, needle)) {
+        matched = $1
+      }
+    }
+    END { if (matched) print matched }
+  ')"
   if [[ -z "${pid}" || ! "${pid}" =~ ^[0-9]+$ ]]; then
     return 1
   fi
@@ -173,7 +185,7 @@ stack_record_pid() {
   local pid="$2"
   local fingerprint="$3"
   local start
-  start="$(ps -p "${pid}" -o lstart= 2>/dev/null || true)"
+  start="$(ps -p "${pid}" -o lstart= 2>/dev/null | awk '{$1=$1; print}' || true)"
   if [[ -z "${start}" ]]; then
     echo "Cannot record ${service} PID ${pid}: process start time is unavailable." >&2
     return 1

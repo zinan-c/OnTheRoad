@@ -18,5 +18,8 @@ describe("REVIEW-P1-02 migration manifest", () => {
       expect(migration.sql).not.toMatch(/^\\ir\s/gmu);
       expect(migration.sql.trim().length).toBeGreaterThan(20);
     }
+    expect(migrations.find(({ version }) => version === 5)?.checksum).toBe(
+      "a735beb1deda2f090615742fbd0746bcfbbcdf1b1a24c93223050b4918b96c90",
+    );
   });
 });

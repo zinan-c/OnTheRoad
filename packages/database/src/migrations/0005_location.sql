@@ -1,1 +1,1 @@
-\ir ../schema/location.sql
+\ir ./snapshots/0005_location.sql

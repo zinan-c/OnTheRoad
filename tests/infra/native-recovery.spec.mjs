@@ -36,6 +36,30 @@ describe("TC-A02-02 native recovery and scanner degradation", () => {
     }
   });
 
+  test("native PID ownership uses untruncated commands and accepts path-shaped macOS comm", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const common = await readFile(
+      new URL("../../scripts/local-stack-common.sh", import.meta.url),
+      "utf8",
+    );
+    assert.match(common, /ps -ww -p "\$\{pid\}" -o command=/u);
+    assert.match(common, /LC_ALL=C ps -ww -axo pid=,comm=,args=/u);
+    assert.match(common, /\| LC_ALL=C awk/u);
+    assert.match(common, /sub\(\/\^\.\*\\\/\/, "", command\)/u);
+    assert.match(common, /executable = \$3/u);
+    assert.match(common, /command == name \|\| executable == name/u);
+    assert.match(common, /END \{ if \(matched\) print matched \}/u);
+    assert.doesNotMatch(common, /print \$1\s+exit/u);
+    assert.match(
+      common,
+      /recorded_start=.*awk '\{\$1=\$1; print\}'/u,
+    );
+    assert.match(
+      common,
+      /start=.*ps -p "\$\{pid\}" -o lstart=.*awk '\{\$1=\$1; print\}'/u,
+    );
+  });
+
   test("health contract is fail-closed when any required probe fails", async () => {
     const { health, startup } = await import("node:fs/promises").then(
       async ({ readFile }) => ({
@@ -55,6 +79,21 @@ describe("TC-A02-02 native recovery and scanner degradation", () => {
     assert.match(
       startup,
       /"\$\{MC_CMD\}" version enable "otr-native\/\$\{MINIO_BUCKET\}"/u,
+    );
+  });
+
+  test("environment readiness rejects a dead application child", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const runner = await readFile(
+      new URL("../../scripts/run-environment.sh", import.meta.url),
+      "utf8",
+    );
+    assert.match(runner, /assert_children_running\(\)/u);
+    assert.match(runner, /kill -0 "\$\{pids\[\$\{index\}\]\}"/u);
+    assert.match(runner, /exited during startup/u);
+    assert.match(
+      runner,
+      /if \[\[ "\$\{api_ok\}" == true[\s\S]*assert_children_running[\s\S]*environment ready/u,
     );
   });
 

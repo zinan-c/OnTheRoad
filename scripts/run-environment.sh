@@ -32,20 +32,34 @@ pnpm exec turbo run build \
   --filter=@on-the-road/web
 
 pids=()
+child_names=()
 cleanup() {
   for pid in "${pids[@]:-}"; do kill "${pid}" 2>/dev/null || true; done
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:api & pids+=("$!")
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:worker & pids+=("$!")
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:web & pids+=("$!")
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:api & pids+=("$!"); child_names+=("API")
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:worker & pids+=("$!"); child_names+=("Worker")
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:web & pids+=("$!"); child_names+=("Web")
+
+assert_children_running() {
+  local index status
+  for index in "${!pids[@]}"; do
+    if ! kill -0 "${pids[${index}]}" 2>/dev/null; then
+      status=0
+      wait "${pids[${index}]}" 2>/dev/null || status=$?
+      echo "${child_names[${index}]} exited during startup (status ${status}); inspect its log above." >&2
+      exit 1
+    fi
+  done
+}
 
 api_origin="${API_BASE_URL:-http://127.0.0.1:3001/api/v1}"
 api_origin="${api_origin%/api/v1}"
 web_origin="${APP_ORIGIN:-http://127.0.0.1:3000}"
 for attempt in $(seq 1 60); do
+  assert_children_running
   api_ok=false
   web_ok=false
   worker_ok=false
@@ -53,6 +67,7 @@ for attempt in $(seq 1 60); do
   curl -fsS "${web_origin}/" >/dev/null 2>&1 && web_ok=true
   if [[ -n "${REDIS_URL:-}" ]] && redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:worker:heartbeat:*' 2>/dev/null | grep -q .; then worker_ok=true; fi
   if [[ "${api_ok}" == true && "${web_ok}" == true && "${worker_ok}" == true ]]; then
+    assert_children_running
     echo "${profile} environment ready: API, Web and Worker heartbeat passed."
     wait
   fi
