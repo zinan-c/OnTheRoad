@@ -135,8 +135,9 @@ export function TripGallery({
         }),
       },
     );
-    if (response.ok) setAttachments(await response.json());
-    else await refresh();
+    // The reorder response contains persisted metadata, but signed preview URLs
+    // are produced by the gallery read path. Always reload that read model.
+    await refresh();
   }
 
   return <section aria-label="真实图片画廊">
