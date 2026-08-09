@@ -3,6 +3,7 @@
 import { OnTheRoadClient } from "@on-the-road/contracts";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useRef, useState } from "react";
+import { useReferenceData } from "../reference-data/use-reference-data";
 
 export interface CreatedTrip {
   readonly id: string;
@@ -53,6 +54,7 @@ export function TripCreateForm({
   readonly navigate?: (trip: CreatedTrip) => void;
 }) {
   const router = useRouter();
+  const { currencies } = useReferenceData();
   const [startDate, setStartDate] = useState("2026-10-01");
   const [endDate, setEndDate] = useState("2026-10-05");
   const [submitting, setSubmitting] = useState(false);
@@ -151,9 +153,9 @@ export function TripCreateForm({
         <label>
           默认币种
           <select name="defaultCurrency" defaultValue="CNY">
-            <option value="CNY">CNY</option>
-            <option value="USD">USD</option>
-            <option value="JPY">JPY</option>
+            {currencies.map(({ code, label }) => (
+              <option key={code} value={code}>{code} · {label}</option>
+            ))}
           </select>
         </label>
       </div>

@@ -17,6 +17,16 @@ vi.mock("next/navigation", () => ({
 afterEach(cleanup);
 
 describe("REVIEW-P1-04 TripCreateForm component", () => {
+  test("E2E-021 exposes all currencies from shared Reference Data", () => {
+    render(<TripCreateForm gateway={{ create: vi.fn() }} navigate={vi.fn()} />);
+    const currency = screen.getByLabelText("默认币种") as HTMLSelectElement;
+    expect([...currency.options].map(({ value }) => value)).toEqual([
+      "CNY", "USD", "EUR", "JPY", "KRW", "PHP", "THB", "SGD",
+      "MYR", "VND", "IDR", "HKD", "TWD", "AUD", "GBP",
+    ]);
+    expect(screen.getByRole("option", { name: "VND · 越南盾" })).toBeTruthy();
+  });
+
   test("renders accessible fields and submits normalized form data once", async () => {
     let resolveCreate: ((trip: CreatedTrip) => void) | undefined;
     const create = vi.fn(

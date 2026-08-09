@@ -2,6 +2,7 @@
 
 import { OnTheRoadClient } from "@on-the-road/contracts";
 import { type FormEvent, useMemo, useState } from "react";
+import { useReferenceData } from "../reference-data/use-reference-data";
 
 export interface TripSettingsRecord {
   readonly id: string;
@@ -107,6 +108,7 @@ export function TripSettings({
   readonly onTripChange: (trip: TripSettingsRecord) => void;
   readonly onDeleted?: (trip: TripSettingsRecord) => void;
 }) {
+  const { currencies } = useReferenceData();
   const [open, setOpen] = useState(false);
   const [startDate, setStartDate] = useState(trip.startDate);
   const [endDate, setEndDate] = useState(trip.endDate);
@@ -244,7 +246,9 @@ export function TripSettings({
             <label>
               默认币种
               <select name="defaultCurrency" defaultValue={trip.defaultCurrency}>
-                {['CNY', 'USD', 'JPY', 'EUR'].map((currency) => <option key={currency}>{currency}</option>)}
+                {currencies.map(({ code, label }) => (
+                  <option key={code} value={code}>{code} · {label}</option>
+                ))}
               </select>
             </label>
             <label>

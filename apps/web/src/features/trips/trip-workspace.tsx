@@ -10,6 +10,7 @@ import { RouteMapWorkspace } from "../map/route-map-workspace";
 import { TripGalleryWorkspace } from "../attachments/trip-gallery";
 import { ItineraryPanel } from "../itinerary/itinerary-panel";
 import type { TransportModeView } from "./settings/transport-modes";
+import { useReferenceData } from "../reference-data/use-reference-data";
 
 type Item = { readonly id: string; readonly target: string; readonly dayNumber?: number; readonly locationId?: string | null; readonly transportModeCode?: string | null };
 type Day = { readonly id: string; readonly dayNumber: number; readonly items?: Item[] };
@@ -44,6 +45,7 @@ function digestBase64(value: ArrayBuffer): string {
 }
 
 export function TripWorkspace({ tripId }: { readonly tripId: string }) {
+  const referenceData = useReferenceData();
   const [days, setDays] = useState<Day[]>([]);
   const [summary, setSummary] = useState<any>();
   const [mappingRows, setMappingRows] = useState(defaultMappingRows);
@@ -142,9 +144,9 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
     <ItineraryPanel tripId={tripId} onTransportModesChange={setTripTransportModes} />
     <RouteMapWorkspace tripId={tripId} transportModes={tripTransportModes} />
 
-    <section aria-label="费用工作台" className="workspaceCard"><header><h2>费用统计</h2><p>费用保存后重新读取真实 API 汇总。</p></header>{summary ? <CostSummaryPanel summary={summary} budget={null} /> : <p>正在载入费用…</p>}{expenseError ? <p role="alert">{expenseError}</p> : null}<form aria-label="新增费用" onSubmit={(event) => void addExpense(event)} className="expenseForm"><input name="amount" aria-label="金额" placeholder="金额" required /><select name="currency" aria-label="币种" defaultValue="CNY"><option>CNY</option><option>USD</option></select><select name="category" aria-label="费用类别" defaultValue="DINING"><option>DINING</option><option>TRANSPORT</option><option>TICKET</option></select><button type="submit">添加费用</button></form></section>
+    <section aria-label="费用工作台" className="workspaceCard"><header><h2>费用统计</h2><p>费用保存后重新读取真实 API 汇总。</p></header>{summary ? <CostSummaryPanel summary={summary} budget={null} /> : <p>正在载入费用…</p>}{expenseError ? <p role="alert">{expenseError}</p> : null}<form aria-label="新增费用" onSubmit={(event) => void addExpense(event)} className="expenseForm"><input name="amount" aria-label="金额" placeholder="金额" required /><select name="currency" aria-label="币种" defaultValue="CNY">{referenceData.currencies.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select><select name="category" aria-label="费用类别" defaultValue="DINING">{referenceData.costCategories.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select><button type="submit">添加费用</button></form></section>
 
-    <section aria-label="导入映射工作台" className="workspaceCard"><label>上传行程文件<input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void uploadImport(event)} /></label>{importStatus ? <p role="status">{importStatus}</p> : null}{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
+    <section aria-label="导入映射工作台" className="workspaceCard"><label>上传行程文件<input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void uploadImport(event)} /></label><p className="status">导入币种规范使用统一 Reference Data：{referenceData.currencies.length} 个币种；{Object.entries(referenceData.currencyAliases).map(([alias, code]) => `${alias}→${code}`).join("、")}</p>{importStatus ? <p role="status">{importStatus}</p> : null}{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
     <section aria-label="导入预览工作台" className="workspaceCard">{previewJobMissing && previewRows.length === 0 ? <p role="status">暂无真实导入任务，上传并检查文件后可预览。</p> : <PreviewStates rows={previewRows} onSkipErrors={(ids) => void skipPreview(ids)} />}</section>
     <TripGalleryWorkspace tripId={tripId} items={items} />
   </div>;
