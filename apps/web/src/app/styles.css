@@ -191,6 +191,9 @@ button:disabled {
 .workspaceCard { min-width: 0; border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; background: rgb(255 255 255 / 84%); padding: 1rem; box-shadow: 0 8px 24px rgb(25 50 80 / 7%); }
 .workspaceCard h2 { margin: 0 0 .25rem; }
 .workspaceCard header p { color: #667085; margin-top: 0; }
+.tripSettings { margin-top: 2rem; text-align: left; }
+.tripSettings > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.tripSettings .tripForm { margin-top: 1rem; }
 .itineraryProduct .dayTabs, .itineraryProduct .itemCreateActions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
 .itineraryProduct button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; }
 .productTimeline { display: grid; gap: .65rem; padding: 0; list-style: none; }

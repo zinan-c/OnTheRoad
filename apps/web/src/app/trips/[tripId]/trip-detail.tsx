@@ -2,14 +2,13 @@
 
 import { OnTheRoadClient } from "@on-the-road/contracts";
 import { useCallback, useEffect, useState } from "react";
+import {
+  TripSettings,
+  type TripSettingsRecord,
+} from "../../../features/trips/trip-settings";
 import { TripWorkspace } from "../../../features/trips/trip-workspace";
 
-interface Trip {
-  readonly id: string;
-  readonly name: string;
-  readonly startDate: string;
-  readonly endDate: string;
-}
+interface Trip extends TripSettingsRecord {}
 
 const client = new OnTheRoadClient(
   process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:3001",
@@ -68,7 +67,8 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
       <h1>{trip.name}</h1>
       <p className="lead">{trip.startDate} — {trip.endDate}</p>
       <p className="status statusReady">已保存 · 刷新页面不会丢失</p>
-      <TripWorkspace tripId={tripId} />
+      <TripSettings trip={trip} onTripChange={(updated) => setTrip(updated as Trip)} />
+      <TripWorkspace key={trip.version} tripId={tripId} />
       <button className="secondary" onClick={logout}>退出登录</button>
     </section>
   );
