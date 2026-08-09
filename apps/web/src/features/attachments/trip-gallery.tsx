@@ -75,6 +75,7 @@ export function TripGallery({
             credentials: "include",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
+              filename: file.name,
               itineraryItemId: itemId,
               contentType: file.type,
               contentLength: file.size,
@@ -175,6 +176,35 @@ export function TripGallery({
         reorder: (ids) => void reorder(ids),
       }}
     />
+  </section>;
+}
+
+export function TripGalleryWorkspace({
+  tripId,
+  items,
+}: {
+  readonly tripId: string;
+  readonly items: readonly { readonly id: string; readonly target: string; readonly dayNumber?: number }[];
+}) {
+  const [itemId, setItemId] = useState(items[0]?.id ?? "");
+  useEffect(() => {
+    if (!items.some(({ id }) => id === itemId)) setItemId(items[0]?.id ?? "");
+  }, [itemId, items]);
+  if (items.length === 0) return null;
+  return <section aria-label="图片工作台" className="workspaceCard">
+    <header>
+      <h2>图片工作台</h2>
+      <p>每张图片都明确归属于选中的行程 Item。</p>
+    </header>
+    <label>
+      图片归属 Item
+      <select value={itemId} onChange={(event) => setItemId(event.currentTarget.value)}>
+        {items.map((item) => <option key={item.id} value={item.id}>
+          {item.dayNumber ? `Day ${item.dayNumber} · ` : ""}{item.target}
+        </option>)}
+      </select>
+    </label>
+    {itemId ? <TripGallery key={itemId} tripId={tripId} itemId={itemId} /> : null}
   </section>;
 }
 

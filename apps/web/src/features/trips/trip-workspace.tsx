@@ -7,7 +7,7 @@ import { PreviewStates } from "../imports/preview/preview-states";
 import { type PreviewRow } from "../imports/preview/preview-model";
 import { CostSummaryPanel } from "../expenses/cost-summary-panel";
 import { RouteMapWorkspace } from "../map/route-map-workspace";
-import { TripGallery } from "../attachments/trip-gallery";
+import { TripGalleryWorkspace } from "../attachments/trip-gallery";
 import { ItineraryPanel } from "../itinerary/itinerary-panel";
 import type { TransportModeView } from "./settings/transport-modes";
 
@@ -146,6 +146,6 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
 
     <section aria-label="导入映射工作台" className="workspaceCard"><label>上传行程文件<input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void uploadImport(event)} /></label>{importStatus ? <p role="status">{importStatus}</p> : null}{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
     <section aria-label="导入预览工作台" className="workspaceCard">{previewJobMissing && previewRows.length === 0 ? <p role="status">暂无真实导入任务，上传并检查文件后可预览。</p> : <PreviewStates rows={previewRows} onSkipErrors={(ids) => void skipPreview(ids)} />}</section>
-    {items[0] ? <section aria-label="图片工作台" className="workspaceCard"><TripGallery tripId={tripId} itemId={items[0].id} /></section> : null}
+    <TripGalleryWorkspace tripId={tripId} items={items} />
   </div>;
 }
