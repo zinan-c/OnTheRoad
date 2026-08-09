@@ -166,3 +166,38 @@ test("E2E-012 persists the complete Day order with its current version", async (
   expect(screen.getByRole("button", { name: "拖动 午餐" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "上移 外滩" })).toBeTruthy();
 });
+
+test("E2E-013 makes a newly persisted custom Mode immediately selectable", async () => {
+  let created = false;
+  const custom = {
+    id: "mode-1", tripId: "trip-1", ownerId: "owner-1",
+    code: "CABLE_SHUTTLE_CUSTOM", label: "缆车接驳", icon: "cable-car",
+    color: "#123456", lineStyle: "dotted", isSystem: false, enabled: true,
+    referenced: false, version: 1,
+  };
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/transport-modes") && init?.method === "POST") created = true;
+    const body = url.endsWith("/days")
+      ? [{ id: "day-1", dayNumber: 1, version: 1 }]
+      : url.endsWith("/transport-modes")
+        ? init?.method === "POST" ? custom : created ? [custom] : []
+        : [];
+    return new Response(JSON.stringify(body), {
+      status: init?.method === "POST" ? 201 : 200,
+      headers: { "content-type": "application/json" },
+    });
+  }));
+
+  render(<ItineraryPanel tripId="trip-1" />);
+  await screen.findByRole("button", { name: "新增 transport" });
+  fireEvent.click(screen.getByRole("button", { name: "交通方式设置" }));
+  fireEvent.change(await screen.findByLabelText("交通方式 Code"), { target: { value: custom.code } });
+  fireEvent.change(screen.getByLabelText("交通方式名称"), { target: { value: custom.label } });
+  fireEvent.change(screen.getByLabelText("交通方式图标"), { target: { value: custom.icon } });
+  fireEvent.change(screen.getByLabelText("交通方式颜色"), { target: { value: custom.color } });
+  fireEvent.change(screen.getByLabelText("交通方式线型"), { target: { value: custom.lineStyle } });
+  fireEvent.click(screen.getByRole("button", { name: "新增交通方式" }));
+  await screen.findByText(custom.code);
+  fireEvent.click(screen.getByRole("button", { name: "新增 transport" }));
+  expect(await screen.findByRole("option", { name: custom.label })).toBeTruthy();
+});

@@ -8,6 +8,8 @@ import {
   ProductSortableTimeline,
   type ProductReorderInput,
 } from "./product-sortable-timeline";
+import { TransportModeManager } from "../trips/settings/transport-mode-manager";
+import type { TransportModeView } from "../trips/settings/transport-modes";
 
 export type ProductDay = {
   id: string;
@@ -172,7 +174,13 @@ function itemPayload(draft: ItemDraft) {
   return payload;
 }
 
-export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
+export function ItineraryPanel({
+  tripId,
+  onTransportModesChange,
+}: {
+  readonly tripId: string;
+  readonly onTransportModesChange?: (modes: TransportModeView[]) => void;
+}) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [selectedDayId, setSelectedDayId] = useState("");
   const [items, setItems] = useState<ProductItem[]>([]);
@@ -181,6 +189,17 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "dirty" | "saving" | "saved" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [modeManagerOpen, setModeManagerOpen] = useState(false);
+  const [modeCatalog, setModeCatalog] = useState<TransportModeView[]>(() => transportModes.map((mode) => ({
+    ...mode,
+    id: `system:${mode.code}`,
+    tripId: null,
+    ownerId: null,
+    isSystem: true,
+    enabled: true,
+    referenced: false,
+    version: 1,
+  })));
   const confirmedPayload = useRef("");
   const saveSequence = useRef(0);
 
@@ -213,6 +232,16 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     [days, selectedDayId],
   );
 
+  const loadTransportModes = useCallback(async () => {
+    try {
+      const loaded = await itineraryApi<TransportModeView[]>(`/trips/${tripId}/transport-modes`);
+      setModeCatalog(loaded);
+      onTransportModesChange?.(loaded);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "无法载入交通方式");
+    }
+  }, [onTransportModesChange, tripId]);
+
   function update<K extends keyof ItemDraft>(field: K, value: ItemDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
     if (editing) setStatus("dirty");
@@ -224,6 +253,7 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     setEditorOpen(true);
     setError(null);
     setStatus("idle");
+    if (kind === "transport") void loadTransportModes();
   }
 
   function beginEdit(item: ProductItem) {
@@ -234,6 +264,7 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     setEditorOpen(true);
     setError(null);
     setStatus("idle");
+    if (item.itemType === "transport") void loadTransportModes();
   }
 
   const persistEdit = useCallback(async (
@@ -410,6 +441,11 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
       {(["activity", "attraction", "dining", "accommodation", "transport", "other"] as const).map((kind) =>
         <button key={kind} type="button" onClick={() => beginCreate(kind)}>新增 {kind}</button>)}
     </div>
+    <button type="button" aria-expanded={modeManagerOpen} onClick={() => setModeManagerOpen((open) => !open)}>交通方式设置</button>
+    {modeManagerOpen ? <TransportModeManager tripId={tripId} onCatalogChange={(modes) => {
+      setModeCatalog(modes);
+      onTransportModesChange?.(modes);
+    }} /> : null}
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {status === "loading" ? <p role="status">正在载入行程…</p> : null}
     <ProductSortableTimeline
@@ -454,7 +490,7 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
       <label>时长（分钟）<input type="number" min="0" value={draft.durationMinutes ?? ""} onChange={(event) => update("durationMinutes", event.target.value ? Number(event.target.value) : undefined)} /></label>
       {draft.kind === "dining" ? <fieldset><legend>餐饮信息</legend><label>餐厅<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>餐别<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">未指定</option><option value="breakfast">breakfast</option><option value="lunch">lunch</option><option value="dinner">dinner</option><option value="snack">snack</option></select></label></fieldset> : null}
       {draft.kind === "accommodation" ? <fieldset><legend>住宿信息</legend><label>住宿名称<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><div className="formRow"><label>入住日期<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>退房日期<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
-      {draft.kind === "transport" ? <label>交通方式<select required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">请选择</option>{transportModes.map((mode) => <option key={mode.code} value={mode.code}>{mode.label}</option>)}</select></label> : null}
+      {draft.kind === "transport" ? <label>交通方式<select required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">请选择</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label}{mode.enabled ? "" : "（已停用）"}</option>)}</select></label> : null}
       <fieldset><legend>预订与联系</legend><label>预订编号<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>联系人<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>联系电话<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
       {!editing ? <fieldset><legend>费用</legend><div className="formRow"><label>金额<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>币种<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label><label>类别<input value={draft.costCategory} onChange={(event) => update("costCategory", event.target.value.toUpperCase())} /></label></div></fieldset> : null}
       <label>备注<textarea value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>

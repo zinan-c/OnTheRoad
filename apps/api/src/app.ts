@@ -418,6 +418,68 @@ class ApiController {
     return result;
   }
 
+  @Get("trips/:tripId/transport-modes")
+  async listTransportModes(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+  ) {
+    return this.runtime.transportModes.list(await owner(this.runtime, request), tripId);
+  }
+
+  @Post("trips/:tripId/transport-modes")
+  async createTransportMode(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Body() body: Parameters<ApiRuntime["transportModes"]["create"]>[2],
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const created = await this.runtime.transportModes.create(
+      await owner(this.runtime, request),
+      tripId,
+      body,
+    );
+    reply.status(HttpStatus.CREATED).header("etag", String(created.version));
+    return created;
+  }
+
+  @Patch("trips/:tripId/transport-modes/:modeId")
+  async updateTransportMode(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Param("modeId") modeId: string,
+    @Headers("if-match") ifMatch: string | undefined,
+    @Body() body: Parameters<ApiRuntime["transportModes"]["update"]>[3],
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const updated = await this.runtime.transportModes.update(
+      await owner(this.runtime, request),
+      tripId,
+      modeId,
+      body,
+      { expectedVersion: version(ifMatch) },
+    );
+    reply.header("etag", String(updated.version));
+    return updated;
+  }
+
+  @Delete("trips/:tripId/transport-modes/:modeId")
+  async deactivateTransportMode(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Param("modeId") modeId: string,
+    @Headers("if-match") ifMatch: string | undefined,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const deactivated = await this.runtime.transportModes.deactivate(
+      await owner(this.runtime, request),
+      tripId,
+      modeId,
+      { expectedVersion: version(ifMatch) },
+    );
+    reply.header("etag", String(deactivated.version));
+    return deactivated;
+  }
+
   @Get("trips/:tripId/itinerary-items/:itemId")
   async getItem(
     @Req() request: FastifyRequest,

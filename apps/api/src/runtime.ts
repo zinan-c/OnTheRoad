@@ -19,6 +19,8 @@ import {
   PostgresItineraryOrderRepository,
 } from "./modules/itinerary/reorder.mjs";
 import { ItineraryService } from "./modules/itinerary/service.mjs";
+import { PostgresTransportModeRepository } from "./modules/itinerary/transport-mode-postgres-repository.mjs";
+import { TransportModeService } from "./modules/itinerary/transport-modes.js";
 import { PostgresLocationRepository } from "./modules/locations/postgres-repository.mjs";
 import { createConfiguredLocationSearchApi } from "./modules/locations/search.js";
 import { LocationService } from "./modules/locations/service.mjs";
@@ -60,6 +62,7 @@ export interface ApiRuntime {
   readonly tripDates: TripDateChangeService;
   readonly itinerary: ItineraryService;
   readonly itineraryOrder: ItineraryOrderService;
+  readonly transportModes: TransportModeService;
   readonly locations: LocationService;
   readonly locationSearch: ReturnType<typeof createConfiguredLocationSearchApi>;
   readonly expenses: ExpenseService;
@@ -151,6 +154,9 @@ export function createProductionRuntime(
   const itineraryOrder = new ItineraryOrderService(
     new PostgresItineraryOrderRepository({ executor: database }),
   );
+  const transportModes = new TransportModeService(
+    new PostgresTransportModeRepository({ executor: database }),
+  );
   const locations = new LocationService({
     repository: new PostgresLocationRepository({ executor: database }),
     candidateSigner: new CandidateTokenSigner({
@@ -198,6 +204,7 @@ export function createProductionRuntime(
     tripDates,
     itinerary,
     itineraryOrder,
+    transportModes,
     locations,
     locationSearch,
     expenses,

@@ -11,6 +11,7 @@ import { RealRouteMap } from "../map/real-route-map";
 import { MapTimelineSelectionStore } from "../map/store";
 import { TripGallery } from "../attachments/trip-gallery";
 import { ItineraryPanel } from "../itinerary/itinerary-panel";
+import type { TransportModeView } from "./settings/transport-modes";
 
 type Point = { readonly longitude: number; readonly latitude: number };
 type Item = { readonly id: string; readonly target: string; readonly dayNumber?: number; readonly location?: { readonly point?: Point | null } | null; readonly transportModeCode?: string | null };
@@ -55,18 +56,20 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [expenseError, setExpenseError] = useState<string | null>(null);
   const [importJobId, setImportJobId] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [tripTransportModes, setTripTransportModes] = useState<TransportModeView[]>([]);
   const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
   const selectionState = useSyncExternalStore((listener) => selectionStore.subscribe(() => listener()), () => selectionStore.state, () => selectionStore.state);
   const selectedId = selectionState.selected?.itemId ?? null;
 
   useEffect(() => {
     void (async () => {
-      const [loadedDays, loadedSummary, latest] = await Promise.all([api<Day[]>(`/trips/${tripId}/days`).then(async (loaded) => Promise.all(loaded.map(async (day) => ({ ...day, items: await api<Item[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`) })))), api(`/trips/${tripId}/expenses/summary`), api<{ id: string } | null>(`/trips/${tripId}/imports/latest`).catch(() => null)]);
+      const [loadedDays, loadedSummary, latest, loadedTransportModes] = await Promise.all([api<Day[]>(`/trips/${tripId}/days`).then(async (loaded) => Promise.all(loaded.map(async (day) => ({ ...day, items: await api<Item[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`) })))), api(`/trips/${tripId}/expenses/summary`), api<{ id: string } | null>(`/trips/${tripId}/imports/latest`).catch(() => null), api<TransportModeView[]>(`/trips/${tripId}/transport-modes`).catch(() => [])]);
       const jobId = latest?.id ?? null;
       const [loadedMapping, loadedPreview] = jobId ? await Promise.all([api<{ mapping: Record<string, string> }>(`/imports/${jobId}/mapping`).catch(() => null), api<{ rows: PreviewRow[] }>(`/imports/${jobId}/preview`).catch(() => null)]) : [null, null];
       setImportJobId(jobId);
       setDays(loadedDays);
       setSummary(loadedSummary);
+      setTripTransportModes(loadedTransportModes);
       const firstItem = flattenDays(loadedDays)[0];
       if (firstItem) selectionStore.selectFromTimeline(firstItem.id, `day-${firstItem.dayNumber}`);
       if (loadedMapping && Object.keys(loadedMapping.mapping).length > 0) {
@@ -152,8 +155,8 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }
 
   return <div className="tripWorkspace">
-    <ItineraryPanel tripId={tripId} />
-    {actualLocated.length > 0 ? <RealRouteMap items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => selectionStore.selectFromMarker(id)} /> : null}
+    <ItineraryPanel tripId={tripId} onTransportModesChange={setTripTransportModes} />
+    {actualLocated.length > 0 ? <RealRouteMap transportModes={tripTransportModes} items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => selectionStore.selectFromMarker(id)} /> : null}
     <section aria-label="路线地图" className="workspaceCard routeWorkspace">
       <header><h2>路线与时间线</h2><p>点击路线点或时间线项目，两个视图会保持同一选中状态。</p></header>
       <div className="routeLayout">
@@ -163,7 +166,8 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
             if (!from) return null;
             const start = svgPoint(from); const end = svgPoint(point);
             const modeCode = item.transportModeCode ?? null;
-            const style = routeStyle({ modeCode, quality: "approximate" });
+            const customMode = tripTransportModes.find(({ code }) => code === modeCode);
+            const style = routeStyle({ modeCode, quality: "approximate", ...(customMode ? { customMode } : {}) });
             return <line key={`${located[index]?.item.id}-${item.id}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={style.color} strokeDasharray={style.dasharray.join(" ")} strokeWidth={4} data-route-mode={style.label} />;
           })}
           {located.map(({ item, point }) => { const position = svgPoint(point); return <circle key={item.id} cx={position.x} cy={position.y} r={selectedId === item.id ? 9 : 6} tabIndex={0} role="button" aria-label={`地图点 ${item.target}`} aria-pressed={selectedId === item.id} fill={selectedId === item.id ? "#d9485f" : "#2563eb"} onClick={() => selectionStore.selectFromMarker(item.id)} onKeyDown={(event) => { if (event.key === "Enter") selectionStore.selectFromMarker(item.id); }} />; })}

@@ -454,6 +454,126 @@
         }
       }
     },
+    "/trips/{tripId}/transport-modes": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TripId"
+        }
+      ],
+      "get": {
+        "operationId": "listTripTransportModes",
+        "responses": {
+          "200": {
+            "description": "System and Trip-specific transport modes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TripTransportMode"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTripTransportMode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripTransportModeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created custom transport mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripTransportMode"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/trips/{tripId}/transport-modes/{modeId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TripId"
+        },
+        {
+          "name": "modeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/components/parameters/IfMatch"
+        }
+      ],
+      "patch": {
+        "operationId": "updateTripTransportMode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripTransportModePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated custom transport mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripTransportMode"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deactivateTripTransportMode",
+        "responses": {
+          "200": {
+            "description": "Deactivated custom transport mode; historical references remain valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripTransportMode"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/trips/{tripId}/itinerary-items/{itemId}": {
       "parameters": [
         {
@@ -2719,6 +2839,51 @@
               "dotted"
             ]
           }
+        }
+      },
+      "TripTransportMode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id", "tripId", "ownerId", "code", "label", "icon", "color",
+          "lineStyle", "isSystem", "enabled", "referenced", "version"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "tripId": { "type": ["string", "null"] },
+          "ownerId": { "type": ["string", "null"] },
+          "code": { "type": "string" },
+          "label": { "type": "string" },
+          "icon": { "type": "string" },
+          "color": { "type": "string", "pattern": "^#[0-9A-F]{6}(?:[0-9A-F]{2})?$" },
+          "lineStyle": { "type": "string", "enum": ["solid", "dashed", "dotted", "arc"] },
+          "isSystem": { "type": "boolean" },
+          "enabled": { "type": "boolean" },
+          "referenced": { "type": "boolean" },
+          "version": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "TripTransportModeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "label", "icon", "color", "lineStyle"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "icon": { "type": "string" },
+          "color": { "type": "string", "pattern": "^#[0-9A-F]{6}(?:[0-9A-F]{2})?$" },
+          "lineStyle": { "type": "string", "enum": ["solid", "dashed", "dotted", "arc"] }
+        }
+      },
+      "TripTransportModePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "icon": { "type": "string" },
+          "color": { "type": "string", "pattern": "^#[0-9A-F]{6}(?:[0-9A-F]{2})?$" },
+          "lineStyle": { "type": "string", "enum": ["solid", "dashed", "dotted", "arc"] }
         }
       },
       "CursorPage": {

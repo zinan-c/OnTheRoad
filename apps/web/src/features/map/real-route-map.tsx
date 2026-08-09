@@ -5,10 +5,11 @@ import { MapLibreWrapper, type MapRuntimeFactory } from "./maplibre-wrapper";
 import type { MapItem } from "./map-model";
 import { loadMapLibreRuntime } from "./maplibre-runtime.mjs";
 import { routeStyle } from "./route-style";
+import type { TransportModeView } from "../trips/settings/transport-modes";
 
 type RouteMapItem = MapItem & { readonly transportModeCode?: string | null };
 
-export function RealRouteMap({ items, onSelect }: { readonly items: readonly RouteMapItem[]; readonly onSelect: (itemId: string) => void }) {
+export function RealRouteMap({ items, transportModes = [], onSelect }: { readonly items: readonly RouteMapItem[]; readonly transportModes?: readonly TransportModeView[]; readonly onSelect: (itemId: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<MapLibreWrapper | undefined>(undefined);
 
@@ -27,11 +28,12 @@ export function RealRouteMap({ items, onSelect }: { readonly items: readonly Rou
     const points = items.filter((item) => item.point);
     const features = points.slice(1).map((item, index) => {
       const from = points[index]!;
-      const style = routeStyle({ ...(item.transportModeCode !== undefined ? { modeCode: item.transportModeCode } : {}), quality: "actual" });
+      const customMode = transportModes.find(({ code }) => code === item.transportModeCode);
+      const style = routeStyle({ ...(item.transportModeCode !== undefined ? { modeCode: item.transportModeCode } : {}), quality: "actual", ...(customMode ? { customMode } : {}) });
       return { type: "Feature", id: `${from.id}-${item.id}`, geometry: { type: "LineString", coordinates: [[from.point!.longitude, from.point!.latitude], [item.point!.longitude, item.point!.latitude]] }, properties: { color: style.color } };
     });
     wrapperRef.current?.setRouteGeoJson({ type: "FeatureCollection", features });
-  }, [items]);
+  }, [items, transportModes]);
 
   return <div ref={containerRef} className="realRouteMap" role="application" aria-label="真实地图路线" />;
 }
