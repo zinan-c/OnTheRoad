@@ -319,6 +319,45 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     }
   }
 
+  async function copyItem(item: ProductItem, targetDayId: string) {
+    if (!targetDayId) return;
+    setStatus("saving");
+    setError(null);
+    try {
+      await itineraryApi<ProductItem>(`/trips/${tripId}/itinerary-items/${item.id}/copy`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ targetTripDayId: targetDayId }),
+      });
+      if (targetDayId === selectedDayId) await loadItems(selectedDayId);
+      setStatus("saved");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "复制失败");
+      setStatus("error");
+    }
+  }
+
+  async function deleteItem(item: ProductItem) {
+    if (!window.confirm(`确定删除“${item.target || item.description}”吗？`)) return;
+    setStatus("saving");
+    setError(null);
+    try {
+      await itineraryApi(`/trips/${tripId}/itinerary-items/${item.id}`, {
+        method: "DELETE",
+        headers: { "if-match": String(item.version) },
+      });
+      setItems((current) => current.filter(({ id }) => id !== item.id));
+      if (editing?.id === item.id) {
+        setEditorOpen(false);
+        setEditing(null);
+      }
+      setStatus("saved");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "删除失败");
+      setStatus("error");
+    }
+  }
+
   return <section className="workspaceCard itineraryProduct" aria-label="行程编辑工作台">
     <header>
       <h2>每日行程</h2>
@@ -338,11 +377,16 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {status === "loading" ? <p role="status">正在载入行程…</p> : null}
     <ol className="productTimeline" aria-label={`Day ${selectedDay?.dayNumber ?? ""} 时间线`}>
-      {items.map((item) => <li key={item.id}>
-        <button type="button" onClick={() => beginEdit(item)}>
-          <strong>{item.target || item.description}</strong>
-          <span>{item.itemType} · {item.timeKind === "period" ? item.timePeriod : item.startTime || "未排期"}</span>
+      {items.map((item) => <li key={item.id} className="productTimelineItem">
+        <button type="button" aria-label={`编辑 ${item.target || item.description}`} onClick={() => beginEdit(item)}>
+          <strong>{item.target || item.description}</strong><span>{item.itemType} · {item.timeKind === "period" ? item.timePeriod : item.startTime || "未排期"}</span>
         </button>
+        <label>复制到<select aria-label={`复制 ${item.target || item.description} 到`} defaultValue="" onChange={(event) => {
+          const target = event.target.value;
+          event.target.value = "";
+          void copyItem(item, target);
+        }}><option value="">选择 Day</option>{days.map((day) => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}</select></label>
+        <button type="button" aria-label={`删除 ${item.target || item.description}`} onClick={() => void deleteItem(item)}>删除</button>
       </li>)}
     </ol>
     {editorOpen ? <form className="itemEditorForm" aria-label={editing ? "编辑事项" : "新增事项"} onSubmit={(event) => { event.preventDefault(); void save(); }}>

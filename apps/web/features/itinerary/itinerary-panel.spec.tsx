@@ -89,3 +89,44 @@ test("E2E-010 debounces edits, persists the final value and warns while dirty", 
   expect(patches).toHaveLength(1);
   expect(JSON.parse(String(patches[0]!.init!.body)).description).toBe("最终描述");
 });
+
+test("E2E-011 exposes copy and confirmed soft-delete operations", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const item = {
+    id: "item-1", tripDayId: "day-1", itemType: "dining" as const,
+    target: "早餐", description: null, timeKind: "clock" as const,
+    startTime: "08:00", endTime: null, endDayOffset: 0, timePeriod: null,
+    durationMinutes: 30, locationId: null, startLocationId: null,
+    endLocationId: null, transportModeCode: null, bookingInfo: null,
+    contactInfo: null, remark: null, dining: { name: "早餐店", mealType: "breakfast" },
+    accommodation: null, version: 1,
+  };
+  vi.stubGlobal("confirm", vi.fn(() => true));
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, ...(init ? { init } : {}) });
+    const body = url.endsWith("/days")
+      ? [{ id: "day-1", dayNumber: 1, version: 1 }, { id: "day-2", dayNumber: 2, version: 1 }]
+      : init?.method === "POST" ? { ...item, id: "item-2", tripDayId: "day-2" } : [item];
+    return new Response(JSON.stringify(init?.method === "DELETE"
+      ? { ...item, deletedAt: "2026-08-09T00:00:00.000Z" }
+      : body), {
+      status: init?.method === "POST" ? 201 : 200,
+      headers: { "content-type": "application/json" },
+    });
+  }));
+
+  render(<ItineraryPanel tripId="trip-1" />);
+  fireEvent.change(await screen.findByLabelText("复制 早餐 到"), { target: { value: "day-2" } });
+  await waitFor(() => expect(calls.some(({ url, init }) =>
+    url.endsWith("/itinerary-items/item-1/copy")
+    && init?.method === "POST"
+    && JSON.parse(String(init.body)).targetTripDayId === "day-2",
+  )).toBe(true));
+  fireEvent.click(screen.getByRole("button", { name: "删除 早餐" }));
+  await waitFor(() => expect(calls.some(({ url, init }) =>
+    url.endsWith("/itinerary-items/item-1")
+    && init?.method === "DELETE"
+    && new Headers(init.headers).get("if-match") === "1",
+  )).toBe(true));
+  await waitFor(() => expect(screen.queryByText("早餐")).toBeNull());
+});
