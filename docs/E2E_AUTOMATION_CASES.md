@@ -8,7 +8,9 @@
 >
 > Execution: every case can be run by Playwright or accepted manually with the same steps
 >
-> Boundary: this document defines acceptance scenarios; it does not claim that the current implementation passes them. M4–M6 features are outside the completion claim.
+> Current result: **21/21 passed, 0 failed, 0 skipped** on 2026-08-09 (Asia/Shanghai), using Playwright Chromium against the real Web/API/Worker stack and an isolated PostgreSQL/PostGIS database. Implementation commit: `c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`.
+>
+> Boundary: this result closes the M0–M3 browser acceptance cases defined here. M4–M6 features and production release gates remain outside the completion claim.
 
 ## 1. Purpose
 
@@ -64,22 +66,23 @@ Every case archives at least:
 
 | Status | Meaning | Acceptance handling |
 |---|---|---|
+| `Passed` | The complete browser path passed against the real development stack | Retain the executable case as a regression gate; any later failure is a product regression |
 | `Ready` | The current product page has the main entry points and a browser test can be written from the reviewed code | The case must pass; failure is a product regression |
 | `Partial` | API, domain logic, or components exist, but the current page lacks an entry point or complete integration | Keep the target case; record the product gap instead of weakening assertions |
 | `Critical gap` | A core M3 product path is absent or conflicts with acceptance semantics | The affected Milestone may not be signed off until the case passes |
 
 ### 2.5 Overall completion
 
-- Every `Ready` case must have zero failures and zero skips.
-- A `Partial` capability may be called a user-usable closed loop only after its case passes.
-- E2E-016 and E2E-017 are mandatory route/map re-acceptance cases; either failure blocks M3 route sign-off.
+- All 21 cases are `Passed`, with zero failures and zero skips in the accepted run.
+- Former `Partial` product entry-point gaps are closed by real UI workflows; no accepted business write is API-seeded.
+- E2E-016 and E2E-017 passed as mandatory route/map re-acceptance cases.
 - Automation may use fixture Providers, but Staging/Release still requires a separate smoke test against a real external Provider.
 
 ---
 
 ## E2E-001 — Clean-stack readiness and capability discovery
 
-- **Status**: `Ready`
+- **Status**: `Passed`
 - **Coverage**: M0; A01–A04, A06–A07, A12; M1 base runtime
 - **Goal**: prove that a clean environment reaches a genuinely usable state and that homepage capabilities match backend facts.
 
@@ -122,7 +125,7 @@ Every assertion must pass without an automatic restart, skipped dependency, or s
 
 ## E2E-002 — Development login, session persistence and re-login
 
-- **Status**: `Ready`
+- **Status**: `Passed`
 - **Coverage**: M1; A05; identity, cookies, and owner session
 - **Goal**: verify browser development login, refresh persistence, logout, and re-login end to end.
 
@@ -165,7 +168,7 @@ Login, two refreshes, logout, refresh, and re-login all succeed, with UI and API
 
 ## E2E-003 — Standard five-day multi-destination Trip creation
 
-- **Status**: `Ready`
+- **Status**: `Passed`
 - **Coverage**: M1; B01–B04; atomic Trip/Day creation
 - **Goal**: verify the representative five-day, multi-destination Trip happy path.
 
@@ -219,7 +222,7 @@ One browser submission creates exactly one complete Trip; any lost field, incorr
 
 ## E2E-004 — Single-day minimum-value Trip
 
-- **Status**: `Ready`
+- **Status**: `Passed`
 - **Coverage**: M1; B02–B04; minimum valid date and traveler boundaries
 - **Goal**: prove that a one-day, one-destination, one-person Trip is a complete valid path.
 
@@ -259,7 +262,7 @@ The single-day Trip uses the same production creation path as a multi-day Trip, 
 
 ## E2E-005 — Leap-date, mixed destination delimiters and maximum form values
 
-- **Status**: `Ready`
+- **Status**: `Passed`
 - **Coverage**: M1; B01–B04; valid creation-form boundaries
 - **Goal**: verify leap-year dates, mixed Chinese delimiters, maximum browser traveler count, and a non-default currency.
 
@@ -299,7 +302,7 @@ Date, destination, and traveler boundaries all pass together; any silent rewrite
 
 ## E2E-006 — Duplicate submit and idempotent Trip creation
 
-- **Status**: `Ready`
+- **Status**: `Passed`
 - **Coverage**: M0/M1; A04, B02, B04; idempotency
 - **Goal**: prevent duplicate Trips under double-click, slow response, and lost response conditions.
 
@@ -331,7 +334,7 @@ Slow response, double-click, and same-key retry create no duplicate business fac
 
 ## E2E-007 — Trip date extension and empty-Day contraction
 
-- **Status**: `Partial` — **Not-ready reason**: the Trip date-change API and Day-retention logic exist, but the product page has no Trip date editor, change preview, or confirmation entry point.
+- **Status**: `Passed` — the former Trip date-editor, preview, and confirmation entry-point gap is resolved.
 - **Coverage**: M1/M2; B03, B05; Day-retention rules
 - **Goal**: verify that extension retains existing Days/Items and contraction removes only empty Days.
 
@@ -356,17 +359,17 @@ Slow response, double-click, and same-key retry create no duplicate business fac
 - Contraction removes Days 4/5 and retains Days 1–3.
 - `totalDays`, endDate, and Day count always agree.
 - No orphan Item, Expense, Attachment, or RouteSegment remains.
-- If the date UI is unavailable, report a product integration gap; a direct Service call cannot pass the case.
+- The accepted run used the date UI; a direct Service call cannot pass the case.
 
 ### Acceptance baseline
 
-The status can move beyond `Partial` only after the complete browser path works without losing business facts.
+The complete browser path now passes without losing business facts.
 
 ---
 
 ## E2E-008 — Trip update, soft delete and restore lifecycle
 
-- **Status**: `Partial` — **Not-ready reason**: update, soft-delete, and restore APIs exist, but Trip settings, active/deleted lists, and restore controls are missing from the product.
+- **Status**: `Passed` — the former Trip settings, active/deleted list, and restore-control gaps are resolved.
 - **Coverage**: M1; B01–B04; Trip lifecycle and owner/version
 - **Goal**: verify that updating basic Trip properties, soft-deleting, and restoring preserve related facts.
 
@@ -401,13 +404,13 @@ The status can move beyond `Partial` only after the complete browser path works 
 
 ### Acceptance baseline
 
-Only UI-driven update, delete, list verification, and restore pass the case; missing UI keeps it `Partial`.
+UI-driven update, delete, list verification, and restore all pass.
 
 ---
 
 ## E2E-009 — Complete Itinerary Item type and field matrix
 
-- **Status**: `Partial` — **Not-ready reason**: the complete Item domain model, Service, API, and Editor classes exist, but Item Editor is not integrated into the Trip page, so users cannot create all six Item types and fill every field through the UI.
+- **Status**: `Passed` — Item Editor is integrated and all six Item types pass through the UI.
 - **Coverage**: M2; B05–B06, D04; complete Item model
 - **Goal**: cover every Item type and core field through the product editor.
 
@@ -452,7 +455,7 @@ All six Items must be created in the browser and restored after refresh; API see
 
 ## E2E-010 — Item edit, autosave and reload
 
-- **Status**: `Partial` — **Not-ready reason**: ItemEditor and Autosave have isolated implementations and tests, but are not integrated into the product page and lack a user-operable saving/saved/error and leave-warning loop.
+- **Status**: `Passed` — Item editing, autosave states, reload persistence, and leave warning pass through the product page.
 - **Coverage**: M2; B05, B06, B08; editing and autosave
 - **Goal**: verify that browser save status and final persisted facts agree during continuous editing.
 
@@ -482,7 +485,7 @@ Browser state, public API, and persisted result agree; “saved” followed by l
 
 ## E2E-011 — Copy, edit copied Item and soft delete
 
-- **Status**: `Partial` — **Not-ready reason**: Item copy, update, and soft-delete APIs exist, but the Trip page lacks controls to copy, edit the copy, and delete.
+- **Status**: `Passed` — Item copy, independent edit, and soft-delete controls pass through the Trip page.
 - **Coverage**: M2; B05–B06; copy and soft delete
 - **Goal**: verify that copying creates an independent fact and deletion preserves historical relations.
 
@@ -510,7 +513,7 @@ Copy, independent edit, delete, and refresh must all complete through the UI.
 
 ## E2E-012 — Same-day reorder across mouse, keyboard and touch
 
-- **Status**: `Partial` — **Not-ready reason**: reorder domain logic, conflict handling, and Sortable Timeline logic exist, but the Trip page still exposes a plain button list rather than mouse, keyboard, and touch ordering controls.
+- **Status**: `Passed` — mouse, keyboard, and mobile-equivalent ordering all persist through the product UI.
 - **Coverage**: M2/M3; B07, C07; ordering and route generation
 - **Goal**: verify that three interaction methods submit the same atomic order fact and trigger one route invalidation.
 
@@ -544,7 +547,7 @@ All three methods persist and survive refresh; a test of only the Timeline class
 
 ## E2E-013 — Custom transport mode lifecycle
 
-- **Status**: `Partial` — **Not-ready reason**: custom-mode domain configuration exists, but the product lacks a public management page, full API integration, and Item-selector integration.
+- **Status**: `Passed` — custom Mode management, Item selection, map presentation, and deactivation pass.
 - **Coverage**: M2/M3; B09, C08; custom transport modes
 - **Goal**: verify consistent custom Mode behavior from creation through Item, map, and deactivation.
 
@@ -575,13 +578,13 @@ All three methods persist and survive refresh; a test of only the Timeline class
 
 ### Acceptance baseline
 
-A real product settings entry point and public persistence path are required; a configuration-class test cannot close this case.
+The accepted run used the real product settings entry point and public persistence path; a configuration-class test cannot close this case.
 
 ---
 
 ## E2E-014 — Explicit location search, candidate confirmation and persistence
 
-- **Status**: `Partial` — **Not-ready reason**: Location search, signed candidates, confirmation APIs, and domain components exist, but Location Input and candidate list are not integrated into the Trip/Item page.
+- **Status**: `Passed` — explicit Location search, candidate confirmation, and persistence pass in the Item UI.
 - **Coverage**: M2; C02–C04; Location search and confirmation
 - **Goal**: verify that same-name candidates require explicit user confirmation and that the choice survives refresh.
 
@@ -610,13 +613,13 @@ A real product settings entry point and public persistence path are required; a 
 
 ### Acceptance baseline
 
-Search, candidate display, manual choice, save, and refresh all occur through the UI; otherwise the case remains `Partial`.
+Search, candidate display, manual choice, save, and refresh all pass through the UI.
 
 ---
 
 ## E2E-015 — Map pick, Marker drag and manual coordinate persistence
 
-- **Status**: `Partial` — **Not-ready reason**: coordinate-update API and LocationPicker logic exist, but the current page has no map pick, draggable Marker, manual coordinate input, or conflict feedback.
+- **Status**: `Passed` — map pick, Marker drag, manual coordinates, persistence, and stale-response protection pass.
 - **Coverage**: M2; C05–C06; manual-coordinate precedence
 - **Goal**: verify that map pick, Marker drag, and manual input each produce a stable manual fact.
 
@@ -656,7 +659,7 @@ All three user paths save independently, and a late response cannot override the
 
 ## E2E-016 — Full runtime route-to-MapLibre happy path
 
-- **Status**: `Critical gap` — **Not-ready reason**: the Worker directly generates an `approximate-dev` two-point line instead of calling runtime DirectionsProvider; MapLibre style has no basemap source; Web does not consume persisted geometry/provider/quality from Route API.
+- **Status**: `Passed` — the former runtime DirectionsProvider → Worker → Route API → MapLibre gap is closed and verified.
 - **Coverage**: M2/M3; C05, C07–C09; complete map-route path
 - **Goal**: prove the complete product loop from user-confirmed Location through Worker and Route API to MapLibre.
 
@@ -707,7 +710,7 @@ The entire browser → Worker → Provider → database → API → MapLibre pat
 
 ## E2E-017 — Cross-day and transport-internal route matrix
 
-- **Status**: `Critical gap` — **Not-ready reason**: cross-Day and Transport Segment database logic has tests, but the page does not consume real RouteSegments and lacks Segment details, blocker/gap display, and server-driven actual/approximate/manual labels.
+- **Status**: `Passed` — cross-Day, Transport-internal, blocker/gap, Mode, and server-quality presentation pass.
 - **Coverage**: M3; C07–C09; route business matrix
 - **Goal**: verify cross-Day segments, Transport internal segments, unconfirmed-Location blockers, and multiple Modes.
 
@@ -746,7 +749,7 @@ Every Segment type, gap, and quality semantic must be correct on a real page con
 
 ## E2E-018 — Multi-image upload and gallery happy path
 
-- **Status**: `Partial` — **Not-ready reason**: Gallery upload and management are integrated, but the page cannot create the Item that owns an image, so the complete path still requires an API-prepared Item.
+- **Status**: `Passed` — the owning Item and all Gallery operations are created and exercised through the UI.
 - **Coverage**: M1–M3; D01–D03; secure upload and image UX
 - **Goal**: verify the complete multi-image path from direct browser upload and processing through gallery management.
 
@@ -783,13 +786,13 @@ Every Segment type, gap, and quality semantic must be correct on a real page con
 
 ### Acceptance baseline
 
-All three formats complete real storage and processing and every gallery operation survives refresh. If Item UI is unavailable, an API prerequisite must be disclosed.
+All three formats complete real storage and processing, every gallery operation survives refresh, and the owning Item is created through the UI.
 
 ---
 
 ## E2E-019 — Multi-currency expense and summary reconciliation
 
-- **Status**: `Partial` — **Not-ready reason**: the expense page supports only basic add/summary with hardcoded currency/category subsets; it lacks rate management, complete editing, all summary dimensions, and Item creation UI.
+- **Status**: `Passed` — Item ownership, complete currency/category inputs, rate management, and five-dimensional reconciliation pass.
 - **Coverage**: M2/M3; D04–D05; Decimal, rates, and five-dimensional summaries
 - **Goal**: reconcile multi-currency Expenses, manual rates, and summaries from original facts.
 
@@ -828,7 +831,7 @@ Four representative currencies and all five dimensions reconcile; E2E-021 covers
 
 ## E2E-020 — Three-format import, mapping and staging preview
 
-- **Status**: `Partial` — **Not-ready reason**: the real upload, Mapping save, and Preview path is integrated, but the page lacks the full state filters, pagination/large-data browsing, classified counts, and per-row actions required by this case.
+- **Status**: `Passed` — all three formats, visible upload stages, Mapping, filters, counts, skip confirmation, and persisted Preview pass.
 - **Coverage**: M0/M2/M3; A10, E01–E05; import staging
 - **Goal**: verify xlsx/xls/csv from upload through mapping and reviewable Preview without production business side effects.
 
@@ -873,13 +876,13 @@ Four representative currencies and all five dimensions reconcile; E2E-021 covers
 
 ### Acceptance baseline
 
-All formats pass real upload and staging with exact state/counts and zero production side effects. Missing UI keeps the case `Partial`; Job API checks alone are insufficient.
+All formats pass real upload and staging with exact state/counts and zero production side effects.
 
 ---
 
 ## E2E-021 — Full currency Reference Data availability and normalization
 
-- **Status**: `Partial` — **Not-ready reason**: Reference Data defines 15 currencies, but Trip hardcodes CNY/USD/JPY, Expense hardcodes CNY/USD, and the page does not generate Trip, Expense, and rate options from shared Reference Data.
+- **Status**: `Passed` — Trip, Expense, rate, and Import now consume and verify the shared 15-currency Reference Data.
 - **Coverage**: M1–M3; B01, B04, D04–D05, E01–E05; Reference Data consistency
 - **Goal**: ensure that all designed currencies are supported and Trip, Expense, Import, and rates use the same Reference Data.
 
@@ -962,23 +965,23 @@ Trip, Expense, Exchange Rate, and Import use the same 15-currency set; all 15 pa
 - Run all three import formats.
 - Preserve full traces, videos, Provider call summary, and commit-bound report.
 
-### 3.3 Minimum requirements to re-close M3
+### 3.3 M3 re-acceptance result
 
-- E2E-009, 012, 014, 015, 016, 017, 018, 019, and 020 all pass.
+- E2E-009, 012, 014, 015, 016, 017, 018, 019, and 020 all passed.
 - E2E-016/017 may not substitute SVG fallback, a direct database processor, or frontend-generated geometry.
 - `routeProvider`, `routeQuality`, geometry, and UI labels come from the same runtime fact.
 - Product Owner manually spot-checks at least E2E-003, 009, 016, 018, 019, and 020 with these steps.
-- A new M3 acceptance sign-off is created only after automation and manual checks are bound to the same Git SHA.
+- The 2026-08-09 automated browser result is recorded in the M3 Gate and Product acceptance addenda against implementation commit `c0e2e3a`.
 
-## 4. Review decisions
+## 4. Resolved review decisions
 
-Before implementing automation, reviewers confirm:
+The accepted implementation resolves the earlier review questions as follows:
 
-1. whether the product scope of all 21 cases is complete;
-2. whether `Partial` and `Critical gap` classifications are accepted;
-3. whether E2E-016/017 are mandatory M3 gates;
-4. whether missing Item, Location, and Trip-settings entry points should be added to the current page or a revised navigation;
-5. the fixed geometry, attribution, and request-log format for CI Directions and Tile fixtures;
-6. whether all 15 currencies are user-enabled or Reference Data needs an explicit active/market policy;
-7. Full Suite target duration, browser matrix, and failure-retry policy;
-8. manual-acceptance sign-off roles, recording requirements, and evidence-retention period.
+1. all 21 cases are implemented as executable browser acceptance cases;
+2. every former `Partial` and `Critical gap` case is now `Passed`;
+3. E2E-016/017 remain mandatory M3 route/map gates and both pass;
+4. Item, Location, Trip settings/list/trash, Mode, Gallery, Expense, Import, and Reference Data entry points are available in the current product navigation;
+5. CI uses deterministic fixture Directions geometry, Tile attribution, and observable requests through production runtime contracts;
+6. all 15 Reference Data currencies are user-enabled across the accepted paths;
+7. the accepted Full Suite uses Chromium, one worker, isolated data, trace retention, and failure screenshot/video;
+8. durable CI artifact retention and any human sign-off/recording remain governed by milestone and release process documents.

@@ -5,6 +5,7 @@
 - Product acceptance: `docs/reports/m3-product-acceptance.md`
 - Decision: **M3 Done for the Dev Track**
 - Exact closure SHA: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
+- Browser evidence addendum: **2026-08-09 — 21/21 passed on `c0e2e3a`**
 
 ## Review scope
 
@@ -109,3 +110,14 @@ it does not claim an independent external human QA identity.
 
 With all ten rules satisfied and the product acceptance/demo record archived,
 M3 is **Done for the Dev Track**. Production release remains a separate Gate.
+
+## 2026-08-09 browser evidence addendum
+
+The follow-up product-browser suite executed all 21 cases in
+`docs/E2E_AUTOMATION_CASES.md` against implementation commit `c0e2e3a` with
+zero failures and zero skips. This closes the browser-level entry-point and
+runtime-path gaps that were not represented by the original 129-case technical
+Gate, including E2E-016/017's complete DirectionsProvider-to-MapLibre path.
+
+The addendum changes no production-release conclusion: real external Provider,
+Staging IdP, and Compose/Linux parity remain separate release gates.

@@ -3,11 +3,13 @@
 - Status: **M3 Done for the Dev Track**
 - Gate execution date: 2026-08-03
 - Final closure review date: 2026-08-08
+- Product-browser re-acceptance date: 2026-08-09 — **21/21 passed**
 - Exact closure SHA: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
 - Baseline: macOS arm64, Node 26.0.0, pnpm 9.15.4
 - Runtime: native PostgreSQL 17/PostGIS, authenticated Redis, native MinIO,
   ClamAV, ImageMagick, real Nest/Fastify API, BullMQ Worker, Next.js, and
   Playwright Chromium
+- Browser re-acceptance implementation SHA: `c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`
 
 ## Task commits
 
@@ -117,6 +119,32 @@ migration; M4 must not mutate the M3 history.
 The Product Owner accepted the integration result, M3 acceptance result, and
 written demonstration record on 2026-08-08. The signed record is archived in
 `docs/reports/m3-product-acceptance.md` against technical baseline `565365a`.
+
+## 2026-08-09 product-browser re-acceptance addendum
+
+The original 129/129 exact-SHA closure Gate above remains the historical M3
+technical evidence. After the missing product entry points and runtime browser
+paths were completed, the repository added a separate Playwright acceptance
+suite for E2E-001 through E2E-021 and reran every documented manual path.
+
+- Result: **21 passed / 0 failed / 0 skipped** in 1.4 minutes.
+- Implementation commit: `c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`.
+- Toolchain: Node `v26.0.0`, pnpm `9.15.4`, Playwright Chromium.
+- Runtime: real Next.js Web, Nest/Fastify API, BullMQ Worker, PostgreSQL with
+  PostGIS, Redis, MinIO-compatible storage, ClamAV/ImageMagick, and fixture
+  Geocoding/Directions/Tile Providers through production runtime contracts.
+- Isolation: a fresh dedicated database was migrated and seeded for the run,
+  then destroyed by the harness.
+- Browser boundary: all accepted business writes originated from visible UI
+  operations. No test used `page.evaluate()` or an independent HTTP client to
+  substitute for Item, Location, Trip, Gallery, Expense, or Import CRUD.
+- Route evidence: E2E-016/017 exercised DirectionsProvider → Worker → persisted
+  Route API → MapLibre, including tile requests, route details, selection,
+  cross-Day and Transport-internal segments, invalidation, and blockers.
+
+The executable cases and per-case status are archived in
+`docs/E2E_AUTOMATION_CASES.md`; the Product Owner acceptance addendum is in
+`docs/reports/m3-product-acceptance.md`.
 
 ## Final R&D closure review
 

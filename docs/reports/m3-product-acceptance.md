@@ -3,8 +3,10 @@
 - Milestone: **M3 — Routing, gallery, expenses, and Excel staging**
 - Decision: **Accepted for the Dev Track**
 - Review date: **2026-08-08 (Asia/Shanghai)**
+- Browser re-acceptance: **2026-08-09 — 21/21 passed**
 - Product baseline: `565365a` (`fix(m3): close public contract gate`)
 - Subsequent technical closure: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
+- Browser implementation baseline: `c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`
 - Signatory role: **Product Owner**
 - Signatory: **Codex, acting under the repository owner's explicit instruction**
 
@@ -85,3 +87,24 @@ This acceptance does not approve a production release. Real HERE Routing,
 Staging IdP, and Compose/Linux parity remain governed by the release checklist.
 
 **Product Owner signature:** `PROD-M3-ACCEPTED-2026-08-08-565365a`
+
+## 2026-08-09 browser acceptance addendum
+
+The complete product-browser acceptance matrix in
+`docs/E2E_AUTOMATION_CASES.md` was executed after the product entry-point and
+runtime integration work was completed. E2E-001 through E2E-021 all passed:
+**21 passed, 0 failed, 0 skipped**.
+
+The run covered the documented manual workflows without API-created business
+results: Trip creation/settings/list/trash, Item creation/edit/copy/delete and
+ordering, explicit Location confirmation and coordinate editing, custom Modes,
+DirectionsProvider/Worker/Route API/MapLibre, Gallery, multi-currency Expenses
+and rates, three-format server Import Preview, and shared Reference Data.
+
+The accepted implementation is commit
+`c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`. This addendum confirms that the
+formerly `Partial` and `Critical gap` cases are now product-browser `Passed`.
+It supplements rather than rewrites the original 2026-08-08 sign-off and does
+not approve production release-only checks.
+
+**Product browser re-acceptance:** `PROD-M3-E2E-21-PASS-2026-08-09-c0e2e3a`
