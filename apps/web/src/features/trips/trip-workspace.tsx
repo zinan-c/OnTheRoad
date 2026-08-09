@@ -10,6 +10,7 @@ import { routeStyle } from "../map/route-style";
 import { RealRouteMap } from "../map/real-route-map";
 import { MapTimelineSelectionStore } from "../map/store";
 import { TripGallery } from "../attachments/trip-gallery";
+import { ItineraryPanel } from "../itinerary/itinerary-panel";
 
 type Point = { readonly longitude: number; readonly latitude: number };
 type Item = { readonly id: string; readonly target: string; readonly dayNumber?: number; readonly location?: { readonly point?: Point | null } | null; readonly transportModeCode?: string | null };
@@ -151,6 +152,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   }
 
   return <div className="tripWorkspace">
+    <ItineraryPanel tripId={tripId} />
     {actualLocated.length > 0 ? <RealRouteMap items={actualLocated.map(({ item, point }, index) => ({ id: item.id, dayId: `day-${item.dayNumber}`, dayNumber: item.dayNumber ?? 1, dayColor: "#2563eb", label: item.target, point: { ...point, crs: "WGS84" }, ...(index > 0 && item.transportModeCode !== undefined ? { transportModeCode: item.transportModeCode } : {}) }))} onSelect={(id) => selectionStore.selectFromMarker(id)} /> : null}
     <section aria-label="路线地图" className="workspaceCard routeWorkspace">
       <header><h2>路线与时间线</h2><p>点击路线点或时间线项目，两个视图会保持同一选中状态。</p></header>

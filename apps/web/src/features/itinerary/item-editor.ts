@@ -12,11 +12,14 @@ export type ItemKind =
   | "attraction"
   | "dining"
   | "accommodation"
-  | "transport";
+  | "transport"
+  | "other";
 
 export type EditorDraft = {
   target: string;
   description: string;
+  timeKind: "clock" | "range" | "period" | "unscheduled";
+  timePeriod: string;
   startTime: string;
   endTime: string;
   crossesMidnight: boolean;
@@ -75,6 +78,8 @@ export type EditorPayload = {
 const emptyDraft = (): EditorDraft => ({
   target: "",
   description: "",
+  timeKind: "unscheduled",
+  timePeriod: "",
   startTime: "",
   endTime: "",
   crossesMidnight: false,
@@ -146,6 +151,18 @@ export class ItemEditor {
       && this.draft.endTime < this.draft.startTime
     ) {
       errors.endTime = "结束时间早于开始时间时必须标记跨午夜";
+    }
+    if (this.draft.timeKind === "clock" && !this.draft.startTime) {
+      errors.startTime = "时刻事项必须填写开始时间";
+    }
+    if (
+      this.draft.timeKind === "range"
+      && (!this.draft.startTime || !this.draft.endTime)
+    ) {
+      errors.endTime = "时间范围必须填写开始和结束时间";
+    }
+    if (this.draft.timeKind === "period" && !this.draft.timePeriod) {
+      errors.timePeriod = "时段事项必须选择时段";
     }
     if (
       this.draft.durationMinutes !== undefined
