@@ -1333,6 +1333,27 @@
       }
     },
     "/trips/{tripId}/exchange-rates": {
+      "get": {
+        "operationId": "listExchangeRates",
+        "summary": "List saved manual exchange rates",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved exchange rates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/ExchangeRate" }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      },
       "put": {
         "operationId": "setExchangeRate",
         "summary": "Set a manual exchange rate for settlement",

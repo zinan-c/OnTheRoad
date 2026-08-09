@@ -205,6 +205,10 @@ button:disabled {
 .tripList { display: grid; gap: 1rem; padding: 0; list-style: none; }
 .tripList li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; padding: 1rem; background: rgb(255 255 255 / 84%); }
 .tripList h2 { margin: 0; }
+.expenseWorkspace { display: grid; gap: 1rem; }
+.expenseForm, .exchangeRateForm { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; }
+.exchangeRateForm { border: 1px solid #e4e7ec; border-radius: .75rem; padding: .85rem; }
+.exchangeRateForm h3, .exchangeRateForm ul { flex-basis: 100%; margin: 0; }
 .itineraryProduct .dayTabs, .itineraryProduct .itemCreateActions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
 .itineraryProduct button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; }
 .productTimeline { display: grid; gap: .65rem; padding: 0; list-style: none; }

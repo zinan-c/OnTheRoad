@@ -6,6 +6,36 @@ import {
 } from "../../src/modules/expenses/index.mjs";
 
 describe("TC-D04-03 expense summary seed", () => {
+  test("E2E-019 snapshots a newly saved rate onto previously unconverted expenses", async () => {
+    const repository = new InMemoryExpenseRepository({
+      trips: [{ id: "trip-rate", ownerId: "owner-rate", defaultCurrency: "CNY" }],
+      items: [{ id: "item-rate", tripId: "trip-rate", ownerId: "owner-rate", tripDayId: "day-rate" }],
+    });
+    const service = new ExpenseService(repository);
+    const pending = await service.create("owner-rate", "trip-rate", {
+      itineraryItemId: "item-rate",
+      amount: "50.25",
+      currency: "USD",
+      categoryCode: "TRANSPORT",
+    });
+    expect(pending).toMatchObject({ settledAmount: null, exchangeRate: null, version: 1 });
+
+    const saved = await service.setRate("owner-rate", "trip-rate", {
+      fromCurrency: "USD",
+      toCurrency: "CNY",
+      rate: "7.2000",
+    });
+    expect(saved.reconciledExpenseIds).toEqual([pending.id]);
+    expect(await service.listRates("owner-rate", "trip-rate")).toHaveLength(1);
+    expect(await service.listForItem("owner-rate", "trip-rate", "item-rate")).toEqual([
+      expect.objectContaining({
+        exchangeRate: "7.200000000000",
+        settledAmount: "361.8000",
+        version: 2,
+      }),
+    ]);
+  });
+
   test("retains original CNY/USD and explains the rate snapshot without route cost", async () => {
     const repository = new InMemoryExpenseRepository({
       trips: [{ id: "trip-a", ownerId: "owner-a", defaultCurrency: "CNY" }],

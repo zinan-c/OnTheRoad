@@ -63,6 +63,12 @@ export class ExpenseService {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId */
+  async listRates(ownerId, tripId) {
+    await this.repository.getTrip(ownerId, tripId);
+    return this.repository.listRates(ownerId, tripId);
+  }
+
   /** @param {string} ownerId @param {string} tripId @param {Record<string, any>} input */
   async create(ownerId, tripId, input) {
     const trip = /** @type {Record<string, any>} */ (
@@ -215,7 +221,26 @@ export class InMemoryExpenseRepository {
     this.getTrip(ownerId, tripId);
     const stored = { ...rate, ownerId, tripId, version: 1 };
     this.rates.set(`${tripId}:${rate.fromCurrency}:${rate.toCurrency}`, stored);
-    return { ...stored };
+    const reconciledExpenseIds = [];
+    for (const expense of this.expenses) {
+      if (expense.tripId !== tripId || expense.ownerId !== ownerId
+        || expense.currency !== rate.fromCurrency
+        || expense.settlementCurrency !== rate.toCurrency
+        || expense.settledAmount !== null || expense.exchangeRate !== null
+        || expense.source !== "actual") continue;
+      expense.exchangeRate = rate.rate;
+      expense.settledAmount = convertMoney(expense.originalAmount, rate.rate);
+      expense.version += 1;
+      reconciledExpenseIds.push(expense.id);
+    }
+    return { ...stored, reconciledExpenseIds };
+  }
+
+  /** @param {string} ownerId @param {string} tripId */
+  listRates(ownerId, tripId) {
+    this.getTrip(ownerId, tripId);
+    return [...this.rates.values()].filter((rate) => rate.ownerId === ownerId
+      && rate.tripId === tripId).map((rate) => ({ ...rate }));
   }
 
   /** @param {string} tripId @param {string} fromCurrency @param {string} toCurrency */

@@ -885,6 +885,17 @@ class ApiController {
     );
   }
 
+  @Get("trips/:tripId/exchange-rates")
+  async listExchangeRates(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+  ) {
+    return this.runtime.expenses.listRates(
+      await owner(this.runtime, request),
+      tripId,
+    );
+  }
+
   @Post("trips/:tripId/imports/uploads")
   async createImportUpload(
     @Req() request: FastifyRequest,

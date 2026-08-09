@@ -106,32 +106,63 @@ export class PostgresExpenseRepository {
   /** @param {string} ownerId @param {string} tripId @param {{fromCurrency: string, toCurrency: string, rate: string}} rate */
   setRate(ownerId, tripId, rate) {
     return this.#json(
-      `INSERT INTO trip_exchange_rate (
-        trip_id, owner_id, from_currency, to_currency, rate
+      `WITH saved AS (
+        INSERT INTO trip_exchange_rate (
+          trip_id, owner_id, from_currency, to_currency, rate
+        )
+        VALUES ($1::uuid, $2, $3, $4, $5::numeric)
+        ON CONFLICT (trip_id, from_currency, to_currency)
+        DO UPDATE SET
+          owner_id = EXCLUDED.owner_id,
+          rate = EXCLUDED.rate,
+          version = trip_exchange_rate.version + 1,
+          effective_at = now(),
+          updated_at = now()
+        RETURNING *
+      ), reconciled AS (
+        UPDATE expense e
+        SET settlement_amount = round(e.original_amount * saved.rate, 4),
+            exchange_rate_snapshot = saved.rate,
+            version = e.version + 1,
+            updated_at = now()
+        FROM saved
+        WHERE e.trip_id = saved.trip_id
+          AND e.owner_id = saved.owner_id
+          AND e.original_currency = saved.from_currency
+          AND e.settlement_currency = saved.to_currency
+          AND e.settlement_amount IS NULL
+          AND e.exchange_rate_snapshot IS NULL
+          AND e.source = 'actual'
+        RETURNING e.id
       )
-      VALUES (
-        $1::uuid,
-        $2,
-        $3,
-        $4,
-        $5::numeric
+      SELECT jsonb_build_object(
+        'tripId', saved.trip_id,
+        'ownerId', saved.owner_id,
+        'fromCurrency', saved.from_currency,
+        'toCurrency', saved.to_currency,
+        'rate', to_char(saved.rate, 'FM9999999999999990.000000000000'),
+        'version', saved.version,
+        'reconciledExpenseIds', COALESCE((SELECT jsonb_agg(id ORDER BY id) FROM reconciled), '[]'::jsonb)
       )
-      ON CONFLICT (trip_id, from_currency, to_currency)
-      DO UPDATE SET
-        owner_id = EXCLUDED.owner_id,
-        rate = EXCLUDED.rate,
-        version = trip_exchange_rate.version + 1,
-        effective_at = now(),
-        updated_at = now()
-      RETURNING jsonb_build_object(
+      FROM saved`,
+      [tripId, ownerId, rate.fromCurrency, rate.toCurrency, rate.rate],
+    );
+  }
+
+  /** @param {string} ownerId @param {string} tripId */
+  listRates(ownerId, tripId) {
+    return this.#json(
+      `SELECT COALESCE(jsonb_agg(jsonb_build_object(
         'tripId', trip_id,
         'ownerId', owner_id,
         'fromCurrency', from_currency,
         'toCurrency', to_currency,
         'rate', to_char(rate, 'FM9999999999999990.000000000000'),
         'version', version
-      )::text`,
-      [tripId, ownerId, rate.fromCurrency, rate.toCurrency, rate.rate],
+      ) ORDER BY from_currency, to_currency), '[]'::jsonb)
+      FROM trip_exchange_rate
+      WHERE trip_id = $2::uuid AND owner_id = $1`,
+      [ownerId, tripId],
     );
   }
 
