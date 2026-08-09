@@ -969,8 +969,17 @@ class ApiController {
   }
 
   @Get("imports/:jobId/preview")
-  async importPreview(@Req() request: FastifyRequest, @Param("jobId") jobId: string) {
-    return this.runtime.importPreview.list(await owner(this.runtime, request), jobId);
+  async importPreview(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+    @Query() query: Record<string, string | undefined>,
+  ) {
+    return this.runtime.importPreview.list(await owner(this.runtime, request), jobId, {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.query ? { query: query.query } : {}),
+      ...(query.page ? { page: Number(query.page) } : {}),
+      ...(query.pageSize ? { pageSize: Number(query.pageSize) } : {}),
+    });
   }
 
   @Post("imports/:jobId/preview/skip")

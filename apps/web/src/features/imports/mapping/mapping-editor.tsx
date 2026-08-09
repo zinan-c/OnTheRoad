@@ -4,9 +4,9 @@ import { useState } from "react";
 
 export type MappingRow = { readonly source: string; readonly target: string; readonly sample: string; readonly candidates: readonly { target: string; score: number; explanation: string }[] };
 
-export function MappingEditor({ rows, errors, onChange, onSave }: { readonly rows: readonly MappingRow[]; readonly errors: readonly { code: string; message: string }[]; readonly onChange: (source: string, target: string) => void; readonly onSave: () => void }) {
+export function MappingEditor({ rows, errors, onChange, onSave }: { readonly rows: readonly MappingRow[]; readonly errors: readonly { code: string; message: string }[]; readonly onChange: (source: string, target: string) => void; readonly onSave: () => void | Promise<void> }) {
   const [saving, setSaving] = useState(false);
-  async function save() { setSaving(true); try { onSave(); } finally { setSaving(false); } }
+  async function save() { setSaving(true); try { await onSave(); } finally { setSaving(false); } }
   return <section aria-label="导入列映射" className="mappingEditor">
     <header><h2>确认列映射</h2><p>建议来自表头别名和示例值，可逐项修改。</p></header>
     {errors.length > 0 ? <div role="alert"><ul>{errors.map((error, index) => <li key={`${error.code}-${index}`}>{error.message}</li>)}</ul></div> : null}

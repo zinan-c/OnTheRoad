@@ -1700,6 +1700,26 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/JobId"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["all", "new", "update", "duplicate", "error", "unresolved", "skipped"] }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
           }
         ],
         "responses": {
@@ -3666,6 +3686,10 @@
               "version": {
                 "type": "integer",
                 "minimum": 1
+              },
+              "reconciledExpenseIds": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ResourceId" }
               }
             }
           }
@@ -4012,6 +4036,22 @@
           },
           "updatedAt": {
             "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "sourceColumns": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "sheetNames": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "sampleRows": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          },
+          "suggestions": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
           }
         }
       },
@@ -4042,7 +4082,12 @@
         "additionalProperties": false,
         "required": [
           "job",
-          "rows"
+          "rows",
+          "counts",
+          "filteredTotal",
+          "page",
+          "pageSize",
+          "totalPages"
         ],
         "properties": {
           "job": {
@@ -4055,7 +4100,12 @@
               "type": "object",
               "additionalProperties": true
             }
-          }
+          },
+          "counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+          "filteredTotal": { "type": "integer", "minimum": 0 },
+          "page": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "totalPages": { "type": "integer", "minimum": 1 }
         }
       },
       "ImportPreviewSkipInput": {
