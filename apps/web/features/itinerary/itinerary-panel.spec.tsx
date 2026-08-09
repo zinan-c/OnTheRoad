@@ -228,6 +228,7 @@ test("E2E-012 persists the complete Day order with its current version", async (
     });
   })).toBe(true));
   await screen.findByText("已保存");
+  expect(screen.getByText("已将 外滩移动到第 2 位").getAttribute("aria-live")).toBe("polite");
   expect(screen.getByRole("button", { name: "拖动 午餐" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "上移 外滩" })).toBeTruthy();
 });

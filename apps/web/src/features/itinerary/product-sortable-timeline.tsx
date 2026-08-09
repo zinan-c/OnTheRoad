@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 export type ProductReorderInput = "mouse" | "touch" | "keyboard";
 
@@ -78,6 +78,7 @@ export function ProductSortableTimeline({
   readonly children: (id: string) => ReactNode;
   readonly onReorder: (orderedIds: string[], input: ProductReorderInput) => void;
 }) {
+  const [announcement, setAnnouncement] = useState("");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 5 } }),
@@ -88,6 +89,8 @@ export function ProductSortableTimeline({
     const from = entries.findIndex(({ id }) => id === activeId);
     const to = entries.findIndex(({ id }) => id === overId);
     if (from < 0 || to < 0 || from === to) return;
+    const entry = entries[from];
+    if (entry) setAnnouncement(`已将 ${entry.label}移动到第 ${to + 1} 位`);
     onReorder(arrayMove([...entries], from, to).map(({ id }) => id), input);
   }
 
@@ -115,6 +118,7 @@ export function ProductSortableTimeline({
           }}
         >{children(entry.id)}</SortableRow>)}
       </ol>
+      <p role="status" aria-live="polite" aria-atomic="true" className="status">{announcement}</p>
     </SortableContext>
   </DndContext>;
 }
