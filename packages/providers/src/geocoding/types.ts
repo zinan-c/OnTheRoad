@@ -3,6 +3,7 @@ import type { PlaceCandidate, Wgs84Point } from "../contracts/dto.js";
 export interface GeocodingContext {
   readonly countryCodes?: readonly string[];
   readonly viewbox?: readonly [number, number, number, number];
+  readonly mapProfile?: string;
 }
 
 export interface GeocodingSearchRequest {
@@ -16,6 +17,7 @@ export interface GeocodingSearchRequest {
 export interface NormalizedCandidate extends PlaceCandidate {
   readonly formattedAddress?: string;
   readonly city?: string;
+  readonly district?: string;
   readonly type?: string;
   readonly selected: false;
   readonly provider: "here" | "amap" | "fixture";

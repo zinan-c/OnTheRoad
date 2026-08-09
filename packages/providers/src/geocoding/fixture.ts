@@ -8,6 +8,11 @@ const locations = (fixtureJson as {
   locations: Array<{ id: string; name: string; longitude: number; latitude: number }>;
 }).locations;
 
+const fixtureContext: Record<string, { formattedAddress: string; city: string; district: string }> = {
+  "loc-people-square-shanghai": { formattedAddress: "上海市黄浦区人民大道人民广场", city: "上海", district: "黄浦区" },
+  "loc-people-square-chongqing": { formattedAddress: "重庆市渝中区人民路人民广场", city: "重庆", district: "渝中区" },
+};
+
 export function createFixtureGeocoder(
   options: { readonly profile: "fixture-cn" | "fixture-global" },
 ): Geocoder {
@@ -15,7 +20,8 @@ export function createFixtureGeocoder(
     id: `fixture:${location.id}`,
     label: location.name,
     point: { longitude: location.longitude, latitude: location.latitude, crs: "WGS84" },
-    countryCode: "chn",
+    countryCode: "CN",
+    ...(fixtureContext[location.id] ?? {}),
     providerScore: 1,
     attribution: "On The Road fixture",
     selected: false,

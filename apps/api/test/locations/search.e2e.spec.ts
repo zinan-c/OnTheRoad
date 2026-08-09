@@ -34,6 +34,14 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
       mapProfile: "fixture",
     });
     expect(result.candidates[0]).not.toHaveProperty("providerPlaceId");
+
+    const ambiguous = await api.searchForResolution({ query: "人民广场", trigger: "explicit" });
+    expect(ambiguous.candidates).toHaveLength(2);
+    expect(ambiguous.candidates.map(({ city, district }) => ({ city, district }))).toEqual([
+      { city: "上海", district: "黄浦区" },
+      { city: "重庆", district: "渝中区" },
+    ]);
+    expect(ambiguous.candidates[0]?.id).toBe("fixture:loc-people-square-shanghai");
   });
 
   test("rejects missing credentials at construction and never silently changes provider", async () => {

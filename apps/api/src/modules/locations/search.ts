@@ -37,6 +37,7 @@ export interface LocationSearchCandidateView {
   readonly formattedAddress: string;
   readonly countryCode: string | null;
   readonly city: string | null;
+  readonly district: string | null;
   readonly point: {
     readonly longitude: number;
     readonly latitude: number;
@@ -65,6 +66,35 @@ export function createLocationSearchApi(options: {
 }) {
   const { geocoder, logger } = options;
   const reportedMapProfile = options.mapProfile ?? geocoder.profile;
+  async function searchForResolution(input: LocationSearchInput) {
+    const trigger = input.trigger ?? "explicit";
+    if (trigger !== "explicit") {
+      throw new GeocoderError(
+        "PROVIDER_TRIGGER_UNSUPPORTED",
+        `${trigger} geocoding is disabled by provider policy`,
+      );
+    }
+    logger?.info("location.search.started", {
+      provider: geocoder.provider,
+      mapProfile: reportedMapProfile,
+      queryLength: input.query.length,
+      queryFingerprint: queryFingerprint(input.query),
+    });
+    const candidates = await geocoder.search({ ...input, trigger });
+    return {
+      provider: geocoder.provider,
+      mapProfile: reportedMapProfile,
+      attribution: candidates[0]?.attribution
+        ?? (geocoder.provider === "amap"
+          ? "© 高德地图"
+          : geocoder.provider === "here"
+            ? "© HERE"
+            : geocoder.provider === "hybrid"
+              ? "© HERE / © 高德地图"
+              : "On The Road fixture"),
+      candidates,
+    };
+  }
   return {
     capabilities() {
       return {
@@ -73,37 +103,20 @@ export function createLocationSearchApi(options: {
         ...geocoder.capabilities(),
       };
     },
+    searchForResolution,
     async search(input: LocationSearchInput) {
-      const trigger = input.trigger ?? "explicit";
-      if (trigger !== "explicit") {
-        throw new GeocoderError(
-          "PROVIDER_TRIGGER_UNSUPPORTED",
-          `${trigger} geocoding is disabled by provider policy`,
-        );
-      }
-      logger?.info("location.search.started", {
-        provider: geocoder.provider,
-        mapProfile: reportedMapProfile,
-        queryLength: input.query.length,
-        queryFingerprint: queryFingerprint(input.query),
-      });
-      const candidates = await geocoder.search({ ...input, trigger });
+      const result = await searchForResolution(input);
+      const { candidates } = result;
       return {
-        provider: geocoder.provider,
-        mapProfile: reportedMapProfile,
-        attribution: candidates[0]?.attribution
-          ?? (geocoder.provider === "amap"
-            ? "© 高德地图"
-            : geocoder.provider === "here"
-              ? "© HERE"
-              : geocoder.provider === "hybrid"
-                ? "© HERE / © 高德地图"
-                : "On The Road fixture"),
+        provider: result.provider,
+        mapProfile: result.mapProfile,
+        attribution: result.attribution,
         candidates: candidates.map((candidate): LocationSearchCandidateView => ({
           label: candidate.label,
           formattedAddress: candidate.formattedAddress ?? candidate.label,
           countryCode: candidate.countryCode ?? null,
           city: candidate.city ?? null,
+          district: candidate.district ?? null,
           point: candidate.point,
           confidence: candidate.providerScore,
           attribution: candidate.attribution,

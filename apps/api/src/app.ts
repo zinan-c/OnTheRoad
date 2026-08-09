@@ -568,15 +568,107 @@ class ApiController {
   @Get("trips/:tripId/locations/search")
   async searchLocations(
     @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
     @Query("q") query: string,
     @Query("limit") limit?: string,
   ) {
-    await owner(this.runtime, request);
+    const ownerId = await owner(this.runtime, request);
+    const trip = await this.runtime.trips.getTrip(ownerId, tripId) as unknown as { mapProfile?: string };
     return this.runtime.locationSearch.search({
       query,
       ...(limit ? { limit: Number(limit) } : {}),
+      ...(trip.mapProfile ? { context: { mapProfile: trip.mapProfile } } : {}),
       trigger: "explicit",
     });
+  }
+
+  @Get("trips/:tripId/locations/:locationId")
+  async getLocation(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Param("locationId") locationId: string,
+  ) {
+    const ownerId = await owner(this.runtime, request);
+    const location = await this.runtime.locations.get(ownerId, locationId) as { tripId?: string };
+    if (location.tripId !== tripId) {
+      throw new ProblemDetailsError({ status: 404, code: "LOCATION_NOT_FOUND", title: "Location was not found" });
+    }
+    return location;
+  }
+
+  @Post("trips/:tripId/locations/:locationId/search")
+  @HttpCode(HttpStatus.OK)
+  async searchLocationCandidates(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Param("locationId") locationId: string,
+    @Headers("if-match") ifMatch: string | undefined,
+    @Body() body: { query: string; limit?: number },
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const ownerId = await owner(this.runtime, request);
+    const trip = await this.runtime.trips.getTrip(ownerId, tripId) as unknown as { mapProfile?: string };
+    const current = await this.runtime.locations.get(ownerId, locationId) as { tripId?: string; version: number };
+    if (current.tripId !== tripId) {
+      throw new ProblemDetailsError({ status: 404, code: "LOCATION_NOT_FOUND", title: "Location was not found" });
+    }
+    const capabilities = this.runtime.locationSearch.capabilities();
+    if (capabilities.provider !== "fixture" && trip.mapProfile !== capabilities.mapProfile) {
+      throw new ProblemDetailsError({
+        status: 409,
+        code: "MAP_PROFILE_MISMATCH",
+        title: "Trip map profile is not available in this deployment",
+      });
+    }
+    const started = await this.runtime.locations.beginResolving(
+      ownerId,
+      locationId,
+      version(ifMatch),
+      { provider: capabilities.provider, query: body.query, context: { mapProfile: trip.mapProfile, trigger: "explicit" } },
+    );
+    try {
+      const result = await this.runtime.locationSearch.searchForResolution({
+        query: body.query,
+        ...(body.limit ? { limit: body.limit } : {}),
+        trigger: "explicit",
+      });
+      if (result.candidates.length === 0) {
+        const failed = await this.runtime.locations.applyResult(ownerId, started.job.id, { status: "failed", errorCode: "NO_RESULTS" });
+        reply.header("etag", String(failed.location.version));
+        return { ...failed, provider: result.provider, mapProfile: trip.mapProfile ?? result.mapProfile, attribution: result.attribution, candidates: [] };
+      }
+      const signable = result.candidates.map((candidate) => ({
+        ...candidate,
+        providerPlaceId: candidate.id,
+      }));
+      const offered = await this.runtime.locations.applyResult(ownerId, started.job.id, {
+        status: "ambiguous",
+        candidates: signable,
+      });
+      reply.header("etag", String(offered.location.version));
+      return {
+        location: offered.location,
+        job: { ...offered.job, candidates: undefined },
+        provider: result.provider,
+        mapProfile: trip.mapProfile ?? result.mapProfile,
+        attribution: result.attribution,
+        candidates: signable.map((candidate, index) => ({
+          label: candidate.label,
+          formattedAddress: candidate.formattedAddress ?? candidate.label,
+          countryCode: candidate.countryCode ?? null,
+          city: candidate.city ?? null,
+          district: candidate.district ?? null,
+          point: candidate.point,
+          attribution: candidate.attribution,
+          provider: candidate.provider,
+          selected: false,
+          candidateToken: offered.job.candidates[index],
+        })),
+      };
+    } catch (caught) {
+      await this.runtime.locations.applyResult(ownerId, started.job.id, { status: "failed", errorCode: "PROVIDER_FAILED" }).catch(() => undefined);
+      throw caught;
+    }
   }
 
   @Patch("trips/:tripId/locations/:locationId/coordinates")
@@ -599,6 +691,7 @@ class ApiController {
   }
 
   @Post("trips/:tripId/locations/:locationId/candidate")
+  @HttpCode(HttpStatus.OK)
   async confirmLocationCandidate(
     @Req() request: FastifyRequest,
     @Param("locationId") locationId: string,

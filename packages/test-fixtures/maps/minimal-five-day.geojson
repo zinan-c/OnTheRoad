@@ -68,6 +68,38 @@
     },
     {
       "type": "Feature",
+      "id": "loc-people-square-shanghai",
+      "properties": {
+        "kind": "marker",
+        "name": "人民广场",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.4752,
+          31.2304
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "loc-people-square-chongqing",
+      "properties": {
+        "kind": "marker",
+        "name": "人民广场",
+        "crs": "WGS84"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          106.5528,
+          29.5637
+        ]
+      }
+    },
+    {
+      "type": "Feature",
       "id": "loc-zhoushan",
       "properties": {
         "kind": "marker",

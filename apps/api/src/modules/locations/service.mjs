@@ -79,10 +79,10 @@ export class LocationService {
       const point = assertWgs84Point(result.candidate.point);
       payload = this.#candidatePayload(result.candidate, point, job.provider);
     } else if (result.status === "ambiguous") {
-      if (!Array.isArray(result.candidates) || result.candidates.length < 2) {
+      if (!Array.isArray(result.candidates) || result.candidates.length < 1) {
         throw new LocationDomainError(
           "GEOCODING_CANDIDATES_REQUIRED",
-          "Ambiguous results require at least two candidates.",
+          "Candidate confirmation requires at least one candidate.",
         );
       }
       candidates = result.candidates.map((candidate) =>
@@ -133,7 +133,7 @@ export class LocationService {
       job.locationId,
       expectedVersion,
       "resolved",
-      this.#candidatePayload(candidate, candidate.point, job.provider),
+      this.#candidatePayload(candidate, candidate.point, candidate.provider ?? job.provider),
     );
   }
 
@@ -170,6 +170,7 @@ export class LocationService {
       countryCode: candidate.countryCode ?? null,
       city: candidate.city ?? null,
       district: candidate.district ?? null,
+      attribution: candidate.attribution ?? null,
       point,
       provider,
       providerPlaceId: candidate.providerPlaceId,

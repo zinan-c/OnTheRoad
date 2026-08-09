@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS location (
   geom geometry(Point, 4326),
   provider text NOT NULL DEFAULT 'none',
   provider_place_id text,
+  attribution text,
   source_crs text NOT NULL DEFAULT 'EPSG:4326'
     CHECK (source_crs IN ('EPSG:4326', 'GCJ02', 'BD09')),
   geocoding_status text NOT NULL DEFAULT 'unresolved'
@@ -168,6 +169,7 @@ AS $$
     END,
     'provider', l.provider,
     'providerPlaceId', l.provider_place_id,
+    'attribution', l.attribution,
     'sourceCrs', l.source_crs,
     'status', l.geocoding_status,
     'confidence', l.confidence,
@@ -304,6 +306,10 @@ BEGIN
     provider_place_id = CASE
       WHEN p_payload ? 'providerPlaceId' THEN p_payload->>'providerPlaceId'
       ELSE provider_place_id
+    END,
+    attribution = CASE
+      WHEN p_payload ? 'attribution' THEN p_payload->>'attribution'
+      ELSE attribution
     END,
     source_crs = COALESCE(NULLIF(p_payload->>'sourceCrs', ''), source_crs),
     geocoding_status = p_target_status,

@@ -1004,6 +1004,44 @@
         }
       }
     },
+    "/trips/{tripId}/locations/{locationId}": {
+      "get": {
+        "operationId": "getLocation",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripId" },
+          { "$ref": "#/components/parameters/LocationId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owner and Trip-scoped Location",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Location" } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/trips/{tripId}/locations/{locationId}/search": {
+      "post": {
+        "operationId": "searchLocationCandidatesForConfirmation",
+        "summary": "Explicitly search and issue owner/Trip/Location-bound candidate tokens",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripId" },
+          { "$ref": "#/components/parameters/LocationId" },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LocationResolutionInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Unselected signed candidates; no result is silently confirmed",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LocationResolutionOffer" } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/trips/{tripId}/locations/{locationId}/candidate": {
       "post": {
         "operationId": "confirmLocationCandidate",
@@ -1024,7 +1062,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LocationCandidateSelection"
+                "$ref": "#/components/schemas/SignedLocationCandidateSelection"
               }
             }
           }
@@ -3024,6 +3062,10 @@
             "type": "number",
             "minimum": -180,
             "maximum": 180
+          },
+          "crs": {
+            "type": "string",
+            "const": "WGS84"
           }
         }
       },
@@ -3122,6 +3164,54 @@
           }
         }
       },
+      "LocationResolutionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 20 }
+        }
+      },
+      "SignedLocationCandidate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "formattedAddress", "countryCode", "city", "district", "point", "attribution", "provider", "selected", "candidateToken"],
+        "properties": {
+          "label": { "type": "string" },
+          "formattedAddress": { "type": "string" },
+          "countryCode": { "type": ["string", "null"] },
+          "city": { "type": ["string", "null"] },
+          "district": { "type": ["string", "null"] },
+          "point": { "$ref": "#/components/schemas/Wgs84Point" },
+          "attribution": { "type": "string" },
+          "provider": { "type": "string" },
+          "selected": { "const": false },
+          "candidateToken": { "type": "string", "minLength": 1 }
+        }
+      },
+      "LocationResolutionOffer": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["location", "job", "provider", "mapProfile", "attribution", "candidates"],
+        "properties": {
+          "location": { "$ref": "#/components/schemas/Location" },
+          "job": { "type": "object", "additionalProperties": true },
+          "provider": { "type": "string" },
+          "mapProfile": { "type": "string" },
+          "attribution": { "type": "string" },
+          "candidates": { "type": "array", "items": { "$ref": "#/components/schemas/SignedLocationCandidate" } }
+        }
+      },
+      "SignedLocationCandidateSelection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["jobId", "candidateToken"],
+        "properties": {
+          "jobId": { "type": "string", "minLength": 1 },
+          "candidateToken": { "type": "string", "minLength": 1 }
+        }
+      },
       "CoordinateAdjustment": {
         "allOf": [
           {
@@ -3156,6 +3246,8 @@
           "id": {
             "$ref": "#/components/schemas/ResourceId"
           },
+          "tripId": { "type": "string" },
+          "ownerId": { "type": "string" },
           "inputText": {
             "type": "string"
           },
@@ -3190,6 +3282,15 @@
               "null"
             ]
           },
+          "providerPlaceId": { "type": ["string", "null"] },
+          "attribution": { "type": ["string", "null"] },
+          "countryCode": { "type": ["string", "null"] },
+          "city": { "type": ["string", "null"] },
+          "district": { "type": ["string", "null"] },
+          "sourceCrs": { "type": "string" },
+          "confidence": { "type": ["number", "null"] },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" },
           "status": {
             "type": "string",
             "enum": [

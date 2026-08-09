@@ -201,6 +201,20 @@
       "crs": "WGS84"
     },
     {
+      "id": "loc-people-square-shanghai",
+      "name": "人民广场",
+      "longitude": 121.4752,
+      "latitude": 31.2304,
+      "crs": "WGS84"
+    },
+    {
+      "id": "loc-people-square-chongqing",
+      "name": "人民广场",
+      "longitude": 106.5528,
+      "latitude": 29.5637,
+      "crs": "WGS84"
+    },
+    {
       "id": "loc-zhoushan",
       "name": "舟山",
       "longitude": 122.2072,

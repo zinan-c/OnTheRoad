@@ -10,6 +10,7 @@ import {
 } from "./product-sortable-timeline";
 import { TransportModeManager } from "../trips/settings/transport-mode-manager";
 import type { TransportModeView } from "../trips/settings/transport-modes";
+import { LocationProductPicker } from "../locations/location-product-picker";
 
 export type ProductDay = {
   id: string;
@@ -488,6 +489,15 @@ export function ItineraryPanel({
       </div>
       {draft.timeKind === "range" ? <label><input type="checkbox" checked={draft.crossesMidnight} onChange={(event) => update("crossesMidnight", event.target.checked)} />跨午夜</label> : null}
       <label>时长（分钟）<input type="number" min="0" value={draft.durationMinutes ?? ""} onChange={(event) => update("durationMinutes", event.target.value ? Number(event.target.value) : undefined)} /></label>
+      {draft.kind !== "transport" ? <LocationProductPicker
+        tripId={tripId}
+        locationId={draft.locationId}
+        initialText={draft.locationText}
+        onLocationChange={(locationId, inputText) => {
+          update("locationId", locationId);
+          update("locationText", inputText);
+        }}
+      /> : null}
       {draft.kind === "dining" ? <fieldset><legend>餐饮信息</legend><label>餐厅<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>餐别<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">未指定</option><option value="breakfast">breakfast</option><option value="lunch">lunch</option><option value="dinner">dinner</option><option value="snack">snack</option></select></label></fieldset> : null}
       {draft.kind === "accommodation" ? <fieldset><legend>住宿信息</legend><label>住宿名称<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><div className="formRow"><label>入住日期<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>退房日期<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
       {draft.kind === "transport" ? <label>交通方式<select required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">请选择</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label}{mode.enabled ? "" : "（已停用）"}</option>)}</select></label> : null}

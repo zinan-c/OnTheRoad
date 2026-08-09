@@ -152,6 +152,11 @@ export class CandidateTokenSigner {
    *   candidate: {
    *     attribution: string,
    *     countryCode?: string | null,
+   *     formattedAddress?: string,
+   *     city?: string | null,
+   *     district?: string | null,
+   *     confidence?: number | null,
+   *     provider?: string,
    *     label: string,
    *     point: unknown,
    *     providerPlaceId: string
@@ -164,6 +169,11 @@ export class CandidateTokenSigner {
       candidate: {
         attribution: candidate.attribution,
         countryCode: candidate.countryCode ?? null,
+        ...(candidate.formattedAddress !== undefined ? { formattedAddress: candidate.formattedAddress } : {}),
+        ...(candidate.city !== undefined ? { city: candidate.city } : {}),
+        ...(candidate.district !== undefined ? { district: candidate.district } : {}),
+        ...(candidate.confidence !== undefined ? { confidence: candidate.confidence } : {}),
+        ...(candidate.provider !== undefined ? { provider: candidate.provider } : {}),
         label: candidate.label,
         point,
         providerPlaceId: candidate.providerPlaceId,

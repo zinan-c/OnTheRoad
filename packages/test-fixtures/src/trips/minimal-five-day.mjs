@@ -71,6 +71,8 @@ export const minimalFiveDay = {
     { id: "loc-sh-hotel", name: "上海外滩酒店（测试）", longitude: 121.4902, latitude: 31.2396, crs: "WGS84" },
     { id: "loc-bund", name: "外滩", longitude: 121.4906, latitude: 31.2413, crs: "WGS84" },
     { id: "loc-yuyuan", name: "豫园", longitude: 121.4921, latitude: 31.2271, crs: "WGS84" },
+    { id: "loc-people-square-shanghai", name: "人民广场", longitude: 121.4752, latitude: 31.2304, crs: "WGS84" },
+    { id: "loc-people-square-chongqing", name: "人民广场", longitude: 106.5528, latitude: 29.5637, crs: "WGS84" },
     { id: "loc-zhoushan", name: "舟山", longitude: 122.2072, latitude: 29.9853, crs: "WGS84" },
     { id: "loc-zh-hotel", name: "舟山酒店（测试）", longitude: 122.1069, latitude: 30.0198, crs: "WGS84" },
     { id: "loc-putuo-port", name: "朱家尖蜈蚣峙码头", longitude: 122.3918, latitude: 29.931, crs: "WGS84" },
