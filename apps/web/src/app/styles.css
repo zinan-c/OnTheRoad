@@ -207,6 +207,8 @@ button:disabled {
 .locationProductPicker, .locationCandidates { display: grid; gap: .65rem; }
 .locationCandidates > label { display: grid; grid-template-columns: auto minmax(8rem, auto) 1fr; align-items: center; gap: .5rem; border: 1px solid #e4e7ec; border-radius: .65rem; padding: .65rem; }
 .locationCandidates > label small { grid-column: 2 / -1; color: #667085; }
+.locationCoordinateEditor { display: grid; gap: .65rem; border-top: 1px solid #e4e7ec; padding-top: .75rem; }
+.locationPickMap { min-height: 16rem; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f5f7fa; overflow: hidden; }
 .itemEditorForm { display: grid; gap: .85rem; margin-top: 1rem; padding: 1rem; border: 1px solid #d0d5dd; border-radius: 1rem; background: #fff; }
 .itemEditorForm > header, .itemEditorForm > footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .itemEditorForm fieldset { display: grid; gap: .75rem; border: 1px solid #e4e7ec; border-radius: .75rem; }

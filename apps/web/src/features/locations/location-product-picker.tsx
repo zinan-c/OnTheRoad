@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LocationCoordinateEditor } from "./location-coordinate-editor";
 
 type Point = { longitude: number; latitude: number; crs: "WGS84" };
 
@@ -159,6 +160,10 @@ export function LocationProductPicker({
       <button type="button" disabled={pending || !selectedToken} onClick={() => void confirmCandidate()}>确认候选地点</button>
       <small>Map profile：{offer.mapProfile}</small>
     </div> : null}
+    {location ? <LocationCoordinateEditor tripId={tripId} location={location} onSaved={(saved) => {
+      setLocation(saved);
+      onLocationChange(saved.id, saved.inputText);
+    }} /> : null}
     {error ? <p role="alert">{error}</p> : null}
   </fieldset>;
 }

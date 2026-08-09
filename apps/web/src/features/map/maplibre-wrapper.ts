@@ -11,6 +11,9 @@ export type MapRuntimeOptions = {
   container: unknown;
   onTileError: (error: Error) => void;
   onMarkerClick?: (itemId: string) => void;
+  onMapClick?: (point: { longitude: number; latitude: number; crs: "WGS84" }) => void;
+  onMarkerDragEnd?: (itemId: string, point: { longitude: number; latitude: number; crs: "WGS84" }, inputMode: "mouse" | "touch") => void;
+  draggableMarkers?: boolean;
 };
 
 export type MapRuntimeHandle = {

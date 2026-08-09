@@ -93,6 +93,24 @@ function runtime(readiness: Record<string, boolean>): ApiRuntime {
         return location;
       },
     },
+    locationCoordinates: {
+      async get(_ownerId: string, locationId: string) {
+        return { location: locations.get(locationId) };
+      },
+      async manual(_ownerId: string, locationId: string, body: { point: unknown }, headers: { ifMatch?: string }) {
+        const current = locations.get(locationId) ?? {};
+        const expectedVersion = Number(headers.ifMatch?.replaceAll('"', ""));
+        const location = {
+          ...current,
+          point: body.point,
+          status: "resolved",
+          manuallyAdjusted: true,
+          version: expectedVersion + 1,
+        };
+        locations.set(locationId, location);
+        return { location, etag: `"${location.version}"` };
+      },
+    },
     locationSearch: {
       capabilities: () => ({
         provider: "fixture",

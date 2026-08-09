@@ -8,7 +8,7 @@ export async function loadMapLibreRuntime() {
 
 export function createMapLibreRuntime(maplibregl) {
   return {
-    createMap({ container, onTileError, onMarkerClick }) {
+    createMap({ container, onTileError, onMarkerClick = undefined, onMapClick = undefined, onMarkerDragEnd = undefined, draggableMarkers = false }) {
       const map = new maplibregl.Map({
         container,
         attributionControl: false,
@@ -25,14 +25,27 @@ export function createMapLibreRuntime(maplibregl) {
       let markerModels = [];
       let ready = false;
       let markers = [];
+      let suppressMapClick = false;
+      const markerDragEnd = (itemId, point, inputMode) => {
+        suppressMapClick = true;
+        onMarkerDragEnd?.(itemId, point, inputMode);
+        void Promise.resolve().then(() => { suppressMapClick = false; });
+      };
 
       map.on("error", (event) => onTileError(asError(event?.error)));
+      map.on("click", (event) => {
+        if (!suppressMapClick) onMapClick?.({
+          longitude: event.lngLat.lng,
+          latitude: event.lngLat.lat,
+          crs: "WGS84",
+        });
+      });
       map.on("load", () => {
         ready = true;
         ensureSourceAndLayers(map);
         applyGeoJson(map, geojson);
         applyRouteGeoJson(map, routeGeojson);
-        markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick);
+        markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick, markerDragEnd, draggableMarkers);
       });
 
       return {
@@ -46,7 +59,7 @@ export function createMapLibreRuntime(maplibregl) {
         },
         setMarkers(next) {
           markerModels = [...next];
-          if (ready) markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick);
+          if (ready) markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick, markerDragEnd, draggableMarkers);
         },
         fitBounds(bounds, options) {
           map.fitBounds(bounds, options);
@@ -57,7 +70,11 @@ export function createMapLibreRuntime(maplibregl) {
         destroy() {
           markers.forEach((marker) => marker.remove());
           markers = [];
-          map.remove();
+          try {
+            map.remove();
+          } catch {
+            // A partially initialized WebGL map may not have a painter to tear down.
+          }
         },
       };
     },
@@ -96,7 +113,7 @@ function applyRouteGeoJson(map, geojson) {
   map.getSource("otr-routes")?.setData(geojson);
 }
 
-function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick) {
+function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick, onMarkerDragEnd, draggableMarkers) {
   current.forEach((marker) => marker.remove());
   return markerModels.map((model) => {
     const element = document.createElement("button");
@@ -107,10 +124,17 @@ function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick) {
     element.setAttribute("aria-label", model.markerLabel);
     element.title = model.tooltip;
     element.addEventListener("click", () => onMarkerClick?.(model.itemId));
-    return new maplibregl.Marker({ element })
+    const marker = new maplibregl.Marker({ element, draggable: draggableMarkers })
       .setLngLat(model.coordinate)
       .setPopup(new maplibregl.Popup({ offset: 18 }).setText(model.tooltip))
       .addTo(map);
+    if (draggableMarkers) marker.on("dragend", (event) => {
+      const point = marker.getLngLat();
+      const original = event?.originalEvent;
+      const inputMode = original?.pointerType === "touch" || original?.touches ? "touch" : "mouse";
+      onMarkerDragEnd?.(model.itemId, { longitude: point.lng, latitude: point.lat, crs: "WGS84" }, inputMode);
+    });
+    return marker;
   });
 }
 

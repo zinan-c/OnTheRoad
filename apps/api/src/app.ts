@@ -674,20 +674,33 @@ class ApiController {
   @Patch("trips/:tripId/locations/:locationId/coordinates")
   async adjustCoordinates(
     @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
     @Param("locationId") locationId: string,
     @Headers("if-match") ifMatch: string | undefined,
-    @Body() body: { latitude: number; longitude: number; formattedAddress?: string },
+    @Body() body: {
+      latitude: number;
+      longitude: number;
+      formattedAddress?: string;
+      adjustmentKind?: "map-pick" | "marker-drag" | "manual";
+      inputMode?: "mouse" | "touch" | "keyboard" | "manual";
+    },
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const location = await this.runtime.locations.manuallyAdjust(
-      await owner(this.runtime, request),
-      locationId,
-      version(ifMatch),
-      { latitude: body.latitude, longitude: body.longitude, crs: "WGS84" },
-      body.formattedAddress ? { formattedAddress: body.formattedAddress } : {},
-    );
-    reply.header("etag", String(location.version));
-    return location;
+    const ownerId = await owner(this.runtime, request);
+    const current = await this.runtime.locationCoordinates.get(ownerId, locationId);
+    const actualTripId = (current.location as unknown as { tripId?: string }).tripId;
+    if (actualTripId !== undefined && actualTripId !== tripId) {
+      throw new ProblemDetailsError({ status: 404, code: "LOCATION_NOT_FOUND", title: "Location was not found" });
+    }
+    const point = { latitude: body.latitude, longitude: body.longitude, crs: "WGS84" as const };
+    const headers = { ifMatch: `"${version(ifMatch)}"` };
+    const result = body.adjustmentKind === "map-pick"
+      ? await this.runtime.locationCoordinates.pick(ownerId, locationId, { point }, headers)
+      : body.adjustmentKind === "marker-drag"
+        ? await this.runtime.locationCoordinates.drag(ownerId, locationId, { point, inputMode: body.inputMode ?? "mouse" }, headers)
+        : await this.runtime.locationCoordinates.manual(ownerId, locationId, { point }, headers);
+    reply.header("etag", result.etag);
+    return result.location;
   }
 
   @Post("trips/:tripId/locations/:locationId/candidate")

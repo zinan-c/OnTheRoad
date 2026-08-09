@@ -4,6 +4,12 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import { LocationProductPicker } from "../../src/features/locations/location-product-picker";
 
+vi.mock("../../src/features/map/maplibre-runtime.mjs", () => ({
+  loadMapLibreRuntime: async () => ({
+    createMap: async () => ({ setGeoJson: vi.fn(), setMarkers: vi.fn(), setRouteGeoJson: vi.fn(), fitBounds: vi.fn(), resize: vi.fn(), destroy: vi.fn() }),
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

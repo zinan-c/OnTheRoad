@@ -7,6 +7,7 @@ import { createReferenceDataResponse } from "./modules/system/reference-data.mjs
 import { minimumCompatibleSchemaVersion } from "@on-the-road/database";
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { CandidateTokenSigner } from "@on-the-road/domain/location";
+import { CoordinateAdjustmentService } from "@on-the-road/application/location";
 import { IMPORT_CONTENT_TYPES, S3ObjectStorage } from "@on-the-road/storage";
 
 import { AttachmentGalleryService, AttachmentUploadService, PostgresAttachmentRepository } from "./modules/attachments/index.mjs";
@@ -24,6 +25,8 @@ import { TransportModeService } from "./modules/itinerary/transport-modes.js";
 import { PostgresLocationRepository } from "./modules/locations/postgres-repository.mjs";
 import { createConfiguredLocationSearchApi } from "./modules/locations/search.js";
 import { LocationService } from "./modules/locations/service.mjs";
+import { LocationCoordinatesApi } from "./modules/locations/coordinates.js";
+import { PostgresCoordinateRepository } from "./modules/locations/coordinates-postgres.mjs";
 import { PostgresTripRepository } from "./modules/trips/postgres-repository.mjs";
 import { PostgresTripDayRepository } from "./modules/trips/postgres-day-repository.mjs";
 import { TripDateChangeService } from "./modules/trips/date-change.mjs";
@@ -64,6 +67,7 @@ export interface ApiRuntime {
   readonly itineraryOrder: ItineraryOrderService;
   readonly transportModes: TransportModeService;
   readonly locations: LocationService;
+  readonly locationCoordinates: LocationCoordinatesApi;
   readonly locationSearch: ReturnType<typeof createConfiguredLocationSearchApi>;
   readonly expenses: ExpenseService;
   readonly attachments: AttachmentUploadService;
@@ -157,13 +161,19 @@ export function createProductionRuntime(
   const transportModes = new TransportModeService(
     new PostgresTransportModeRepository({ executor: database }),
   );
+  const locationRepository = new PostgresLocationRepository({ executor: database });
   const locations = new LocationService({
-    repository: new PostgresLocationRepository({ executor: database }),
+    repository: locationRepository,
     candidateSigner: new CandidateTokenSigner({
       secret: environment.OTR_CANDIDATE_SIGNING_KEY?.trim()
         || server.sessionSecret,
     }),
   });
+  const locationCoordinates = new LocationCoordinatesApi(
+    new CoordinateAdjustmentService(
+      new PostgresCoordinateRepository({ locationRepository }),
+    ),
+  );
   const locationSearch = createConfiguredLocationSearchApi(environment);
   const expenses = new ExpenseService(new PostgresExpenseRepository({ executor: database }));
   const storage = new S3ObjectStorage({
@@ -206,6 +216,7 @@ export function createProductionRuntime(
     itineraryOrder,
     transportModes,
     locations,
+    locationCoordinates,
     locationSearch,
     expenses,
     attachments,

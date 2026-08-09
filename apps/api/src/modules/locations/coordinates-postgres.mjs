@@ -32,7 +32,7 @@ export class PostgresCoordinateRepository {
     );
   }
 
-  /** @param {Record<string, any>} input */
+  /** @param {Record<string, any>} input @returns {Promise<{affectedRows: 0 | 1, location?: any}>} */
   async applyGeocodeIfCurrent(input) {
     try {
       const location = await this.locationRepository.transition(
@@ -47,7 +47,7 @@ export class PostgresCoordinateRepository {
           sourceCrs: "EPSG:4326",
         },
       );
-      return { affectedRows: 1, location };
+      return { affectedRows: /** @type {const} */ (1), location };
     } catch (error) {
       if (
         (error && typeof error === "object" && "code" in error)
@@ -56,7 +56,7 @@ export class PostgresCoordinateRepository {
           || error.code === "STALE_GEOCODING_RESULT"
         )
       ) {
-        return { affectedRows: 0 };
+        return { affectedRows: /** @type {const} */ (0) };
       }
       throw error instanceof Error
         ? error

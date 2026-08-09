@@ -3226,6 +3226,14 @@
                   "string",
                   "null"
                 ]
+              },
+              "adjustmentKind": {
+                "type": "string",
+                "enum": ["map-pick", "marker-drag", "manual"]
+              },
+              "inputMode": {
+                "type": "string",
+                "enum": ["mouse", "touch", "keyboard", "manual"]
               }
             }
           }
