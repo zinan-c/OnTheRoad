@@ -9,6 +9,11 @@ describe("TC-E03-01 mapping suggestion score", () => {
     expect(result.find(({ source }) => source === "事项")?.candidates[0]?.explanation).toContain("表头别名");
   });
 
+  test("recognizes exported fixture Title and Location headers", () => {
+    const result = suggestMappings({ sourceColumns: ["title", "location"] });
+    expect(result.map(({ candidates }) => candidates[0]?.target)).toEqual(["Target", "Place"]);
+  });
+
   test("detects duplicate, missing, unknown and multi-sheet mappings", () => {
     const result = validateMapping({ mapping: { 事项: "Target", 描述: "Target", Unknown: "Date" }, sourceColumns: ["事项", "描述"], sheetNames: ["Sheet 1", "Sheet 2"] });
     expect(result.valid).toBe(false);
