@@ -130,3 +130,39 @@ test("E2E-011 exposes copy and confirmed soft-delete operations", async () => {
   )).toBe(true));
   await waitFor(() => expect(screen.queryByText("早餐")).toBeNull());
 });
+
+test("E2E-012 persists the complete Day order with its current version", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const makeItem = (id: string, target: string) => ({
+    id, tripDayId: "day-1", itemType: "activity" as const, target,
+    description: null, timeKind: "unscheduled" as const, startTime: null,
+    endTime: null, endDayOffset: 0, timePeriod: null, durationMinutes: null,
+    locationId: null, startLocationId: null, endLocationId: null,
+    transportModeCode: null, bookingInfo: null, contactInfo: null, remark: null,
+    dining: null, accommodation: null, version: 1,
+  });
+  const items = [makeItem("a", "外滩"), makeItem("b", "午餐"), makeItem("c", "码头")];
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, ...(init ? { init } : {}) });
+    const body = url.endsWith("/days")
+      ? [{ id: "day-1", dayNumber: 1, version: 7 }]
+      : url.endsWith("/reorder")
+        ? { tripDayId: "day-1", version: 8, orderedIds: ["b", "a", "c"] }
+        : items;
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  }));
+
+  render(<ItineraryPanel tripId="trip-1" />);
+  fireEvent.click(await screen.findByRole("button", { name: "下移 外滩" }));
+
+  await waitFor(() => expect(calls.some(({ url, init }) => {
+    if (!url.endsWith("/trips/trip-1/days/day-1/itinerary-items/reorder") || init?.method !== "POST") return false;
+    return JSON.stringify(JSON.parse(String(init.body))) === JSON.stringify({
+      baseVersion: 7,
+      orderedIds: ["b", "a", "c"],
+    });
+  })).toBe(true));
+  await screen.findByText("已保存");
+  expect(screen.getByRole("button", { name: "拖动 午餐" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "上移 外滩" })).toBeTruthy();
+});

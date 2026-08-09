@@ -4,6 +4,10 @@ import { transportModes } from "@on-the-road/config/reference-data";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { EditorDraft, ItemKind } from "./item-editor";
+import {
+  ProductSortableTimeline,
+  type ProductReorderInput,
+} from "./product-sortable-timeline";
 
 export type ProductDay = {
   id: string;
@@ -358,6 +362,38 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     }
   }
 
+  async function reorderItems(orderedIds: string[], input: ProductReorderInput) {
+    if (!selectedDay || selectedDay.version === undefined) {
+      setError("当前 Day 缺少版本信息，无法安全排序");
+      return;
+    }
+    const previous = items;
+    const byId = new Map(items.map((item) => [item.id, item]));
+    setItems(orderedIds.map((id) => byId.get(id)!).filter(Boolean));
+    setStatus("saving");
+    setError(null);
+    try {
+      const saved = await itineraryApi<{ tripDayId: string; version: number; orderedIds: string[] }>(
+        `/trips/${tripId}/days/${selectedDay.id}/itinerary-items/reorder`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ baseVersion: selectedDay.version, orderedIds }),
+        },
+      );
+      const savedById = new Map(previous.map((item) => [item.id, item]));
+      setItems(saved.orderedIds.map((id) => savedById.get(id)!).filter(Boolean));
+      setDays((current) => current.map((day) => day.id === saved.tripDayId
+        ? { ...day, version: saved.version }
+        : day));
+      setStatus("saved");
+    } catch (caught) {
+      setItems(previous);
+      setError(caught instanceof Error ? `${input} 排序失败：${caught.message}` : "排序失败，已恢复原顺序");
+      setStatus("error");
+    }
+  }
+
   return <section className="workspaceCard itineraryProduct" aria-label="行程编辑工作台">
     <header>
       <h2>每日行程</h2>
@@ -376,9 +412,15 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
     </div>
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {status === "loading" ? <p role="status">正在载入行程…</p> : null}
-    <ol className="productTimeline" aria-label={`Day ${selectedDay?.dayNumber ?? ""} 时间线`}>
-      {items.map((item) => <li key={item.id} className="productTimelineItem">
-        <button type="button" aria-label={`编辑 ${item.target || item.description}`} onClick={() => beginEdit(item)}>
+    <ProductSortableTimeline
+      entries={items.map((item) => ({ id: item.id, label: item.target || item.description || "未命名事项" }))}
+      disabled={status === "saving"}
+      label={`Day ${selectedDay?.dayNumber ?? ""} 时间线`}
+      onReorder={(orderedIds, input) => void reorderItems(orderedIds, input)}
+    >{(id) => {
+      const item = items.find((entry) => entry.id === id)!;
+      return <>
+        <button className="timelineEditButton" type="button" aria-label={`编辑 ${item.target || item.description}`} onClick={() => beginEdit(item)}>
           <strong>{item.target || item.description}</strong><span>{item.itemType} · {item.timeKind === "period" ? item.timePeriod : item.startTime || "未排期"}</span>
         </button>
         <label>复制到<select aria-label={`复制 ${item.target || item.description} 到`} defaultValue="" onChange={(event) => {
@@ -387,8 +429,11 @@ export function ItineraryPanel({ tripId }: { readonly tripId: string }) {
           void copyItem(item, target);
         }}><option value="">选择 Day</option>{days.map((day) => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}</select></label>
         <button type="button" aria-label={`删除 ${item.target || item.description}`} onClick={() => void deleteItem(item)}>删除</button>
-      </li>)}
-    </ol>
+      </>;
+    }}</ProductSortableTimeline>
+    {!editorOpen && status !== "idle" && status !== "loading" ? <p role="status">
+      {status === "saving" ? "正在保存排序…" : status === "saved" ? "已保存" : status === "error" ? "排序保存失败" : ""}
+    </p> : null}
     {editorOpen ? <form className="itemEditorForm" aria-label={editing ? "编辑事项" : "新增事项"} onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <header><h3>{editing ? "编辑事项" : `新增 ${draft.kind}`}</h3><button type="button" onClick={() => {
         if (["dirty", "saving", "error"].includes(status) && !window.confirm("仍有未保存修改，确定离开吗？")) return;
