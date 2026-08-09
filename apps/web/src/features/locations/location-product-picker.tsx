@@ -125,6 +125,32 @@ export function LocationProductPicker({
     }
   }
 
+  async function saveTextOnly() {
+    if (!inputText.trim()) {
+      setError("请先输入地点");
+      return;
+    }
+    if (location) {
+      onLocationChange(location.id, location.inputText);
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      const created = await locationApi<ProductLocation>(`/trips/${tripId}/locations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ inputText: inputText.trim() }),
+      });
+      setLocation(created);
+      onLocationChange(created.id, created.inputText);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "地点文字暂存失败");
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function confirmCandidate() {
     if (!offer || !selectedToken) {
       setError("请选择一个候选地点");
@@ -152,8 +178,9 @@ export function LocationProductPicker({
   return <fieldset className="locationProductPicker">
     <legend>{legend}</legend>
     <label>{inputLabel}<input aria-label={inputLabel} value={inputText} disabled={location?.status === "resolved"} onChange={(event) => setInputText(event.target.value)} /></label>
+    {!location ? <button type="button" disabled={pending} onClick={() => void saveTextOnly()}>暂存文字</button> : null}
     {!location || location.status === "unresolved" || location.status === "failed"
-      ? <button type="button" disabled={pending} onClick={() => void explicitSearch()}>{pending ? "正在搜索…" : "显式搜索地点"}</button>
+      ? <button type="button" disabled={pending} onClick={() => void explicitSearch()}>{pending ? "正在处理…" : "显式搜索地点"}</button>
       : null}
     {location ? <p role="status">地点状态：{location.status}{location.formattedAddress ? ` · ${location.formattedAddress}` : ""}{location.attribution ? ` · ${location.attribution}` : ""}</p> : null}
     {offer ? <div className="locationCandidates" role="radiogroup" aria-label="地点候选">

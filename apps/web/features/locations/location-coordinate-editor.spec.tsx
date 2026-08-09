@@ -70,7 +70,7 @@ test("E2E-015 persists map pick, Marker drag and final manual WGS84 coordinates 
 });
 
 test("E2E-015 surfaces a Location version conflict", async () => {
-  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ title: "version conflict" }, { status: 409 })));
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ code: "LOCATION_VERSION_CONFLICT", title: "version conflict" }, { status: 409 })));
   const location: ProductLocation = {
     id: "location-1", tripId: "trip-1", inputText: "外滩附近", name: "外滩附近",
     formattedAddress: null, city: null, district: null, point: null, provider: "none",
@@ -79,4 +79,18 @@ test("E2E-015 surfaces a Location version conflict", async () => {
   render(<LocationCoordinateEditor tripId="trip-1" location={location} onSaved={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "保存地图点选" }));
   expect((await screen.findByRole("alert")).textContent).toContain("版本冲突");
+});
+
+test("E2E-015 does not mislabel another 409 as a version conflict", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+    code: "INVALID_LOCATION_TRANSITION", detail: "Location cannot transition from failed to resolved.",
+  }, { status: 409 })));
+  const location: ProductLocation = {
+    id: "location-1", tripId: "trip-1", inputText: "外滩附近", name: "外滩附近",
+    formattedAddress: null, city: null, district: null, point: null, provider: "none",
+    attribution: null, status: "failed", manuallyAdjusted: false, version: 3,
+  };
+  render(<LocationCoordinateEditor tripId="trip-1" location={location} onSaved={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "保存地图点选" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("failed to resolved");
 });

@@ -17,6 +17,7 @@ describe("TC-C03-01 Location state machine", () => {
       ["resolving", "failed", {}],
       ["ambiguous", "resolved", { point: POINT }],
       ["failed", "resolving", {}],
+      ["failed", "resolved", { point: POINT, manual: true }],
       ["unresolved", "resolved", { point: POINT, manual: true }],
       ["resolved", "resolved", { point: POINT, manual: true }],
     ]) {

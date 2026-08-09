@@ -15,6 +15,30 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+test("E2E-015 saves plain Location text without starting geocoding", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const unresolved = {
+    id: "location-text", tripId: "trip-1", inputText: "外滩附近", name: "外滩附近",
+    formattedAddress: null, city: null, district: null, point: null, provider: null,
+    attribution: null, status: "unresolved", manuallyAdjusted: false, version: 1,
+  };
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, ...(init ? { init } : {}) });
+    return Response.json(unresolved, { status: 201 });
+  }));
+  const onLocationChange = vi.fn();
+  render(<LocationProductPicker tripId="trip-1" locationId="" onLocationChange={onLocationChange} />);
+
+  fireEvent.change(screen.getByLabelText("地点文字"), { target: { value: "外滩附近" } });
+  fireEvent.click(screen.getByRole("button", { name: "暂存文字" }));
+
+  await screen.findByText("地点状态：unresolved");
+  expect(onLocationChange).toHaveBeenLastCalledWith("location-text", "外滩附近");
+  expect(calls).toHaveLength(1);
+  expect(calls[0]?.url.endsWith("/trips/trip-1/locations")).toBe(true);
+  expect(calls[0]?.init?.method).toBe("POST");
+});
+
 test("E2E-014 explicitly confirms a signed candidate and reloads the resolved Location", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const unresolved = {

@@ -64,14 +64,18 @@ export function LocationCoordinateEditor({
         body: JSON.stringify({ longitude: point.longitude, latitude: point.latitude, adjustmentKind, inputMode }),
       });
       if (!response.ok) {
-        const problem = await response.json().catch(() => null) as { title?: string; detail?: string } | null;
-        throw Object.assign(new Error(problem?.detail ?? problem?.title ?? `坐标保存失败：${response.status}`), { status: response.status });
+        const problem = await response.json().catch(() => null) as { code?: string; title?: string; detail?: string } | null;
+        throw Object.assign(new Error(problem?.detail ?? problem?.title ?? `坐标保存失败：${response.status}`), {
+          status: response.status,
+          code: problem?.code,
+        });
       }
       const saved = await response.json() as ProductLocation;
       locationRef.current = saved;
       onSaved(saved);
     } catch (caught) {
-      const conflict = caught && typeof caught === "object" && "status" in caught && caught.status === 409;
+      const conflict = caught && typeof caught === "object" && "code" in caught
+        && caught.code === "LOCATION_VERSION_CONFLICT";
       setError(conflict ? "Location 已被其他操作更新，请刷新后重试（版本冲突）" : caught instanceof Error ? caught.message : "坐标保存失败");
     } finally {
       setPending(false);

@@ -47,7 +47,10 @@ export function assertLocationTransition(current, target, options = {}) {
     );
   }
   const allowed = /** @type {Record<string, Set<string>>} */ (TRANSITIONS);
-  if (!allowed[current]?.has(target)) {
+  const manualFailureRecovery = current === "failed"
+    && target === "resolved"
+    && options.manual === true;
+  if (!allowed[current]?.has(target) && !manualFailureRecovery) {
     throw new LocationDomainError(
       "INVALID_LOCATION_TRANSITION",
       `Location cannot transition from ${current} to ${target}.`,
