@@ -1,6 +1,7 @@
 "use client";
 
 import { OnTheRoadClient } from "@on-the-road/contracts";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   TripSettings,
@@ -15,6 +16,7 @@ const client = new OnTheRoadClient(
 );
 
 export function TripDetail({ tripId }: { readonly tripId: string }) {
+  const router = useRouter();
   const [trip, setTrip] = useState<Trip>();
   const [status, setStatus] = useState<"loading" | "ready" | "signed-out" | "error">("loading");
 
@@ -67,7 +69,11 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
       <h1>{trip.name}</h1>
       <p className="lead">{trip.startDate} — {trip.endDate}</p>
       <p className="status statusReady">已保存 · 刷新页面不会丢失</p>
-      <TripSettings trip={trip} onTripChange={(updated) => setTrip(updated as Trip)} />
+      <TripSettings
+        trip={trip}
+        onTripChange={(updated) => setTrip(updated as Trip)}
+        onDeleted={() => router.push("/trips")}
+      />
       <TripWorkspace key={trip.version} tripId={tripId} />
       <button className="secondary" onClick={logout}>退出登录</button>
     </section>

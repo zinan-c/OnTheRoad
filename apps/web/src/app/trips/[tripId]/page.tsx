@@ -10,7 +10,10 @@ export default async function TripPage({
     <main>
       <nav aria-label="主导航">
         <a className="brand" href="/">On The Road</a>
-        <a className="newTrip" href="/trips/new">新建旅行</a>
+        <div className="actions">
+          <a className="secondary" href="/trips">旅行列表</a>
+          <a className="newTrip" href="/trips/new">新建旅行</a>
+        </div>
       </nav>
       <TripDetail tripId={tripId} />
     </main>

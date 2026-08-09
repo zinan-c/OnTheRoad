@@ -9,6 +9,13 @@ export interface TripSettingsRecord {
   readonly startDate: string;
   readonly endDate: string;
   readonly totalDays: number;
+  readonly travelers: number;
+  readonly defaultCurrency: string;
+  readonly budget: string | null;
+  readonly timezone: string;
+  readonly mapProfile: "cn_primary" | "international_primary" | "hybrid";
+  readonly description: string | null;
+  readonly status: "draft" | "active" | "archived" | "deleted";
   readonly version: number;
 }
 
@@ -24,20 +31,26 @@ interface DateChangeResult {
   readonly archivedDayIds: readonly string[];
 }
 
-export interface TripDateSettingsGateway {
+export interface TripSettingsGateway {
   listDays(tripId: string): Promise<readonly TripDayRecord[]>;
   changeDates(
     tripId: string,
     input: { readonly startDate: string; readonly endDate: string },
     version: number,
   ): Promise<DateChangeResult>;
+  update(
+    tripId: string,
+    input: Record<string, unknown>,
+    version: number,
+  ): Promise<TripSettingsRecord>;
+  delete(tripId: string, version: number): Promise<TripSettingsRecord>;
 }
 
 function apiOrigin(): string {
   return process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:3001";
 }
 
-export function browserTripDateSettingsGateway(): TripDateSettingsGateway {
+export function browserTripSettingsGateway(): TripSettingsGateway {
   const client = new OnTheRoadClient(apiOrigin());
   return {
     async listDays(tripId) {
@@ -55,6 +68,21 @@ export function browserTripDateSettingsGateway(): TripDateSettingsGateway {
       });
       return response.data as DateChangeResult;
     },
+    async update(tripId, input, version) {
+      const response = await client.request("updateTrip", {
+        path: { tripId },
+        headers: { "If-Match": String(version) },
+        body: input,
+      });
+      return response.data as TripSettingsRecord;
+    },
+    async delete(tripId, version) {
+      const response = await client.request("deleteTrip", {
+        path: { tripId },
+        headers: { "If-Match": String(version) },
+      });
+      return response.data as TripSettingsRecord;
+    },
   };
 }
 
@@ -70,12 +98,14 @@ function datesBetween(startDate: string, endDate: string): string[] {
 
 export function TripSettings({
   trip,
-  gateway = browserTripDateSettingsGateway(),
+  gateway = browserTripSettingsGateway(),
   onTripChange,
+  onDeleted,
 }: {
   readonly trip: TripSettingsRecord;
-  readonly gateway?: TripDateSettingsGateway;
+  readonly gateway?: TripSettingsGateway;
   readonly onTripChange: (trip: TripSettingsRecord) => void;
+  readonly onDeleted?: (trip: TripSettingsRecord) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [startDate, setStartDate] = useState(trip.startDate);
@@ -85,6 +115,7 @@ export function TripSettings({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const preview = useMemo(() => {
     if (!days || !previewed) return undefined;
@@ -140,6 +171,43 @@ export function TripSettings({
     }
   }
 
+  async function updateBasics(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setError(undefined);
+    const data = new FormData(event.currentTarget);
+    try {
+      const updated = await gateway.update(trip.id, {
+        name: String(data.get("name") ?? "").trim(),
+        description: String(data.get("description") ?? "").trim() || null,
+        travelers: Number(data.get("travelers")),
+        budget: String(data.get("budget") ?? "").trim() || null,
+        defaultCurrency: String(data.get("defaultCurrency")),
+        timezone: String(data.get("timezone")),
+        mapProfile: String(data.get("mapProfile")),
+      }, trip.version);
+      onTripChange(updated);
+      setMessage(`基本设置已保存，当前版本 ${updated.version}。`);
+    } catch {
+      setError("旅行设置保存失败，请刷新后重试。");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function deleteTrip() {
+    setPending(true);
+    setError(undefined);
+    try {
+      const deleted = await gateway.delete(trip.id, trip.version);
+      onDeleted?.(deleted);
+    } catch {
+      setError("删除失败，请刷新后重试。");
+      setPending(false);
+      setConfirmingDelete(false);
+    }
+  }
+
   return (
     <section className="workspaceCard tripSettings" aria-labelledby="trip-settings-title">
       <header>
@@ -152,6 +220,48 @@ export function TripSettings({
         </button>
       </header>
       {open ? (
+        <div className="tripSettingsForms">
+        <form className="tripForm" aria-label="旅行基本设置" onSubmit={updateBasics}>
+          <label>
+            旅行名称
+            <input name="name" required minLength={2} defaultValue={trip.name} />
+          </label>
+          <label>
+            旅行描述
+            <textarea name="description" defaultValue={trip.description ?? ""} />
+          </label>
+          <div className="formRow">
+            <label>
+              同行人数
+              <input name="travelers" type="number" min="1" max="99" defaultValue={trip.travelers} />
+            </label>
+            <label>
+              预算
+              <input name="budget" inputMode="decimal" defaultValue={trip.budget ?? ""} />
+            </label>
+          </div>
+          <div className="formRow">
+            <label>
+              默认币种
+              <select name="defaultCurrency" defaultValue={trip.defaultCurrency}>
+                {['CNY', 'USD', 'JPY', 'EUR'].map((currency) => <option key={currency}>{currency}</option>)}
+              </select>
+            </label>
+            <label>
+              时区
+              <input name="timezone" defaultValue={trip.timezone} />
+            </label>
+          </div>
+          <label>
+            地图配置
+            <select name="mapProfile" defaultValue={trip.mapProfile}>
+              <option value="cn_primary">中国大陆优先</option>
+              <option value="international_primary">国际优先</option>
+              <option value="hybrid">混合</option>
+            </select>
+          </label>
+          <button className="primary" disabled={pending}>保存基本设置</button>
+        </form>
         <form className="tripForm" aria-label="旅行日期设置" onSubmit={apply}>
           <div className="formRow">
             <label>
@@ -188,6 +298,19 @@ export function TripSettings({
           {message ? <p className="status statusReady" role="status">{message}</p> : null}
           {error ? <p className="formError" role="alert">{error}</p> : null}
         </form>
+        <section className="dangerZone" aria-label="删除旅行">
+          <h3>删除旅行</h3>
+          <p>旅行会进入回收站，关联 Day、Item、地点和费用会保留。</p>
+          {confirmingDelete ? (
+            <div className="actions">
+              <button type="button" disabled={pending} onClick={deleteTrip}>确认删除</button>
+              <button type="button" disabled={pending} onClick={() => setConfirmingDelete(false)}>取消</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmingDelete(true)}>删除旅行</button>
+          )}
+        </section>
+        </div>
       ) : null}
     </section>
   );
