@@ -31,6 +31,10 @@ export type RouteSegment = PersistedRoute & {
 };
 
 const DAY_COLORS = ["#2563eb", "#d9485f", "#0f766e", "#9333ea", "#c2410c"] as const;
+const ROUTE_BLOCKER_LABELS: Readonly<Record<string, string>> = {
+  LOCATION_MISSING: "地点缺失",
+  LOCATION_NOT_CONFIRMED: "地点尚未确认",
+};
 
 export function buildRouteMapItems(
   items: readonly ProductItem[],
@@ -70,15 +74,17 @@ export function currentRouteSegments(routes: readonly RouteSegment[], dayId: str
   return dayId ? routes.filter((route) => route.tripDayId === dayId) : [...routes];
 }
 
-export function RouteMapWorkspace({ tripId, transportModes }: {
+export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0 }: {
   readonly tripId: string;
   readonly transportModes: readonly TransportModeView[];
+  readonly refreshVersion?: number;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [items, setItems] = useState<ProductItem[]>([]);
   const [locations, setLocations] = useState<Record<string, LocationView>>({});
   const [routes, setRoutes] = useState<RouteSegment[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [settledRefreshVersion, setSettledRefreshVersion] = useState(refreshVersion);
   const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
   const selection = useSyncExternalStore(
     (listener) => selectionStore.subscribe(listener),
@@ -118,6 +124,20 @@ export function RouteMapWorkspace({ tripId, transportModes }: {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  useEffect(() => {
+    if (refreshVersion <= settledRefreshVersion) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void refresh().finally(() => {
+        if (!cancelled) setSettledRefreshVersion(refreshVersion);
+      });
+    }, 750);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [refresh, refreshVersion, settledRefreshVersion]);
+
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const mapItems = useMemo(() => buildRouteMapItems(items, days, locations), [days, items, locations]);
   const visibleRoutes = useMemo(() => currentRouteSegments(routes, selectedDayId), [routes, selectedDayId]);
@@ -125,7 +145,7 @@ export function RouteMapWorkspace({ tripId, transportModes }: {
   const visibleTimelineItems = useMemo(() => selectedDayId ? items.filter(({ tripDayId }) => tripDayId === selectedDayId) : items, [items, selectedDayId]);
   const selectedItemId = selection.selected?.itemId ?? null;
   const selectedRoute = routes.find(({ id }) => id === selectedRouteId) ?? null;
-  const isGenerating = items.length >= 2 && (routes.length === 0 || routes.some((route) => route.status === "resolving" || (route.status === "pending" && !Array.isArray(route.sourceContext.blockers))));
+  const isGenerating = settledRefreshVersion < refreshVersion || (items.length >= 2 && (routes.length === 0 || routes.some((route) => route.status === "resolving" || (route.status === "pending" && !Array.isArray(route.sourceContext.blockers)))));
 
   function itemLabel(id: string | null): string {
     if (!id) return "未知端点";
@@ -159,7 +179,9 @@ export function RouteMapWorkspace({ tripId, transportModes }: {
     <small className="otr-map-attribution">地图数据 © On The Road fixture</small>
     {modeLegend.length > 0 ? <ul aria-label="路线交通方式图例">{modeLegend.map(({ code, style }) => <li key={code} data-line-style={style.dasharray.join(" ")}><span aria-hidden="true">{style.icon}</span> {style.label}{code === "OTHER" ? "（未指定交通方式，请确认）" : ""}</li>)}</ul> : null}
     {gaps.length > 0 ? <aside aria-label="路线缺口"><h3>路线缺口</h3><ul>{gaps.map((route) => {
-      const blockers = Array.isArray(route.sourceContext.blockers) ? route.sourceContext.blockers.join("、") : "地点尚未确认";
+      const blockers = Array.isArray(route.sourceContext.blockers)
+        ? route.sourceContext.blockers.map((blocker) => ROUTE_BLOCKER_LABELS[String(blocker)] ?? String(blocker)).join("、")
+        : "地点尚未确认";
       return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}：{blockers}</li>;
     })}</ul></aside> : null}
     <ol aria-label="行程时间线" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button

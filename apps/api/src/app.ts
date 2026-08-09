@@ -303,6 +303,7 @@ class ApiController {
   }
 
   @Post("trips/:tripId/restore")
+  @HttpCode(HttpStatus.OK)
   async restoreTrip(
     @Req() request: FastifyRequest,
     @Param("tripId") tripId: string,

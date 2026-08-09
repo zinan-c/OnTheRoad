@@ -60,8 +60,9 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [mappingSaved, setMappingSaved] = useState(false);
   const [previewRevision, setPreviewRevision] = useState(0);
   const [importJobId, setImportJobId] = useState<string | null>(null);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importStatuses, setImportStatuses] = useState<string[]>([]);
   const [tripTransportModes, setTripTransportModes] = useState<TransportModeView[]>([]);
+  const [routeRefreshVersion, setRouteRefreshVersion] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -82,6 +83,9 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const handleItemsChange = useCallback((dayId: string, loadedItems: ProductItem[]) => {
     const workspaceItems = loadedItems.map((item) => ({ ...item, target: item.target ?? item.description ?? "未命名事项" }));
     setDays((current) => current.map((day) => day.id === dayId ? { ...day, items: workspaceItems } : day));
+  }, []);
+  const handleRoutesInvalidated = useCallback(() => {
+    setRouteRefreshVersion((version) => version + 1);
   }, []);
 
   async function saveMapping() {
@@ -104,16 +108,17 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   async function uploadImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setImportStatus("正在创建上传会话…");
+    setImportStatuses(["正在创建上传会话…"]);
+    const recordStatus = (message: string) => setImportStatuses((statuses) => [...statuses, message]);
     try {
       const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
       const checksumSha256 = digestBase64(digest);
       const session = await api<{ attachmentId: string; uploadUrl: string; headers?: Record<string, string> }>(`/trips/${tripId}/imports/uploads`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ filename: file.name, contentType: file.type, contentLength: file.size, checksumSha256 }) });
-      setImportStatus("正在上传文件…");
+      recordStatus("正在上传文件…");
       const uploaded = await fetch(session.uploadUrl, { method: "PUT", ...(session.headers ? { headers: session.headers } : {}), body: file });
       if (!uploaded.ok) throw new Error(`上传失败：${uploaded.status}`);
       await api(`/trips/${tripId}/imports/${session.attachmentId}/complete`, { method: "POST" });
-      setImportStatus("正在扫描并检查文件…");
+      recordStatus("正在扫描并检查文件…");
       const inspection = await api<{ id: string }>(`/trips/${tripId}/imports/${session.attachmentId}/inspection`, { method: "POST", headers: { "idempotency-key": session.attachmentId } });
       for (let attempt = 0; attempt < 30; attempt += 1) {
         const job = await api<{ status: string }>(`/jobs/${inspection.id}`);
@@ -129,21 +134,26 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
         setMappingRows(mappingRowsFrom(loadedMapping));
         setMappingSheetNames(loadedMapping.sheetNames);
       }
-      setImportStatus(`已生成真实 ImportJob：${latest.id}`);
+      recordStatus(`已生成真实 ImportJob：${latest.id}`);
     } catch (error) {
-      setImportStatus(error instanceof Error ? error.message : "导入失败");
+      recordStatus(error instanceof Error ? error.message : "导入失败");
     } finally {
       event.target.value = "";
     }
   }
 
   return <div className="tripWorkspace">
-    <ItineraryPanel tripId={tripId} onTransportModesChange={setTripTransportModes} onItemsChange={handleItemsChange} />
-    <RouteMapWorkspace tripId={tripId} transportModes={tripTransportModes} />
+    <ItineraryPanel
+      tripId={tripId}
+      onTransportModesChange={setTripTransportModes}
+      onItemsChange={handleItemsChange}
+      onRoutesInvalidated={handleRoutesInvalidated}
+    />
+    <RouteMapWorkspace tripId={tripId} transportModes={tripTransportModes} refreshVersion={routeRefreshVersion} />
 
     <ExpenseWorkspace tripId={tripId} items={items} />
 
-    <section aria-label="导入映射工作台" className="workspaceCard"><label>上传行程文件<input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void uploadImport(event)} /></label><p className="status">导入币种规范使用统一 Reference Data：{referenceData.currencies.length} 个币种；{Object.entries(referenceData.currencyAliases).map(([alias, code]) => `${alias}→${code}`).join("、")}</p>{importStatus ? <p role="status">{importStatus}</p> : null}{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
+    <section aria-label="导入映射工作台" className="workspaceCard"><label>上传行程文件<input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void uploadImport(event)} /></label><p className="status">导入币种规范使用统一 Reference Data：{referenceData.currencies.length} 个币种；{Object.entries(referenceData.currencyAliases).map(([alias, code]) => `${alias}→${code}`).join("、")}</p>{importStatuses.map((message) => <p key={message} role="status">{message}</p>)}{importJobId ? <><MappingEditor rows={mappingRows} errors={[]} onChange={(source, target) => setMappingRows((rows) => rows.map((row) => row.source === source ? { ...row, target } : row))} onSave={saveMapping} />{mappingSaved ? <p role="status">映射已保存，可刷新后恢复。</p> : null}</> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}</section>
     <section aria-label="导入预览工作台" className="workspaceCard">{importJobId ? <ServerImportPreview jobId={importJobId} refreshKey={previewRevision} /> : <p role="status">暂无真实导入任务，上传并检查文件后可预览。</p>}</section>
     <TripGalleryWorkspace tripId={tripId} items={items} />
   </div>;

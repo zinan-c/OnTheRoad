@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { apiOrigin, createTripWorkspace, uploadImportFixture } from "./helpers";
+import { createTripWorkspace, uploadImportFixture } from "./helpers";
 
 test.setTimeout(180_000);
 test("TC-E05-03 5,000-row preview E2E filters errors and keeps mobile controls usable", async ({ page, isMobile }) => {
-  const tripId = await createTripWorkspace(page, "E05 预览验证");
+  await createTripWorkspace(page, "E05 预览验证");
   const expectedRows = isMobile ? 100 : 5_000;
   await uploadImportFixture(page, expectedRows);
   const mapping = page.getByRole("region", { name: "导入映射工作台" });
@@ -17,24 +17,9 @@ test("TC-E05-03 5,000-row preview E2E filters errors and keeps mobile controls u
   await expect(
     mapping.getByRole("status").filter({ hasText: "映射已保存" }),
   ).toBeVisible();
-  await expect.poll(async () => page.evaluate(async ({
-    tripId,
-    apiOrigin,
-    expectedRows,
-  }) => {
-    const latest = await fetch(
-      `${apiOrigin}/api/v1/trips/${tripId}/imports/latest`,
-      { credentials: "include" },
-    ).then((response) => response.json()) as { id: string };
-    const preview = await fetch(
-      `${apiOrigin}/api/v1/imports/${latest.id}/preview`,
-      { credentials: "include" },
-    ).then((response) => response.json()) as {
-      rows: Array<{ status: string }>;
-    };
-    return preview.rows.length === expectedRows
-      && preview.rows.some(({ status }) => status === "error");
-  }, { tripId, apiOrigin, expectedRows }), { timeout: 60_000 }).toBe(true);
+  const livePreview = page.getByRole("region", { name: "服务端导入预览" });
+  await expect(livePreview.getByRole("button", { name: new RegExp(`全部 ${expectedRows}`) })).toBeVisible({ timeout: 60_000 });
+  await expect(livePreview.getByRole("button", { name: /error 1/ })).toBeVisible();
   await page.reload();
   const preview = page.getByRole("region", { name: "导入预览工作台" });
   await expect(preview.getByRole("status")).toContainText("尚未写入正式行程");

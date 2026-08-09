@@ -206,10 +206,12 @@ export function ItineraryPanel({
   tripId,
   onTransportModesChange,
   onItemsChange,
+  onRoutesInvalidated,
 }: {
   readonly tripId: string;
   readonly onTransportModesChange?: (modes: TransportModeView[]) => void;
   readonly onItemsChange?: (dayId: string, items: ProductItem[]) => void;
+  readonly onRoutesInvalidated?: () => void;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [selectedDayId, setSelectedDayId] = useState("");
@@ -332,6 +334,7 @@ export function ItineraryPanel({
   ) => {
     setStatus("saving");
     setError(null);
+    onRoutesInvalidated?.();
     try {
       const saved = await itineraryApi<ProductItem>(`/trips/${tripId}/itinerary-items/${item.id}`, {
         method: "PATCH",
@@ -362,12 +365,15 @@ export function ItineraryPanel({
       setError(caught instanceof Error ? caught.message : "保存失败");
       setStatus("error");
     }
-  }, [tripId]);
+  }, [onRoutesInvalidated, tripId]);
 
   useEffect(() => {
     if (!editorOpen || !editing || expenseLoading) return;
     const serialized = draftFingerprint(draft);
-    if (serialized === confirmedPayload.current) return;
+    if (serialized === confirmedPayload.current) {
+      setStatus((current) => current === "dirty" ? "saved" : current);
+      return;
+    }
     setStatus("dirty");
     const sequence = ++saveSequence.current;
     const timer = window.setTimeout(() => {
@@ -399,6 +405,7 @@ export function ItineraryPanel({
         await persistEdit(editing, structuredClone(draft), sequence);
         return;
       }
+      onRoutesInvalidated?.();
       const saved = await itineraryApi<ProductItem>(`/trips/${tripId}/days/${selectedDayId}/itinerary-items`, {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -475,6 +482,7 @@ export function ItineraryPanel({
     setItems(orderedIds.map((id) => byId.get(id)!).filter(Boolean));
     setStatus("saving");
     setError(null);
+    onRoutesInvalidated?.();
     try {
       const saved = await itineraryApi<{ tripDayId: string; version: number; orderedIds: string[] }>(
         `/trips/${tripId}/days/${selectedDay.id}/itinerary-items/reorder`,
