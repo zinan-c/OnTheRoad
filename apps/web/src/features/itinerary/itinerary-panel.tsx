@@ -52,6 +52,15 @@ export type ProductItem = {
 
 type ItemDraft = EditorDraft & { kind: ItemKind };
 
+type ProductExpense = {
+  id: string;
+  itineraryItemId: string | null;
+  originalAmount: string;
+  currency: string;
+  categoryCode: string;
+  version: number;
+};
+
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:3001";
 
 export async function itineraryApi<T>(path: string, init?: RequestInit): Promise<T> {
@@ -103,6 +112,10 @@ function emptyDraft(kind: ItemKind = "activity"): ItemDraft {
 
 function datePart(value: string | null | undefined): string {
   return value?.slice(0, 10) ?? "";
+}
+
+function displayAmount(value: string): string {
+  return value.includes(".") ? value.replace(/0+$/u, "").replace(/\.$/u, "") : value;
 }
 
 function itemDraft(item: ProductItem): ItemDraft {
@@ -178,6 +191,17 @@ function itemPayload(draft: ItemDraft) {
   return payload;
 }
 
+function draftFingerprint(draft: ItemDraft) {
+  return JSON.stringify({
+    item: itemPayload(draft),
+    expense: {
+      amount: draft.costAmount,
+      currency: draft.costCurrency,
+      categoryCode: draft.costCategory,
+    },
+  });
+}
+
 export function ItineraryPanel({
   tripId,
   onTransportModesChange,
@@ -194,6 +218,7 @@ export function ItineraryPanel({
   const [status, setStatus] = useState<"idle" | "loading" | "dirty" | "saving" | "saved" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [modeManagerOpen, setModeManagerOpen] = useState(false);
+  const [expenseLoading, setExpenseLoading] = useState(false);
   const [modeCatalog, setModeCatalog] = useState<TransportModeView[]>(() => transportModes.map((mode) => ({
     ...mode,
     id: `system:${mode.code}`,
@@ -206,6 +231,7 @@ export function ItineraryPanel({
   })));
   const confirmedPayload = useRef("");
   const saveSequence = useRef(0);
+  const expenseRef = useRef<ProductExpense | null>(null);
 
   const loadItems = useCallback(async (dayId: string) => {
     setStatus("loading");
@@ -257,6 +283,8 @@ export function ItineraryPanel({
     setEditorOpen(true);
     setError(null);
     setStatus("idle");
+    setExpenseLoading(false);
+    expenseRef.current = null;
     if (kind === "transport") void loadTransportModes();
   }
 
@@ -264,10 +292,32 @@ export function ItineraryPanel({
     const nextDraft = itemDraft(item);
     setEditing(item);
     setDraft(nextDraft);
-    confirmedPayload.current = JSON.stringify(itemPayload(nextDraft));
+    confirmedPayload.current = draftFingerprint(nextDraft);
     setEditorOpen(true);
     setError(null);
     setStatus("idle");
+    setExpenseLoading(true);
+    expenseRef.current = null;
+    void itineraryApi<ProductExpense[]>(`/trips/${tripId}/itinerary-items/${item.id}/expenses`).then((loaded) => {
+      const primary = loaded.find((candidate) => candidate.itineraryItemId === item.id
+        && typeof candidate.originalAmount === "string") ?? null;
+      expenseRef.current = primary;
+      const withExpense = primary ? {
+        ...nextDraft,
+        costAmount: displayAmount(primary.originalAmount),
+        costCurrency: primary.currency,
+        costCategory: primary.categoryCode,
+      } : nextDraft;
+      confirmedPayload.current = draftFingerprint(withExpense);
+      setDraft((current) => ({
+        ...current,
+        costAmount: withExpense.costAmount,
+        costCurrency: withExpense.costCurrency,
+        costCategory: withExpense.costCategory,
+      }));
+    }).catch((caught) => {
+      setError(caught instanceof Error ? caught.message : "无法载入事项费用");
+    }).finally(() => setExpenseLoading(false));
     if (item.itemType === "transport") void loadTransportModes();
   }
 
@@ -284,8 +334,22 @@ export function ItineraryPanel({
         headers: { "content-type": "application/json", "if-match": String(item.version) },
         body: JSON.stringify(itemPayload(snapshot)),
       });
+      if (snapshot.costAmount) {
+        const currentExpense = expenseRef.current;
+        expenseRef.current = currentExpense
+          ? await itineraryApi<ProductExpense>(`/trips/${tripId}/expenses/${currentExpense.id}`, {
+              method: "PATCH",
+              headers: { "content-type": "application/json", "if-match": String(currentExpense.version) },
+              body: JSON.stringify({ amount: snapshot.costAmount, currency: snapshot.costCurrency, categoryCode: snapshot.costCategory }),
+            })
+          : await itineraryApi<ProductExpense>(`/trips/${tripId}/expenses`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ itineraryItemId: item.id, amount: snapshot.costAmount, currency: snapshot.costCurrency, categoryCode: snapshot.costCategory }),
+            });
+      }
       if (sequence !== saveSequence.current) return;
-      confirmedPayload.current = JSON.stringify(itemPayload(snapshot));
+      confirmedPayload.current = draftFingerprint(snapshot);
       setEditing(saved);
       setItems((current) => current.map((entry) => entry.id === saved.id ? saved : entry));
       setStatus("saved");
@@ -297,8 +361,8 @@ export function ItineraryPanel({
   }, [tripId]);
 
   useEffect(() => {
-    if (!editorOpen || !editing) return;
-    const serialized = JSON.stringify(itemPayload(draft));
+    if (!editorOpen || !editing || expenseLoading) return;
+    const serialized = draftFingerprint(draft);
     if (serialized === confirmedPayload.current) return;
     setStatus("dirty");
     const sequence = ++saveSequence.current;
@@ -306,7 +370,7 @@ export function ItineraryPanel({
       void persistEdit(editing, structuredClone(draft), sequence);
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [draft, editing, editorOpen, persistEdit]);
+  }, [draft, editing, editorOpen, expenseLoading, persistEdit]);
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
@@ -350,7 +414,7 @@ export function ItineraryPanel({
       }
       await loadItems(selectedDayId);
       setEditing(saved);
-      confirmedPayload.current = JSON.stringify(itemPayload(draft));
+      confirmedPayload.current = draftFingerprint(draft);
       setStatus("saved");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "保存失败");
@@ -510,7 +574,7 @@ export function ItineraryPanel({
         <label>交通方式<select aria-label="交通方式" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">请选择</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label}{mode.enabled ? "" : "（已停用）"}</option>)}</select></label>
       </> : null}
       <fieldset><legend>预订与联系</legend><label>预订编号<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>联系人<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>联系电话<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
-      {!editing ? <fieldset><legend>费用</legend><div className="formRow"><label>金额<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>币种<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label><label>类别<input value={draft.costCategory} onChange={(event) => update("costCategory", event.target.value.toUpperCase())} /></label></div></fieldset> : null}
+      <fieldset disabled={expenseLoading}><legend>费用</legend><div className="formRow"><label>金额<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>币种<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label><label>类别<input value={draft.costCategory} onChange={(event) => update("costCategory", event.target.value.toUpperCase())} /></label></div>{expenseLoading ? <p role="status">正在载入事项费用…</p> : null}</fieldset>
       <label>备注<textarea value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
       <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "正在保存…" : "保存事项"}</button><span role="status">{status === "dirty" ? "有未保存更改" : status === "saving" ? "正在保存…" : status === "saved" ? "已保存" : status === "error" ? "保存失败" : ""}</span></footer>
     </form> : null}

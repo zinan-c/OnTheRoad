@@ -828,6 +828,28 @@ class ApiController {
     return expense;
   }
 
+  @Get("trips/:tripId/itinerary-items/:itemId/expenses")
+  async itemExpenses(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Param("itemId") itemId: string,
+  ) {
+    return this.runtime.expenses.listForItem(await owner(this.runtime, request), tripId, itemId);
+  }
+
+  @Patch("trips/:tripId/expenses/:expenseId")
+  async updateExpense(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Param("expenseId") expenseId: string,
+    @Headers("if-match") ifMatch: string | undefined,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.runtime.expenses.update(
+      await owner(this.runtime, request), tripId, expenseId, body, version(ifMatch),
+    );
+  }
+
   @Get("trips/:tripId/expenses/summary")
   async expenseSummary(
     @Req() request: FastifyRequest,

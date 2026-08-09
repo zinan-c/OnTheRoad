@@ -117,18 +117,29 @@ test("E2E-010 debounces edits, persists the final value and warns while dirty", 
   };
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, ...(init ? { init } : {}) });
+    if (url.endsWith("/days")) return Response.json([{ id: "day-1", dayNumber: 1, version: 1 }]);
+    if (url.endsWith("/item-1/expenses")) return Response.json([]);
+    if (url.endsWith("/expenses") && init?.method === "POST") {
+      return Response.json({
+        id: "expense-1", itineraryItemId: "item-1", originalAmount: "88.0000",
+        currency: "CNY", categoryCode: "TICKET", version: 1,
+      }, { status: 201 });
+    }
     const body = init?.method === "PATCH"
-      ? { ...item, description: JSON.parse(String(init.body)).description, version: 2 }
-      : url.endsWith("/days") ? [{ id: "day-1", dayNumber: 1, version: 1 }] : [item];
-    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+      ? { ...item, ...JSON.parse(String(init.body)), version: 2 }
+      : [item];
+    return Response.json(body);
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
   fireEvent.click((await screen.findByText("外滩")).closest("button")!);
+  await waitFor(() => expect((screen.getByLabelText("金额") as HTMLInputElement).disabled).toBe(false));
   const description = screen.getByLabelText("描述");
   fireEvent.change(description, { target: { value: "第一次" } });
   fireEvent.change(description, { target: { value: "第二次" } });
   fireEvent.change(description, { target: { value: "最终描述" } });
+  fireEvent.change(screen.getByLabelText("金额"), { target: { value: "88" } });
+  fireEvent.change(screen.getByLabelText("类别"), { target: { value: "TICKET" } });
   expect(screen.getByText("有未保存更改")).toBeTruthy();
   const leaving = new Event("beforeunload", { cancelable: true });
   window.dispatchEvent(leaving);
@@ -138,6 +149,10 @@ test("E2E-010 debounces edits, persists the final value and warns while dirty", 
   const patches = calls.filter(({ init }) => init?.method === "PATCH");
   expect(patches).toHaveLength(1);
   expect(JSON.parse(String(patches[0]!.init!.body)).description).toBe("最终描述");
+  const expense = calls.find(({ url, init }) => url.endsWith("/expenses") && init?.method === "POST");
+  expect(JSON.parse(String(expense?.init?.body))).toEqual({
+    itineraryItemId: "item-1", amount: "88", currency: "CNY", categoryCode: "TICKET",
+  });
 });
 
 test("E2E-011 exposes copy and confirmed soft-delete operations", async () => {

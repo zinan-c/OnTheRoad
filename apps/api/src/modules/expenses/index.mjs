@@ -117,6 +117,50 @@ export class ExpenseService {
     });
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} itemId */
+  async listForItem(ownerId, tripId, itemId) {
+    await this.repository.getTrip(ownerId, tripId);
+    const item = await this.repository.getItem(itemId);
+    if (!item || item.ownerId !== ownerId || item.tripId !== tripId) {
+      throw new ExpenseDomainError(
+        "EXPENSE_REFERENCE_MISMATCH",
+        "Expense Item must belong to the same Trip and owner.",
+        409,
+      );
+    }
+    return this.repository.listByItem(ownerId, tripId, itemId);
+  }
+
+  /** @param {string} ownerId @param {string} tripId @param {string} expenseId @param {Record<string, any>} input @param {number} expectedVersion */
+  async update(ownerId, tripId, expenseId, input, expectedVersion) {
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+      throw new ExpenseDomainError("EXPENSE_VERSION_INVALID", "Expense version is invalid.");
+    }
+    const trip = /** @type {Record<string, any>} */ (
+      await this.repository.getTrip(ownerId, tripId)
+    );
+    const current = await this.repository.getExpense(ownerId, tripId, expenseId);
+    if (!current) {
+      throw new ExpenseDomainError("EXPENSE_NOT_FOUND", "Expense was not found.", 404);
+    }
+    const originalCurrency = currency(input.currency);
+    const originalAmount = normalizeMoney(input.amount);
+    const categoryCode = category(input.categoryCode);
+    const exchangeRate = originalCurrency === trip.defaultCurrency
+      ? "1.000000000000"
+      : await this.repository.getRate(tripId, originalCurrency, trip.defaultCurrency);
+    return this.repository.update(ownerId, tripId, expenseId, expectedVersion, {
+      originalAmount,
+      currency: originalCurrency,
+      categoryCode,
+      settlementCurrency: trip.defaultCurrency,
+      exchangeRate: exchangeRate?.rate ?? exchangeRate ?? null,
+      settledAmount: exchangeRate
+        ? convertMoney(originalAmount, exchangeRate.rate ?? exchangeRate)
+        : null,
+    });
+  }
+
   /** @param {string} ownerId @param {string} tripId */
   async summary(ownerId, tripId) {
     const trip = /** @type {Record<string, any>} */ (
@@ -159,6 +203,13 @@ export class InMemoryExpenseRepository {
     return item ? { ...item } : undefined;
   }
 
+  /** @param {string} ownerId @param {string} tripId @param {string} expenseId */
+  getExpense(ownerId, tripId, expenseId) {
+    const expense = this.expenses.find((entry) => entry.id === expenseId
+      && entry.ownerId === ownerId && entry.tripId === tripId);
+    return expense ? { ...expense } : null;
+  }
+
   /** @param {string} ownerId @param {string} tripId @param {Record<string, any>} rate */
   setRate(ownerId, tripId, rate) {
     this.getTrip(ownerId, tripId);
@@ -190,6 +241,26 @@ export class InMemoryExpenseRepository {
     return this.expenses
       .filter((expense) => expense.tripId === tripId)
       .map((expense) => ({ ...expense }));
+  }
+
+  /** @param {string} ownerId @param {string} tripId @param {string} itemId */
+  listByItem(ownerId, tripId, itemId) {
+    return this.expenses.filter((expense) => expense.ownerId === ownerId
+      && expense.tripId === tripId && expense.itineraryItemId === itemId
+      && expense.source === "actual").map((expense) => ({ ...expense }));
+  }
+
+  /** @param {string} ownerId @param {string} tripId @param {string} expenseId @param {number} expectedVersion @param {Record<string, any>} patch */
+  update(ownerId, tripId, expenseId, expectedVersion, patch) {
+    const index = this.expenses.findIndex((expense) => expense.id === expenseId
+      && expense.ownerId === ownerId && expense.tripId === tripId);
+    const current = this.expenses[index];
+    if (!current) return null;
+    if (current.version !== expectedVersion) {
+      throw new ExpenseDomainError("EXPENSE_VERSION_CONFLICT", "Expense changed; reload before saving.", 409);
+    }
+    this.expenses[index] = { ...current, ...patch, version: expectedVersion + 1 };
+    return { ...this.expenses[index] };
   }
 }
 

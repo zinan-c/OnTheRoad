@@ -1282,6 +1282,56 @@
         }
       }
     },
+    "/trips/{tripId}/itinerary-items/{itemId}/expenses": {
+      "get": {
+        "operationId": "listItemExpenses",
+        "summary": "List actual expenses attached to an itinerary Item",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripId" },
+          { "$ref": "#/components/parameters/ItineraryItemId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item expenses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Expense" }
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/trips/{tripId}/expenses/{expenseId}": {
+      "patch": {
+        "operationId": "updateExpense",
+        "summary": "Update an owner-scoped expense using optimistic concurrency",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripId" },
+          { "$ref": "#/components/parameters/ExpenseId" },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ExpenseInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated expense snapshot",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Expense" } }
+            }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/trips/{tripId}/exchange-rates": {
       "put": {
         "operationId": "setExchangeRate",
@@ -1885,6 +1935,14 @@
       },
       "ItineraryItemId": {
         "name": "itemId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ResourceId"
+        }
+      },
+      "ExpenseId": {
+        "name": "expenseId",
         "in": "path",
         "required": true,
         "schema": {
