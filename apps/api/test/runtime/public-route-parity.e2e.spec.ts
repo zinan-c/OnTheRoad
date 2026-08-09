@@ -35,12 +35,32 @@ function createRuntime(): ApiRuntime {
     environment: "development",
     identity,
     trips: {
+      getTrip: async () => ({
+        id: "trip-1",
+        ownerId: "route-owner",
+        name: "Route parity trip",
+        startDate: "2026-10-01",
+        endDate: "2026-10-02",
+        totalDays: 2,
+        travelers: 2,
+        defaultCurrency: "CNY",
+        budget: null,
+        timezone: "Asia/Shanghai",
+        mapProfile: "cn_primary",
+        description: null,
+        status: "active",
+        version: 4,
+        createdAt: "2026-08-09T00:00:00.000Z",
+        updatedAt: "2026-08-09T00:00:00.000Z",
+        deletedAt: null,
+        destinations: [],
+      }),
       deleteTrip: async () => ({ id: "trip-1", version: 2 }),
       restoreTrip: async () => ({ id: "trip-1", version: 3 }),
     },
     tripDates: {
-      apply: async () => ({ id: "trip-1", version: 4, days: [] }),
-      list: async () => [],
+      apply: async () => ({ version: 4, days: [{ id: "day-1" }, { id: "day-2" }] }),
+      list: async () => [{ id: "day-1" }],
     },
     itinerary: {
       get: async () => ({ id: "item-1", version: 1 }),
@@ -191,6 +211,22 @@ describe("REVIEW-P1-03 public transport parity", () => {
     await expect(client.request("getJob", {
       path: { jobId: "job-1" },
     })).resolves.toMatchObject({ data: { status: "queued" } });
+    await expect(client.request("changeTripDates", {
+      path: { tripId: "trip-1" },
+      headers: { "if-match": "3", "idempotency-key": "date-change-1" },
+      body: {
+        startDate: "2026-10-01",
+        endDate: "2026-10-02",
+        removedDayPolicy: "reject_non_empty",
+      },
+    })).resolves.toMatchObject({
+      data: {
+        trip: { id: "trip-1", version: 4 },
+        createdDayIds: ["day-2"],
+        archivedDayIds: [],
+      },
+      etag: "4",
+    });
 
     const anonymous = new OnTheRoadClient("http://127.0.0.1", {
       fetch: inProcessFetch,

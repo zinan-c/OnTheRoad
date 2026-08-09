@@ -330,8 +330,10 @@ class ApiController {
     },
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const result = await this.runtime.tripDates.apply(
-      await owner(this.runtime, request),
+    const ownerId = await owner(this.runtime, request);
+    const before = await this.runtime.tripDates.list(ownerId, tripId) as Array<{ id: string }>;
+    const context = await this.runtime.tripDates.apply(
+      ownerId,
       tripId,
       {
         startDate: body.startDate,
@@ -340,7 +342,16 @@ class ApiController {
         confirmDestructive: body.removedDayPolicy === "confirm_remove",
       },
     );
-    const resultVersion = (result as { version?: number }).version;
+    const after = (context as { days?: Array<{ id: string }> }).days ?? [];
+    const beforeIds = new Set(before.map(({ id }) => id));
+    const afterIds = new Set(after.map(({ id }) => id));
+    const trip = await this.runtime.trips.getTrip(ownerId, tripId);
+    const result = {
+      trip,
+      createdDayIds: after.filter(({ id }) => !beforeIds.has(id)).map(({ id }) => id),
+      archivedDayIds: before.filter(({ id }) => !afterIds.has(id)).map(({ id }) => id),
+    };
+    const resultVersion = (trip as { version?: number }).version;
     if (resultVersion) reply.header("etag", String(resultVersion));
     return result;
   }
