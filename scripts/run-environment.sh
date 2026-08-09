@@ -26,6 +26,68 @@ CLAMAV_HOST="${OTR_ENV_CLAMAV_HOST:-${CLAMAV_HOST:-}}"
 CLAMAV_PORT="${OTR_ENV_CLAMAV_PORT:-${CLAMAV_PORT:-3310}}"
 export DATABASE_URL REDIS_URL OBJECT_STORAGE_ENDPOINT OBJECT_STORAGE_ACCESS_KEY
 export OBJECT_STORAGE_SECRET_KEY OBJECT_STORAGE_BUCKET CLAMAV_HOST CLAMAV_PORT
+
+port_is_available() {
+  node -e '
+    const net = require("node:net");
+    const server = net.createServer();
+    server.unref();
+    server.once("error", () => process.exit(1));
+    server.listen(Number(process.argv[1]), "0.0.0.0", () => {
+      server.close(() => process.exit(0));
+    });
+  ' "$1"
+}
+
+select_dev_ports() {
+  local preferred_web="${OTR_DEV_WEB_PORT:-18100}"
+  local preferred_api="${OTR_DEV_API_PORT:-18101}"
+  local offset candidate_web candidate_api
+  if [[ ! "${preferred_web}" =~ ^[0-9]+$ || ! "${preferred_api}" =~ ^[0-9]+$ ||
+        "${preferred_web}" -lt 1024 || "${preferred_api}" -lt 1024 ||
+        "${preferred_web}" -gt 65000 || "${preferred_api}" -gt 65000 ]]; then
+    echo "OTR_DEV_WEB_PORT and OTR_DEV_API_PORT must be available ports from 1024 through 65000." >&2
+    exit 2
+  fi
+  for offset in $(seq 0 99); do
+    candidate_web=$((preferred_web + offset * 10))
+    candidate_api=$((preferred_api + offset * 10))
+    if [[ "${candidate_web}" -gt 65535 || "${candidate_api}" -gt 65535 ]]; then
+      break
+    fi
+    if port_is_available "${candidate_web}" && port_is_available "${candidate_api}"; then
+      WEB_PORT="${candidate_web}"
+      API_PORT="${candidate_api}"
+      PORT="${WEB_PORT}"
+      APP_ORIGIN="http://127.0.0.1:${WEB_PORT}"
+      API_BASE_URL="http://127.0.0.1:${API_PORT}/api/v1"
+      NEXT_PUBLIC_API_ORIGIN="http://127.0.0.1:${API_PORT}"
+      export WEB_PORT API_PORT PORT APP_ORIGIN API_BASE_URL NEXT_PUBLIC_API_ORIGIN
+      echo "Development endpoints selected: Web ${APP_ORIGIN}; API ${API_BASE_URL}"
+      return
+    fi
+  done
+  echo "Unable to reserve a free Web/API port pair near ${preferred_web}/${preferred_api}." >&2
+  exit 1
+}
+
+if [[ "${profile}" == "dev" ]]; then
+  select_dev_ports
+fi
+
+application_environment=()
+if [[ "${profile}" == "dev" ]]; then
+  application_environment=(
+    env
+    "WEB_PORT=${WEB_PORT}"
+    "PORT=${PORT}"
+    "API_PORT=${API_PORT}"
+    "APP_ORIGIN=${APP_ORIGIN}"
+    "API_BASE_URL=${API_BASE_URL}"
+    "NEXT_PUBLIC_API_ORIGIN=${NEXT_PUBLIC_API_ORIGIN}"
+  )
+fi
+
 pnpm exec turbo run build \
   --filter=@on-the-road/api \
   --filter=@on-the-road/worker \
@@ -39,9 +101,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:api & pids+=("$!"); child_names+=("API")
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:worker & pids+=("$!"); child_names+=("Worker")
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- pnpm run start:web & pids+=("$!"); child_names+=("Web")
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:api & pids+=("$!"); child_names+=("API")
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:worker & pids+=("$!"); child_names+=("Worker")
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:web & pids+=("$!"); child_names+=("Web")
 
 assert_children_running() {
   local index status

@@ -95,6 +95,17 @@ describe("TC-A02-02 native recovery and scanner degradation", () => {
       runner,
       /if \[\[ "\$\{api_ok\}" == true[\s\S]*assert_children_running[\s\S]*environment ready/u,
     );
+    assert.match(runner, /select_dev_ports\(\)/u);
+    assert.match(runner, /OTR_DEV_WEB_PORT:-18100/u);
+    assert.match(runner, /OTR_DEV_API_PORT:-18101/u);
+    assert.match(runner, /port_is_available "\$\{candidate_web\}"/u);
+    assert.match(runner, /NEXT_PUBLIC_API_ORIGIN=/u);
+    assert.match(runner, /Development endpoints selected:/u);
+    assert.match(runner, /application_environment=\(/u);
+    assert.match(
+      runner,
+      /-- "\$\{application_environment\[@\]\}" pnpm run start:web/u,
+    );
   });
 
   test.skipIf(!nativeIntegrationEnabled)(

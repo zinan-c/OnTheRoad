@@ -79,6 +79,9 @@ files. API, Worker and PDF Worker require:
 - `OTR_ENV_SESSION_SECRET` (exported to the process as `SESSION_SECRET`).
 
 Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities.
+For `pnpm run dev`, the launcher prefers the project-specific ports `18100`
+(Web) and `18101` (API). If either is occupied, it selects the next free port
+pair and prints the exact URLs before building and starting the applications.
 
 `OTR_COMMIT_SHA`, `GITHUB_SHA`, and `OTR_REQUIRED_CASE_REPORT` are Gate/evidence
 inputs, not application configuration. The required-case runner records the

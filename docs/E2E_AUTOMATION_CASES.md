@@ -96,7 +96,7 @@ Every case archives at least:
 
 1. Run `pnpm run dev` as described in the README.
 2. Wait for explicit API, Web, and Worker-heartbeat readiness output.
-3. Open `http://localhost:3000/`.
+3. Open the Web URL printed by `pnpm run dev` (normally `http://127.0.0.1:18100/`).
 4. Inspect service status and the Location search, Excel, and other capability text.
 5. Visit `/health/live`, `/health/ready`, `/api/v1/system/reference-data`, and `/api/v1/system/capabilities`.
 6. Refresh the homepage once and confirm that service status does not regress to an error state.
@@ -131,7 +131,7 @@ Every assertion must pass without an automatic restart, skipped dependency, or s
 
 ### Preconditions and data
 
-- Dev Profile, Web at `http://localhost:3000`, and API configured to allow that local origin.
+- Dev Profile, using the Web URL printed by `pnpm run dev`, with the API configured to allow that exact local origin.
 - Pre-create a Trip owned by `browser-demo-owner`, or run E2E-003 first.
 
 ### Manual steps
