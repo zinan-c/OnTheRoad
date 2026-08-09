@@ -55,6 +55,56 @@ test("E2E-009 exposes all six Item types and creates through the public API", as
   )).toBe(true));
 });
 
+test("E2E-009 persists and reloads the complete Hotel schedule and accommodation details", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  let saved: Record<string, unknown> | null = null;
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, ...(init ? { init } : {}) });
+    if (url.endsWith("/days")) {
+      return Response.json([{ id: "day-1", dayNumber: 1, version: 1 }]);
+    }
+    if (init?.method === "POST") {
+      const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+      const accommodation = payload.accommodation as Record<string, unknown>;
+      saved = {
+        id: "hotel-1", tripDayId: "day-1", ...payload,
+        itemType: "hotel", target: "夜宿酒店", locationId: null,
+        checkInAt: null, startLocationId: null, endLocationId: null,
+        bookingInfo: null, contactInfo: null, remark: null, dining: null,
+        accommodation: {
+          ...accommodation,
+          checkInAt: `${String(accommodation.checkInDate)}T00:00:00.000Z`,
+          checkOutAt: `${String(accommodation.checkOutDate)}T00:00:00.000Z`,
+        },
+        version: 1,
+      };
+      return Response.json(saved, { status: 201 });
+    }
+    return Response.json(saved ? [saved] : []);
+  }));
+
+  render(<ItineraryPanel tripId="trip-1" />);
+  fireEvent.click(await screen.findByRole("button", { name: "新增 accommodation" }));
+  fireEvent.change(screen.getByLabelText("事项名称"), { target: { value: "夜宿酒店" } });
+  fireEvent.change(screen.getByLabelText("时间类型"), { target: { value: "range" } });
+  fireEvent.change(screen.getByLabelText("开始时间"), { target: { value: "22:30" } });
+  fireEvent.change(screen.getByLabelText("结束时间"), { target: { value: "07:30" } });
+  fireEvent.click(screen.getByLabelText("跨午夜"));
+  fireEvent.change(screen.getByLabelText("住宿名称"), { target: { value: "山间酒店" } });
+  fireEvent.change(screen.getByLabelText("住宿详情"), { target: { value: "大床房" } });
+  fireEvent.change(screen.getByLabelText("入住日期"), { target: { value: "2026-10-01" } });
+  fireEvent.change(screen.getByLabelText("退房日期"), { target: { value: "2026-10-02" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存事项" }));
+
+  await screen.findByText("已保存");
+  const create = calls.find(({ url, init }) => url.endsWith("/itinerary-items") && init?.method === "POST");
+  expect(JSON.parse(String(create?.init?.body))).toMatchObject({
+    itemType: "hotel", timeKind: "range", startTime: "22:30", endTime: "07:30", endDayOffset: 1,
+    accommodation: { name: "山间酒店", details: "大床房", checkInDate: "2026-10-01", checkOutDate: "2026-10-02" },
+  });
+  expect(screen.getByLabelText("住宿详情")).toHaveProperty("value", "大床房");
+});
+
 test("E2E-010 debounces edits, persists the final value and warns while dirty", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const item = {

@@ -41,6 +41,7 @@ export type ProductItem = {
   dining: { name: string; mealType?: string | null } | null;
   accommodation: {
     name: string;
+    details?: string | null;
     checkInAt?: string | null;
     checkOutAt?: string | null;
     bookingInfo?: unknown;
@@ -128,6 +129,7 @@ function itemDraft(item: ProductItem): ItemDraft {
     diningName: item.dining?.name ?? "",
     mealType: item.dining?.mealType ?? "",
     hotelName: item.accommodation?.name ?? "",
+    accommodationType: item.accommodation?.details ?? "",
     checkInDate: datePart(item.accommodation?.checkInAt),
     checkOutDate: datePart(item.accommodation?.checkOutAt),
     reservationReference: booking,
@@ -164,6 +166,7 @@ function itemPayload(draft: ItemDraft) {
   if (draft.kind === "accommodation") {
     payload.accommodation = {
       name: draft.hotelName.trim(),
+      details: draft.accommodationType.trim() || null,
       checkInDate: draft.checkInDate || null,
       checkOutDate: draft.checkOutDate || null,
       bookingInfo: draft.reservationReference || null,
@@ -500,7 +503,7 @@ export function ItineraryPanel({
       /> : null}
       {draft.kind !== "transport" ? <label>入站交通方式<select aria-label="入站交通方式" value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">未指定（OTHER）</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label}{mode.enabled ? "" : "（已停用）"}</option>)}</select></label> : null}
       {draft.kind === "dining" ? <fieldset><legend>餐饮信息</legend><label>餐厅<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>餐别<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">未指定</option><option value="breakfast">breakfast</option><option value="lunch">lunch</option><option value="dinner">dinner</option><option value="snack">snack</option></select></label></fieldset> : null}
-      {draft.kind === "accommodation" ? <fieldset><legend>住宿信息</legend><label>住宿名称<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><div className="formRow"><label>入住日期<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>退房日期<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
+      {draft.kind === "accommodation" ? <fieldset><legend>住宿信息</legend><label>住宿名称<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><label>住宿详情<input value={draft.accommodationType} onChange={(event) => update("accommodationType", event.target.value)} /></label><div className="formRow"><label>入住日期<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>退房日期<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
       {draft.kind === "transport" ? <>
         <LocationProductPicker tripId={tripId} locationId={draft.transportOrigin} legend="交通起点" inputLabel="起点地点文字" onLocationChange={(locationId) => update("transportOrigin", locationId)} />
         <LocationProductPicker tripId={tripId} locationId={draft.transportDestination} legend="交通终点" inputLabel="终点地点文字" onLocationChange={(locationId) => update("transportDestination", locationId)} />
