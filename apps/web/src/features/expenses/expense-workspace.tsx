@@ -82,7 +82,7 @@ export function ExpenseWorkspace({
 
   useEffect(() => {
     if (!items.some(({ id }) => id === selectedItemId)) setSelectedItemId(items[0]?.id ?? "");
-    void refresh().catch(() => setError("费用和汇率载入失败。"));
+    void refresh().catch(() => setError("Unable to load expenses and exchange rates."));
   }, [items, refresh, selectedItemId]);
 
   useEffect(() => {
@@ -112,10 +112,10 @@ export function ExpenseWorkspace({
         }),
       });
       await refresh();
-      setMessage(`已为“${item.target}”保存费用。`);
+      setMessage(`Expense saved for “${item.target}”.`);
       event.currentTarget.reset();
     } catch {
-      setError("费用保存失败。");
+      setError("Unable to save the expense.");
     }
   }
 
@@ -125,7 +125,7 @@ export function ExpenseWorkspace({
     const fromCurrency = String(form.get("fromCurrency"));
     const toCurrency = String(form.get("toCurrency"));
     if (fromCurrency === toCurrency) {
-      setError("汇率的原币和目标币种不能相同。");
+      setError("The source and settlement currencies must be different.");
       return;
     }
     setError(undefined);
@@ -146,46 +146,46 @@ export function ExpenseWorkspace({
         },
       );
       await refresh();
-      setMessage(`已保存 ${saved.fromCurrency}→${saved.toCurrency} 汇率；补齐 ${saved.reconciledExpenseIds?.length ?? 0} 条未折算费用。`);
+      setMessage(`${saved.fromCurrency}→${saved.toCurrency} saved; ${saved.reconciledExpenseIds?.length ?? 0} unconverted expenses reconciled.`);
     } catch {
-      setError("汇率保存失败；汇率必须大于 0 且币种不能相同。");
+      setError("Unable to save the rate. It must be greater than zero and use different currencies.");
     }
   }
 
   const settlementCurrency = summary?.settlementCurrency ?? "CNY";
-  return <section aria-label="费用工作台" className="workspaceCard expenseWorkspace">
-    <header><h2>费用统计</h2><p>原金额、汇率快照和五维汇总均来自真实 API。</p></header>
-    {summary ? <CostSummaryPanel summary={summary} budget={budget} /> : <p>正在载入费用…</p>}
+  return <section aria-label="Expense workspace" className="workspaceCard expenseWorkspace">
+    <header><h2>Expenses</h2><p>Original amounts, exchange-rate snapshots, and summaries come from the live API.</p></header>
+    {summary ? <CostSummaryPanel summary={summary} budget={budget} /> : <p>Loading expenses…</p>}
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {message ? <p role="status" className="statusReady">{message}</p> : null}
-    <form aria-label="新增费用" onSubmit={addExpense} className="expenseForm">
-      <select aria-label="费用归属 Item" value={selectedItemId} onChange={(event) => setSelectedItemId(event.currentTarget.value)} required>
+    <form aria-label="Add expense" onSubmit={addExpense} className="expenseForm">
+      <select aria-label="Expense item" value={selectedItemId} onChange={(event) => setSelectedItemId(event.currentTarget.value)} required>
         {items.map((item) => <option key={item.id} value={item.id}>{item.dayNumber ? `Day ${item.dayNumber} · ` : ""}{item.target}</option>)}
       </select>
-      <select aria-label="费用归属目的地" value={selectedDestinationId} onChange={(event) => setSelectedDestinationId(event.currentTarget.value)} required>
+      <select aria-label="Expense destination" value={selectedDestinationId} onChange={(event) => setSelectedDestinationId(event.currentTarget.value)} required>
         {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
       </select>
-      <input name="amount" aria-label="金额" placeholder="金额" required />
-      <select name="currency" aria-label="币种" defaultValue="CNY">{referenceData.currencies.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select>
-      <select name="category" aria-label="费用类别" defaultValue="DINING">{referenceData.costCategories.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select>
-      <button type="submit" disabled={!selectedItemId || !selectedDestinationId}>添加费用</button>
+      <input name="amount" aria-label="Amount" placeholder="Amount" required />
+      <select name="currency" aria-label="Currency" defaultValue="CNY">{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
+      <select name="category" aria-label="Expense category" defaultValue="DINING">{referenceData.costCategories.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
+      <button type="submit" disabled={!selectedItemId || !selectedDestinationId}>Add expense</button>
     </form>
-    <form aria-label="汇率管理" onSubmit={saveRate} className="exchangeRateForm">
-      <h3>手工汇率</h3>
-      <select name="fromCurrency" aria-label="原币种" defaultValue="USD">{referenceData.currencies.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select>
+    <form aria-label="Exchange rate management" onSubmit={saveRate} className="exchangeRateForm">
+      <h3>Manual exchange rate</h3>
+      <select name="fromCurrency" aria-label="Source currency" defaultValue="USD">{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
       <input type="hidden" name="toCurrency" value={settlementCurrency} />
-      <select aria-label="目标币种" value={settlementCurrency} disabled>{referenceData.currencies.map(({ code, label }) => <option key={code} value={code}>{code} · {label}</option>)}</select>
-      <input name="rate" aria-label="汇率" inputMode="decimal" required placeholder="例如 7.2000" />
-      <button type="submit">保存汇率</button>
-      <ul aria-label="已保存汇率">{rates.map((rate) => <li key={`${rate.fromCurrency}:${rate.toCurrency}`}>{rate.fromCurrency}→{rate.toCurrency}：{rate.rate}（v{rate.version}）</li>)}</ul>
+      <select aria-label="Settlement currency" value={settlementCurrency} disabled>{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
+      <input name="rate" aria-label="Exchange rate" inputMode="decimal" required placeholder="For example, 7.2000" />
+      <button type="submit">Save rate</button>
+      <ul aria-label="Saved exchange rates">{rates.map((rate) => <li key={`${rate.fromCurrency}:${rate.toCurrency}`}>{rate.fromCurrency}→{rate.toCurrency}: {rate.rate} (v{rate.version})</li>)}</ul>
     </form>
     <div className="previewTableScroll">
-      <table aria-label="费用明细"><thead><tr><th>Item</th><th>原金额</th><th>类别</th><th>汇率快照</th><th>折算金额</th><th>版本</th></tr></thead><tbody>
+      <table aria-label="Expense details"><thead><tr><th>Item</th><th>Original amount</th><th>Category</th><th>Rate snapshot</th><th>Settled amount</th><th>Version</th></tr></thead><tbody>
         {expenses.map((expense) => <tr key={expense.id}>
-          <td>{items.find(({ id }) => id === expense.itineraryItemId)?.target ?? "未关联"}</td>
+          <td>{items.find(({ id }) => id === expense.itineraryItemId)?.target ?? "Unlinked"}</td>
           <td>{expense.originalAmount} {expense.currency}</td><td>{expense.categoryCode}</td>
-          <td>{expense.exchangeRate ?? "未折算"}</td>
-          <td>{expense.settledAmount ? `${expense.settledAmount} ${expense.settlementCurrency}` : "未折算"}</td>
+          <td>{expense.exchangeRate ?? "Unconverted"}</td>
+          <td>{expense.settledAmount ? `${expense.settledAmount} ${expense.settlementCurrency}` : "Unconverted"}</td>
           <td>{expense.version}</td>
         </tr>)}
       </tbody></table>

@@ -41,18 +41,18 @@ describe("E2E-019 expense product workspace", () => {
     const user = userEvent.setup();
     await waitFor(() => expect(screen.getByText("0.0000 CNY")).toBeTruthy());
 
-    await user.selectOptions(screen.getByLabelText("费用归属 Item"), "item-transport");
-    await user.selectOptions(screen.getByLabelText("费用归属目的地"), "dest-b");
-    await user.type(screen.getByLabelText("金额"), "50.25");
-    await user.selectOptions(screen.getByLabelText("币种"), "USD");
-    await user.selectOptions(screen.getByLabelText("费用类别"), "TRANSPORT");
-    await user.click(screen.getByRole("button", { name: "添加费用" }));
+    await user.selectOptions(screen.getByLabelText("Expense item"), "item-transport");
+    await user.selectOptions(screen.getByLabelText("Expense destination"), "dest-b");
+    await user.type(screen.getByLabelText("Amount"), "50.25");
+    await user.selectOptions(screen.getByLabelText("Currency"), "USD");
+    await user.selectOptions(screen.getByLabelText("Expense category"), "TRANSPORT");
+    await user.click(screen.getByRole("button", { name: "Add expense" }));
     await waitFor(() => expect(writes.some(({ body }) => body.itineraryItemId === "item-transport"
       && body.destinationId === "dest-b" && body.transportModeCode === "METRO")).toBe(true));
 
-    await user.selectOptions(screen.getByLabelText("原币种"), "USD");
-    await user.type(screen.getByLabelText("汇率"), "7.2000");
-    await user.click(screen.getByRole("button", { name: "保存汇率" }));
+    await user.selectOptions(screen.getByLabelText("Source currency"), "USD");
+    await user.type(screen.getByLabelText("Exchange rate"), "7.2000");
+    await user.click(screen.getByRole("button", { name: "Save rate" }));
     await waitFor(() => expect(writes.some(({ body }) => body.fromCurrency === "USD"
       && body.toCurrency === "CNY" && body.rate === "7.2000")).toBe(true));
   });

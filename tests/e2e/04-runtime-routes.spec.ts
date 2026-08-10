@@ -10,6 +10,7 @@ import {
   saveNewItem,
   saveTextLocation,
   selectDay,
+  waitForAutosave,
 } from "./helpers";
 
 test("E2E-016 — full runtime DirectionsProvider-to-MapLibre happy path", async ({ page }) => {
@@ -21,38 +22,38 @@ test("E2E-016 — full runtime DirectionsProvider-to-MapLibre happy path", async
     { target: "B", query: "豫园", mode: "WALK" },
   ]);
   const editor = await openNewItem(page, "attraction");
-  await editor.getByLabel("事项名称").fill("C");
+  await editor.getByLabel("Item name").fill("C");
   await resolveLocation(editor, "人民广场");
-  await editor.getByLabel("入站交通方式").selectOption("METRO");
-  const generating = expect(page.getByRole("status").filter({ hasText: "路线生成中" })).toBeVisible();
+  await editor.getByLabel("Inbound transport mode").selectOption("METRO");
+  const generating = expect(page.getByRole("status").filter({ hasText: "Generating routes" })).toBeVisible();
   await saveNewItem(editor, "C");
   await generating;
-  const map = page.getByRole("application", { name: "真实地图路线" });
+  const map = page.getByRole("application", { name: "Route map" });
   await expect(map).toBeVisible();
   await expect(map).toHaveAttribute("data-route-count", "2", { timeout: 30_000 });
   await tileRequest;
-  await expect(page.getByText("地图数据 © On The Road fixture", { exact: true })).toBeVisible();
-  await expect(page.getByRole("list", { name: "路线交通方式图例" })).toContainText("步行");
-  await expect(page.getByRole("list", { name: "路线交通方式图例" })).toContainText("地铁");
+  await expect(page.getByText("Map data © On The Road fixture", { exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Route mode legend" })).toContainText("WALK");
+  await expect(page.getByRole("list", { name: "Route mode legend" })).toContainText("METRO");
 
-  const timelineB = page.getByRole("list", { name: "行程时间线" }).getByRole("button", { name: "B", exact: true });
+  const timelineB = page.getByRole("list", { name: "Itinerary timeline" }).getByRole("button", { name: "B", exact: true });
   await timelineB.click();
   await expect(timelineB).toHaveAttribute("aria-pressed", "true");
   await map.getByRole("button", { name: /C$/u }).click();
-  await expect(page.getByRole("list", { name: "行程时间线" }).getByRole("button", { name: "C", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("list", { name: "路线列表" }).getByRole("button").filter({ hasText: "A → B" }).click();
-  const details = page.getByRole("complementary", { name: "路线详情" });
-  await expect(details).toContainText("步行");
+  await expect(page.getByRole("list", { name: "Itinerary timeline" }).getByRole("button", { name: "C", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("list", { name: "Route list" }).getByRole("button").filter({ hasText: "A → B" }).click();
+  const details = page.getByRole("complementary", { name: "Route details" });
+  await expect(details).toContainText("WALK");
   await expect(details).toContainText("fixture");
-  await expect(details).toContainText("真实路线");
+  await expect(details).toContainText("Actual route");
   await expect(details).toContainText("→");
 
   await page.reload();
   await expect(map).toHaveAttribute("data-route-count", "2", { timeout: 30_000 });
-  await page.getByRole("list", { name: "行程时间线" }).getByRole("button", { name: "B", exact: true }).click();
+  await page.getByRole("list", { name: "Itinerary timeline" }).getByRole("button", { name: "B", exact: true }).click();
   await map.getByRole("button", { name: /C$/u }).click();
-  await page.getByRole("list", { name: "路线列表" }).getByRole("button").filter({ hasText: "A → B" }).click();
-  await expect(page.getByRole("complementary", { name: "路线详情" })).toContainText("fixture");
+  await page.getByRole("list", { name: "Route list" }).getByRole("button").filter({ hasText: "A → B" }).click();
+  await expect(page.getByRole("complementary", { name: "Route details" })).toContainText("fixture");
 });
 
 test("E2E-017 — cross-day and transport-internal route matrix", async ({ page }) => {
@@ -61,14 +62,14 @@ test("E2E-017 — cross-day and transport-internal route matrix", async ({ page 
     startDate: "2026-10-01",
     endDate: "2026-10-02",
   });
-  await page.getByRole("button", { name: "交通方式设置" }).click();
-  const manager = page.getByRole("region", { name: "交通方式管理" });
-  await manager.getByLabel("交通方式 Code").fill("CABLE_SHUTTLE_CUSTOM");
-  await manager.getByLabel("交通方式名称").fill("缆车接驳");
-  await manager.getByLabel("交通方式颜色").fill("#123456");
-  await manager.getByLabel("交通方式线型").selectOption("dotted");
-  await manager.getByLabel("交通方式图标").fill("cable-car");
-  await manager.getByRole("button", { name: "新增交通方式" }).click();
+  await page.getByRole("button", { name: "Transport modes" }).click();
+  const manager = page.getByRole("region", { name: "Transport mode management" });
+  await manager.getByLabel("Transport mode code").fill("CABLE_SHUTTLE_CUSTOM");
+  await manager.getByLabel("Transport mode name").fill("缆车接驳");
+  await manager.getByLabel("Transport mode color").fill("#123456");
+  await manager.getByLabel("Transport mode line style").selectOption("dotted");
+  await manager.getByLabel("Transport mode icon").fill("cable-car");
+  await manager.getByRole("button", { name: "Add transport mode" }).click();
 
   await createLocatedSequence(page, [
     { target: "A", query: "外滩", day: 1, mode: "WALK" },
@@ -76,42 +77,44 @@ test("E2E-017 — cross-day and transport-internal route matrix", async ({ page 
     { target: "C", query: "人民广场", day: 2, mode: "FERRY" },
   ]);
   let editor = await openNewItem(page, "transport");
-  await editor.getByLabel("事项名称").fill("D");
-  await resolveLocation(editor, "外滩", { legend: "交通起点", inputLabel: "起点地点文字" });
-  await resolveLocation(editor, "豫园", { legend: "交通终点", inputLabel: "终点地点文字" });
-  await editor.getByLabel("交通方式").selectOption("CABLE_SHUTTLE_CUSTOM");
+  await editor.getByLabel("Item name").fill("D");
+  await resolveLocation(editor, "外滩", { legend: "Transport origin", inputLabel: "Origin location" });
+  await resolveLocation(editor, "豫园", { legend: "Transport destination", inputLabel: "Destination location" });
+  await editor.getByLabel("Transport mode").selectOption("CABLE_SHUTTLE_CUSTOM");
   await saveNewItem(editor, "D");
   await createLocatedSequence(page, [{ target: "E", query: "外滩", day: 2, mode: "PUBLIC_BUS" }]);
   editor = await openNewItem(page, "attraction");
-  await editor.getByLabel("事项名称").fill("F");
+  await editor.getByLabel("Item name").fill("F");
   await saveTextLocation(editor, "尚未确认的 F");
-  await editor.getByLabel("入站交通方式").selectOption("WALK");
+  await editor.getByLabel("Inbound transport mode").selectOption("WALK");
   await saveNewItem(editor, "F");
 
-  const routeList = page.getByRole("list", { name: "路线列表" });
-  await expect(routeList.getByRole("button")).toHaveCount(6, { timeout: 30_000 });
-  await expect(routeList).toContainText("Transport 内部路线");
-  await expect(routeList).toContainText("真实路线");
-  await page.getByRole("button", { name: "Day 1", exact: true }).last().click();
+  const routeList = page.getByRole("list", { name: "Route list" });
+  await expect(routeList.getByRole("button")).toHaveCount(5, { timeout: 30_000 });
+  await expect(routeList).toContainText("Transport route");
+  await expect(routeList).toContainText("Actual route");
+  await selectDay(page, 1);
   await expect(routeList).toContainText("A → B");
-  await page.getByRole("button", { name: "Day 2", exact: true }).last().click();
+  await expect(routeList).not.toContainText("D → D");
+  await selectDay(page, 2);
   await expect(routeList).toContainText("B → C");
   await expect(routeList).toContainText("D → D");
-  await page.getByRole("button", { name: "全局地图" }).click();
-
   await selectDay(page, 1);
-  await page.getByRole("button", { name: "上移 B" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "已将 B移动到第 1 位" })).toBeVisible();
+  await page.getByRole("button", { name: "Move B up" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "B moved to position 1" })).toBeVisible();
   editor = await openItem(page, "A");
-  await editor.getByLabel("入站交通方式").selectOption("PUBLIC_BUS");
-  await expect(editor.locator("footer").getByRole("status")).toHaveText("已保存", { timeout: 20_000 });
-  await editor.getByRole("button", { name: "关闭" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "路线生成中" })).toBeVisible();
+  await editor.getByLabel("Inbound transport mode").selectOption("PUBLIC_BUS");
+  await waitForAutosave(editor);
+  await editor.getByRole("button", { name: "Cancel" }).first().click();
+  await expect(page.getByRole("status").filter({ hasText: "Generating routes" })).toBeVisible();
   await expect(routeList).toContainText("B → A", { timeout: 30_000 });
-  const gaps = page.getByRole("complementary", { name: "路线缺口" });
+  await selectDay(page, 2);
+  const gaps = page.getByRole("complementary", { name: "Route gaps" });
   await expect(gaps).toContainText("F", { timeout: 30_000 });
-  await expect(gaps).toContainText(/未确认|尚未确认/u);
+  await expect(gaps).toContainText(/not confirmed|missing/u);
   await page.reload();
-  await expect(page.getByRole("list", { name: "路线列表" })).toContainText("B → A", { timeout: 30_000 });
-  await expect(page.getByRole("complementary", { name: "路线缺口" })).toContainText("F");
+  await selectDay(page, 1);
+  await expect(page.getByRole("list", { name: "Route list" })).toContainText("B → A", { timeout: 30_000 });
+  await selectDay(page, 2);
+  await expect(page.getByRole("complementary", { name: "Route gaps" })).toContainText("F");
 });

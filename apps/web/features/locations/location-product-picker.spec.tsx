@@ -29,10 +29,10 @@ test("E2E-015 saves plain Location text without starting geocoding", async () =>
   const onLocationChange = vi.fn();
   render(<LocationProductPicker tripId="trip-1" locationId="" onLocationChange={onLocationChange} />);
 
-  fireEvent.change(screen.getByLabelText("地点文字"), { target: { value: "外滩附近" } });
-  fireEvent.click(screen.getByRole("button", { name: "暂存文字" }));
+  fireEvent.change(screen.getByLabelText("Location name"), { target: { value: "外滩附近" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save text only" }));
 
-  await screen.findByText("地点状态：unresolved");
+  await screen.findByText("Location status: unresolved");
   expect(onLocationChange).toHaveBeenLastCalledWith("location-text", "外滩附近");
   expect(calls).toHaveLength(1);
   expect(calls[0]?.url.endsWith("/trips/trip-1/locations")).toBe(true);
@@ -69,15 +69,15 @@ test("E2E-014 explicitly confirms a signed candidate and reloads the resolved Lo
   }));
   const onLocationChange = vi.fn();
   const view = render(<LocationProductPicker tripId="trip-1" locationId="" onLocationChange={onLocationChange} />);
-  fireEvent.change(screen.getByLabelText("地点文字"), { target: { value: "人民广场" } });
-  fireEvent.click(screen.getByRole("button", { name: "显式搜索地点" }));
+  fireEvent.change(screen.getByLabelText("Location name"), { target: { value: "人民广场" } });
+  fireEvent.click(screen.getByRole("button", { name: "Search location" }));
 
   const choices = await screen.findAllByRole("radio");
   expect(choices).toHaveLength(2);
   expect(choices.every((choice) => !(choice as HTMLInputElement).checked)).toBe(true);
   fireEvent.click(screen.getByRole("radio", { name: /上海.*黄浦区/u }));
-  fireEvent.click(screen.getByRole("button", { name: "确认候选地点" }));
-  await screen.findByText(/地点状态：resolved/u);
+  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  await screen.findByText(/Location status: resolved/u);
   await waitFor(() => expect(calls.some(({ url, init }) => {
     if (!url.endsWith("/candidate") || init?.method !== "POST") return false;
     const submitted = JSON.parse(String(init.body));

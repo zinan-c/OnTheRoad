@@ -62,7 +62,7 @@ describe("TC-C05-01 marker and fit selector", () => {
     expect(fitPlan([])).toEqual({
       kind: "empty",
       bounds: null,
-      message: "无有效坐标：请先确认地点",
+      message: "No valid coordinates. Confirm a location first.",
     });
     expect(fitPlan([[121.5, 31.2]])).toMatchObject({
       kind: "single",
@@ -75,7 +75,7 @@ describe("TC-C05-01 marker and fit selector", () => {
     expect(fitPlan([[121.47, 31.23], [122.1, 30.02]])).toEqual({
       kind: "bounds",
       bounds: [[121.47, 30.02], [122.1, 31.23]],
-      message: "已适配全部有效坐标",
+      message: "Fitted all valid coordinates",
     });
   });
 

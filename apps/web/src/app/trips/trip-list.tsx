@@ -52,7 +52,7 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     try {
       setTrips(await activeGateway.list(status));
     } catch {
-      setError("旅行列表载入失败。");
+      setError("Unable to load trips.");
     } finally {
       setPending(false);
     }
@@ -67,10 +67,10 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     setError(undefined);
     try {
       const restored = await activeGateway.restore(trip.id, trip.version);
-      setMessage(`已恢复“${restored.name}”，原旅行和关联内容保持不变。`);
+      setMessage(`“${restored.name}” was restored with all related content.`);
       setView("active");
     } catch {
-      setError("恢复失败，请重新载入回收站后重试。");
+      setError("Restore failed. Reload Trash and try again.");
       setPending(false);
     }
   }
@@ -78,26 +78,26 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
   return (
     <section className="tripListPage">
       <p className="eyebrow">Your journeys</p>
-      <h1>旅行列表</h1>
-      <div className="actions" role="tablist" aria-label="旅行列表范围">
-        <button role="tab" aria-selected={view === "active"} onClick={() => setView("active")}>进行中的旅行</button>
-        <button role="tab" aria-selected={view === "deleted"} onClick={() => setView("deleted")}>回收站</button>
+      <h1>Trips</h1>
+      <div className="actions" role="tablist" aria-label="Trip list view">
+        <button role="tab" aria-selected={view === "active"} onClick={() => setView("active")}>Active trips</button>
+        <button role="tab" aria-selected={view === "deleted"} onClick={() => setView("deleted")}>Trash</button>
       </div>
       {message ? <p role="status" className="status statusReady">{message}</p> : null}
       {error ? <p role="alert" className="formError">{error}</p> : null}
-      {pending ? <p className="status">正在载入…</p> : null}
-      {!pending && trips.length === 0 ? <p className="emptyState">这里还没有旅行。</p> : null}
-      <ul className="tripList" aria-label={view === "active" ? "进行中的旅行" : "已删除的旅行"}>
+      {pending ? <p className="status">Loading…</p> : null}
+      {!pending && trips.length === 0 ? <p className="emptyState">No trips here yet.</p> : null}
+      <ul className="tripList" aria-label={view === "active" ? "Active trips" : "Deleted trips"}>
         {trips.map((trip) => (
           <li key={trip.id}>
             <div>
               <h2>{trip.name}</h2>
-              <p>{trip.startDate} — {trip.endDate} · {trip.totalDays} 天</p>
+              <p>{trip.startDate} — {trip.endDate} · {trip.totalDays} days</p>
             </div>
             {view === "active" ? (
-              <a className="primary" href={`/trips/${trip.id}`}>打开旅行</a>
+              <a className="primary" href={`/trips/${trip.id}`}>Open trip</a>
             ) : (
-              <button className="primary" disabled={pending} onClick={() => restore(trip)}>恢复旅行</button>
+              <button className="primary" disabled={pending} onClick={() => restore(trip)}>Restore trip</button>
             )}
           </li>
         ))}

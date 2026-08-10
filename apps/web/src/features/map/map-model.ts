@@ -152,7 +152,7 @@ export function fitPlan(points: readonly Coordinate[]): FitPlan {
     return {
       kind: "empty",
       bounds: null,
-      message: "无有效坐标：请先确认地点",
+      message: "No valid coordinates. Confirm a location first.",
     };
   }
 
@@ -175,14 +175,14 @@ export function fitPlan(points: readonly Coordinate[]): FitPlan {
         [west - SINGLE_POINT_PADDING, south - SINGLE_POINT_PADDING],
         [east + SINGLE_POINT_PADDING, north + SINGLE_POINT_PADDING],
       ],
-      message: kind === "single" ? "已适配单个有效坐标" : "有效坐标重合，已扩展视野",
+      message: kind === "single" ? "Fitted one valid coordinate" : "Overlapping coordinates expanded for visibility",
     };
   }
 
   return {
     kind: "bounds",
     bounds: [[west, south], [east, north]],
-    message: "已适配全部有效坐标",
+    message: "Fitted all valid coordinates",
   };
 }
 

@@ -109,7 +109,7 @@ export function TripSettings({
   readonly onDeleted?: (trip: TripSettingsRecord) => void;
 }) {
   const { currencies } = useReferenceData();
-  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [startDate, setStartDate] = useState(trip.startDate);
   const [endDate, setEndDate] = useState(trip.endDate);
   const [days, setDays] = useState<readonly TripDayRecord[]>();
@@ -145,7 +145,7 @@ export function TripSettings({
       setDays(await gateway.listDays(trip.id));
       setPreviewed(true);
     } catch {
-      setError("日期变更预览载入失败。");
+      setError("Unable to load the date-change preview.");
     } finally {
       setPending(false);
     }
@@ -165,9 +165,10 @@ export function TripSettings({
       onTripChange(result.trip);
       setDays(undefined);
       setPreviewed(false);
-      setMessage(`日期已更新为 ${startDate} 至 ${endDate}，共 ${result.trip.totalDays} 天。`);
+      setMessage(`Dates updated to ${startDate} – ${endDate} (${result.trip.totalDays} days).`);
+      setEditing(false);
     } catch {
-      setError("日期更新失败；包含内容的 Day 不会被移除，请刷新后重试。");
+      setError("Date update failed. Days with content were preserved; refresh and try again.");
     } finally {
       setPending(false);
     }
@@ -189,9 +190,10 @@ export function TripSettings({
         mapProfile: String(data.get("mapProfile")),
       }, trip.version);
       onTripChange(updated);
-      setMessage(`基本设置已保存，当前版本 ${updated.version}。`);
+      setMessage(`Trip settings saved at version ${updated.version}.`);
+      setEditing(false);
     } catch {
-      setError("旅行设置保存失败，请刷新后重试。");
+      setError("Unable to save trip settings. Refresh and try again.");
     } finally {
       setPending(false);
     }
@@ -204,7 +206,7 @@ export function TripSettings({
       const deleted = await gateway.delete(trip.id, trip.version);
       onDeleted?.(deleted);
     } catch {
-      setError("删除失败，请刷新后重试。");
+      setError("Unable to delete this trip. Refresh and try again.");
       setPending(false);
       setConfirmingDelete(false);
     }
@@ -214,62 +216,68 @@ export function TripSettings({
     <section className="workspaceCard tripSettings" aria-labelledby="trip-settings-title">
       <header>
         <div>
-          <h2 id="trip-settings-title">旅行设置</h2>
-          <p>修改日期前先预览新增、保留和移除的 Day。</p>
+          <h2 id="trip-settings-title">Trip settings</h2>
+          <p>Manage trip details, dates, and deletion from this dedicated page.</p>
         </div>
-        <button className="secondary" type="button" onClick={() => setOpen((value) => !value)}>
-          {open ? "收起设置" : "打开旅行设置"}
-        </button>
+        {!editing ? <button className="primary" type="button" onClick={() => { setEditing(true); setMessage(undefined); setError(undefined); }}>Edit trip</button> : null}
       </header>
-      {open ? (
+      {editing ? (
         <div className="tripSettingsForms">
-        <form className="tripForm" aria-label="旅行基本设置" onSubmit={updateBasics}>
+        <form className="tripForm" aria-label="Trip details" onSubmit={updateBasics}>
           <label>
-            旅行名称
+            Trip name
             <input name="name" required minLength={2} defaultValue={trip.name} />
           </label>
           <label>
-            旅行描述
+            Description
             <textarea name="description" defaultValue={trip.description ?? ""} />
           </label>
           <div className="formRow">
             <label>
-              同行人数
+              Travelers
               <input name="travelers" type="number" min="1" max="99" defaultValue={trip.travelers} />
             </label>
             <label>
-              预算
+              Budget
               <input name="budget" inputMode="decimal" defaultValue={trip.budget ?? ""} />
             </label>
           </div>
           <div className="formRow">
             <label>
-              默认币种
+              Default currency
               <select name="defaultCurrency" defaultValue={trip.defaultCurrency}>
-                {currencies.map(({ code, label }) => (
-                  <option key={code} value={code}>{code} · {label}</option>
+                {currencies.map(({ code }) => (
+                  <option key={code} value={code}>{code}</option>
                 ))}
               </select>
             </label>
             <label>
-              时区
+              Timezone
               <input name="timezone" defaultValue={trip.timezone} />
             </label>
           </div>
           <label>
-            地图配置
+            Map profile
             <select name="mapProfile" defaultValue={trip.mapProfile}>
-              <option value="cn_primary">中国大陆优先</option>
-              <option value="international_primary">国际优先</option>
-              <option value="hybrid">混合</option>
+              <option value="cn_primary">Mainland China</option>
+              <option value="international_primary">International</option>
+              <option value="hybrid">Hybrid</option>
             </select>
           </label>
-          <button className="primary" disabled={pending}>保存基本设置</button>
+          <div className="actions">
+            <button className="primary" disabled={pending}>Save changes</button>
+            <button className="secondary" type="button" disabled={pending} onClick={() => {
+              setStartDate(trip.startDate);
+              setEndDate(trip.endDate);
+              setPreviewed(false);
+              setEditing(false);
+            }}>Cancel</button>
+          </div>
         </form>
-        <form className="tripForm" aria-label="旅行日期设置" onSubmit={apply}>
+        <form className="tripForm" aria-label="Trip dates" onSubmit={apply}>
           <div className="formRow">
             <label>
-              开始日期
+              Start date
               <input
                 type="date"
                 value={startDate}
@@ -277,7 +285,7 @@ export function TripSettings({
               />
             </label>
             <label>
-              结束日期
+              End date
               <input
                 type="date"
                 value={endDate}
@@ -286,36 +294,42 @@ export function TripSettings({
             </label>
           </div>
           <button type="button" className="secondary" disabled={pending} onClick={showPreview}>
-            预览日期变更
+            Preview date changes
           </button>
           {preview ? (
-            <section aria-label="日期变更预览">
-              <p>变更后共 {preview.totalDays} 天</p>
-              <p>新增 Day：{preview.added.length ? preview.added.join("、") : "无"}</p>
-              <p>保留 Day：{preview.retained.length}</p>
-              <p>移除 Day：{preview.removed.length ? preview.removed.map(({ date }) => date).join("、") : "无"}</p>
+            <section aria-label="Date change preview">
+              <p>{preview.totalDays} days after this change</p>
+              <p>Days added: {preview.added.length ? preview.added.join(", ") : "None"}</p>
+              <p>Days retained: {preview.retained.length}</p>
+              <p>Days removed: {preview.removed.length ? preview.removed.map(({ date }) => date).join(", ") : "None"}</p>
               <button className="primary" disabled={pending || preview.totalDays === 0}>
-                确认应用日期变更
+                Apply date changes
               </button>
             </section>
           ) : null}
-          {message ? <p className="status statusReady" role="status">{message}</p> : null}
-          {error ? <p className="formError" role="alert">{error}</p> : null}
         </form>
-        <section className="dangerZone" aria-label="删除旅行">
-          <h3>删除旅行</h3>
-          <p>旅行会进入回收站，关联 Day、Item、地点和费用会保留。</p>
+        </div>
+      ) : <dl className="settingsSummary">
+        <div><dt>Dates</dt><dd>{trip.startDate} – {trip.endDate}</dd></div>
+        <div><dt>Travelers</dt><dd>{trip.travelers}</dd></div>
+        <div><dt>Default currency</dt><dd>{trip.defaultCurrency}</dd></div>
+        <div><dt>Timezone</dt><dd>{trip.timezone}</dd></div>
+        <div><dt>Map profile</dt><dd>{trip.mapProfile}</dd></div>
+      </dl>}
+      {message ? <p className="status statusReady" role="status">{message}</p> : null}
+      {error ? <p className="formError" role="alert">{error}</p> : null}
+        <section className="dangerZone" aria-label="Delete trip">
+          <h3>Delete trip</h3>
+          <p>The trip moves to Trash. Its days, items, locations, and expenses remain recoverable.</p>
           {confirmingDelete ? (
             <div className="actions">
-              <button type="button" disabled={pending} onClick={deleteTrip}>确认删除</button>
-              <button type="button" disabled={pending} onClick={() => setConfirmingDelete(false)}>取消</button>
+              <button type="button" disabled={pending} onClick={deleteTrip}>Confirm delete</button>
+              <button type="button" disabled={pending} onClick={() => setConfirmingDelete(false)}>Cancel</button>
             </div>
           ) : (
-            <button type="button" onClick={() => setConfirmingDelete(true)}>删除旅行</button>
+            <button type="button" onClick={() => setConfirmingDelete(true)}>Delete trip</button>
           )}
         </section>
-        </div>
-      ) : null}
     </section>
   );
 }

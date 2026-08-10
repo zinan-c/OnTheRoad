@@ -9,28 +9,28 @@ describe("TC-D05-02 missing-rate/budget UX", () => {
       unconverted: [{ currency: "USD", amount: "10.0000" }],
     }, "100.0000")).toMatchObject({
       tone: "warning",
-      label: expect.stringContaining("未折算"),
+      label: expect.stringContaining("unconverted"),
     });
     expect(budgetPresentation({
       settledActualTotal: "0.0000",
       unconverted: [],
     }, null)).toEqual({
       tone: "neutral",
-      label: "预算未设置",
+      label: "Budget not set",
     });
     expect(budgetPresentation({
       settledActualTotal: "120.0000",
       unconverted: [],
     }, "100.0000")).toEqual({
       tone: "danger",
-      label: "已超支 20.0000",
+      label: "Over budget by 20.0000",
     });
     expect(budgetPresentation({
       settledActualTotal: "0.0000",
       unconverted: [],
     }, "100.0000")).toEqual({
       tone: "positive",
-      label: "暂定剩余 100.0000",
+      label: "Estimated remaining 100.0000",
     });
   });
 });

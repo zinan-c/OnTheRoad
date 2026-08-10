@@ -12,12 +12,12 @@ export type RouteStyle = {
   readonly isApproximate: boolean;
 };
 
-const FALLBACK = { code: "OTHER", label: "其他", color: "#667085", lineStyle: "dashed", icon: "route-off" } as const;
+const FALLBACK = { code: "OTHER", label: "Other", color: "#667085", lineStyle: "dashed", icon: "route-off" } as const;
 const QUALITY_LABELS: Record<RouteQuality, string> = {
-  actual: "真实路线",
-  approximate: "示意路线",
-  manual: "手工路线",
-  unknown: "路线质量未知",
+  actual: "Actual route",
+  approximate: "Approximate route",
+  manual: "Manual route",
+  unknown: "Route quality unknown",
 };
 
 function dasharray(lineStyle: string): readonly number[] {
@@ -26,13 +26,13 @@ function dasharray(lineStyle: string): readonly number[] {
   return [1, 0];
 }
 
-export function routeStyle({ modeCode, quality, customMode }: { readonly modeCode?: string | null; readonly quality: RouteQuality; readonly customMode?: { readonly code: string; readonly label: string; readonly color: string; readonly lineStyle: string; readonly icon: string } }): RouteStyle {
+export function routeStyle({ modeCode, quality, customMode }: { readonly modeCode?: string | null; readonly quality: RouteQuality; readonly customMode?: { readonly code: string; readonly label: string; readonly color: string; readonly lineStyle: string; readonly icon: string; readonly isSystem?: boolean } }): RouteStyle {
   const mode = customMode ?? transportModes.find(({ code }) => code === modeCode) ?? FALLBACK;
   return {
     color: mode.color,
     dasharray: dasharray(mode.lineStyle),
     icon: mode.icon,
-    label: mode.label,
+    label: customMode && !customMode.isSystem ? customMode.label : mode.code,
     qualityLabel: QUALITY_LABELS[quality],
     isApproximate: quality !== "actual",
   };

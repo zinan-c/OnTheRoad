@@ -67,7 +67,7 @@ describe("TC-C05-03 marker, tooltip and map filtering", () => {
       markerCount: 0,
       textEditingAvailable: true,
     });
-    expect(renderMapShell(wrapper.state)).toContain("无有效坐标：请先确认地点");
+    expect(renderMapShell(wrapper.state)).toContain("No valid coordinates. Confirm a location first.");
   });
 });
 

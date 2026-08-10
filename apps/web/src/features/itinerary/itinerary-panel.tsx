@@ -72,7 +72,7 @@ export async function itineraryApi<T>(path: string, init?: RequestInit): Promise
   });
   if (!response.ok) {
     const problem = await response.json().catch(() => null) as { title?: string; detail?: string } | null;
-    throw Object.assign(new Error(problem?.detail ?? problem?.title ?? `请求失败：${response.status}`), {
+    throw Object.assign(new Error(problem?.detail ?? problem?.title ?? `Request failed: ${response.status}`), {
       status: response.status,
     });
   }
@@ -204,17 +204,21 @@ function draftFingerprint(draft: ItemDraft) {
 
 export function ItineraryPanel({
   tripId,
+  selectedDayId: controlledSelectedDayId,
+  onSelectedDayChange,
   onTransportModesChange,
   onItemsChange,
   onRoutesInvalidated,
 }: {
   readonly tripId: string;
+  readonly selectedDayId?: string | null;
+  readonly onSelectedDayChange?: (dayId: string) => void;
   readonly onTransportModesChange?: (modes: TransportModeView[]) => void;
   readonly onItemsChange?: (dayId: string, items: ProductItem[]) => void;
   readonly onRoutesInvalidated?: () => void;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
-  const [selectedDayId, setSelectedDayId] = useState("");
+  const [localSelectedDayId, setLocalSelectedDayId] = useState("");
   const [items, setItems] = useState<ProductItem[]>([]);
   const [draft, setDraft] = useState<ItemDraft>(() => emptyDraft());
   const [editing, setEditing] = useState<ProductItem | null>(null);
@@ -236,6 +240,7 @@ export function ItineraryPanel({
   const confirmedPayload = useRef("");
   const saveSequence = useRef(0);
   const expenseRef = useRef<ProductExpense | null>(null);
+  const selectedDayId = controlledSelectedDayId ?? localSelectedDayId;
 
   const loadItems = useCallback(async (dayId: string) => {
     setStatus("loading");
@@ -246,22 +251,32 @@ export function ItineraryPanel({
       setError(null);
       setStatus("idle");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法载入当天行程");
+      setError(caught instanceof Error ? caught.message : "Unable to load this day's itinerary");
       setStatus("error");
     }
   }, [onItemsChange, tripId]);
+
+  const selectDay = useCallback((dayId: string) => {
+    setLocalSelectedDayId(dayId);
+    onSelectedDayChange?.(dayId);
+    setEditorOpen(false);
+    void loadItems(dayId);
+  }, [loadItems, onSelectedDayChange]);
 
   useEffect(() => {
     void itineraryApi<ProductDay[]>(`/trips/${tripId}/days`).then((loaded) => {
       setDays(loaded);
       const first = loaded[0]?.id ?? "";
-      setSelectedDayId(first);
-      if (first) void loadItems(first);
+      setLocalSelectedDayId(first);
+      if (first) {
+        onSelectedDayChange?.(first);
+        void loadItems(first);
+      }
     }).catch((caught) => {
-      setError(caught instanceof Error ? caught.message : "无法载入 Day");
+      setError(caught instanceof Error ? caught.message : "Unable to load trip days");
       setStatus("error");
     });
-  }, [loadItems, tripId]);
+  }, [loadItems, onSelectedDayChange, tripId]);
 
   const selectedDay = useMemo(
     () => days.find(({ id }) => id === selectedDayId),
@@ -274,7 +289,7 @@ export function ItineraryPanel({
       setModeCatalog(loaded);
       onTransportModesChange?.(loaded);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "无法载入交通方式");
+      setError(caught instanceof Error ? caught.message : "Unable to load transport modes");
     }
   }, [onTransportModesChange, tripId]);
 
@@ -322,7 +337,7 @@ export function ItineraryPanel({
         costCategory: withExpense.costCategory,
       }));
     }).catch((caught) => {
-      setError(caught instanceof Error ? caught.message : "无法载入事项费用");
+      setError(caught instanceof Error ? caught.message : "Unable to load item expenses");
     }).finally(() => setExpenseLoading(false));
     if (item.itemType === "transport") void loadTransportModes();
   }
@@ -358,14 +373,18 @@ export function ItineraryPanel({
       if (sequence !== saveSequence.current) return;
       confirmedPayload.current = draftFingerprint(snapshot);
       setEditing(saved);
-      setItems((current) => current.map((entry) => entry.id === saved.id ? saved : entry));
+      setItems((current) => {
+        const next = current.map((entry) => entry.id === saved.id ? saved : entry);
+        onItemsChange?.(saved.tripDayId, next);
+        return next;
+      });
       setStatus("saved");
     } catch (caught) {
       if (sequence !== saveSequence.current) return;
-      setError(caught instanceof Error ? caught.message : "保存失败");
+      setError(caught instanceof Error ? caught.message : "Save failed");
       setStatus("error");
     }
-  }, [onRoutesInvalidated, tripId]);
+  }, [onItemsChange, onRoutesInvalidated, tripId]);
 
   useEffect(() => {
     if (!editorOpen || !editing || expenseLoading) return;
@@ -375,12 +394,7 @@ export function ItineraryPanel({
       return;
     }
     setStatus("dirty");
-    const sequence = ++saveSequence.current;
-    const timer = window.setTimeout(() => {
-      void persistEdit(editing, structuredClone(draft), sequence);
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [draft, editing, editorOpen, expenseLoading, persistEdit]);
+  }, [draft, editing, editorOpen, expenseLoading]);
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
@@ -394,7 +408,7 @@ export function ItineraryPanel({
 
   async function save() {
     if (!selectedDayId || (!draft.target.trim() && !draft.description.trim())) {
-      setError("事项名称或描述至少填写一项");
+      setError("Enter an item name or description.");
       return;
     }
     setStatus("saving");
@@ -428,7 +442,7 @@ export function ItineraryPanel({
       confirmedPayload.current = draftFingerprint(draft);
       setStatus("saved");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "保存失败");
+      setError(caught instanceof Error ? caught.message : "Save failed");
       setStatus("error");
     }
   }
@@ -446,13 +460,13 @@ export function ItineraryPanel({
       if (targetDayId === selectedDayId) await loadItems(selectedDayId);
       setStatus("saved");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "复制失败");
+      setError(caught instanceof Error ? caught.message : "Copy failed");
       setStatus("error");
     }
   }
 
   async function deleteItem(item: ProductItem) {
-    if (!window.confirm(`确定删除“${item.target || item.description}”吗？`)) return;
+    if (!window.confirm(`Delete “${item.target || item.description}”?`)) return;
     setStatus("saving");
     setError(null);
     try {
@@ -460,21 +474,25 @@ export function ItineraryPanel({
         method: "DELETE",
         headers: { "if-match": String(item.version) },
       });
-      setItems((current) => current.filter(({ id }) => id !== item.id));
+      setItems((current) => {
+        const next = current.filter(({ id }) => id !== item.id);
+        onItemsChange?.(item.tripDayId, next);
+        return next;
+      });
       if (editing?.id === item.id) {
         setEditorOpen(false);
         setEditing(null);
       }
       setStatus("saved");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "删除失败");
+      setError(caught instanceof Error ? caught.message : "Delete failed");
       setStatus("error");
     }
   }
 
   async function reorderItems(orderedIds: string[], input: ProductReorderInput) {
     if (!selectedDay || selectedDay.version === undefined) {
-      setError("当前 Day 缺少版本信息，无法安全排序");
+      setError("This day has no version information, so it cannot be reordered safely.");
       return;
     }
     const previous = items;
@@ -493,81 +511,81 @@ export function ItineraryPanel({
         },
       );
       const savedById = new Map(previous.map((item) => [item.id, item]));
-      setItems(saved.orderedIds.map((id) => savedById.get(id)!).filter(Boolean));
+      const reordered = saved.orderedIds.map((id) => savedById.get(id)!).filter(Boolean);
+      setItems(reordered);
+      onItemsChange?.(saved.tripDayId, reordered);
       setDays((current) => current.map((day) => day.id === saved.tripDayId
         ? { ...day, version: saved.version }
         : day));
       setStatus("saved");
     } catch (caught) {
       setItems(previous);
-      setError(caught instanceof Error ? `${input} 排序失败：${caught.message}` : "排序失败，已恢复原顺序");
+      setError(caught instanceof Error ? `${input} reorder failed: ${caught.message}` : "Reorder failed; the previous order was restored.");
       setStatus("error");
     }
   }
 
-  return <section className="workspaceCard itineraryProduct" aria-label="行程编辑工作台">
+  return <section className="workspaceCard itineraryProduct" aria-label="Daily itinerary">
     <header>
-      <h2>每日行程</h2>
-      <p>从页面创建并编辑完整 Item，保存结果会写入真实 API。</p>
+      <h2>Daily itinerary</h2>
+      <p>Select a day, review its details, and explicitly save or cancel edits.</p>
     </header>
-    <nav className="dayTabs" aria-label="选择 Day">
+    <nav className="dayTabs" aria-label="Select day">
       {days.map((day) => <button key={day.id} type="button" aria-pressed={day.id === selectedDayId} onClick={() => {
-        setSelectedDayId(day.id);
-        setEditorOpen(false);
-        void loadItems(day.id);
+        selectDay(day.id);
       }}>Day {day.dayNumber}</button>)}
     </nav>
-    <div className="itemCreateActions" aria-label="新增事项类型">
+    <div className="itemCreateActions" aria-label="Add item type">
       {(["activity", "attraction", "dining", "accommodation", "transport", "other"] as const).map((kind) =>
-        <button key={kind} type="button" onClick={() => beginCreate(kind)}>新增 {kind}</button>)}
+        <button key={kind} type="button" onClick={() => beginCreate(kind)}>Add {kind}</button>)}
     </div>
-    <button type="button" aria-expanded={modeManagerOpen} onClick={() => setModeManagerOpen((open) => !open)}>交通方式设置</button>
+    <button type="button" aria-expanded={modeManagerOpen} onClick={() => setModeManagerOpen((open) => !open)}>Transport modes</button>
     {modeManagerOpen ? <TransportModeManager tripId={tripId} onCatalogChange={(modes) => {
       setModeCatalog(modes);
       onTransportModesChange?.(modes);
     }} /> : null}
     {error ? <p role="alert" className="formError">{error}</p> : null}
-    {status === "loading" ? <p role="status">正在载入行程…</p> : null}
+    {status === "loading" ? <p role="status">Loading itinerary…</p> : null}
     <ProductSortableTimeline
-      entries={items.map((item) => ({ id: item.id, label: item.target || item.description || "未命名事项" }))}
+      entries={items.map((item) => ({ id: item.id, label: item.target || item.description || "Untitled item" }))}
       disabled={status === "saving"}
-      label={`Day ${selectedDay?.dayNumber ?? ""} 时间线`}
+      label={`Day ${selectedDay?.dayNumber ?? ""} timeline`}
       onReorder={(orderedIds, input) => void reorderItems(orderedIds, input)}
     >{(id) => {
       const item = items.find((entry) => entry.id === id)!;
       return <>
-        <button className="timelineEditButton" type="button" aria-label={`编辑 ${item.target || item.description}`} onClick={() => beginEdit(item)}>
-          <strong>{item.target || item.description}</strong><span>{item.itemType} · {item.timeKind === "period" ? item.timePeriod : item.startTime || "未排期"}</span>
+        <button className="timelineEditButton" type="button" aria-label={`Edit ${item.target || item.description}`} onClick={() => beginEdit(item)}>
+          <strong>{item.target || item.description}</strong><span>{item.itemType} · {item.timeKind === "period" ? item.timePeriod : item.startTime || "Unscheduled"}</span>
         </button>
-        <label>复制到<select aria-label={`复制 ${item.target || item.description} 到`} defaultValue="" onChange={(event) => {
+        <label>Copy to<select aria-label={`Copy ${item.target || item.description} to`} defaultValue="" onChange={(event) => {
           const target = event.target.value;
           event.target.value = "";
           void copyItem(item, target);
-        }}><option value="">选择 Day</option>{days.map((day) => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}</select></label>
-        <button type="button" aria-label={`删除 ${item.target || item.description}`} onClick={() => void deleteItem(item)}>删除</button>
+        }}><option value="">Select day</option>{days.map((day) => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}</select></label>
+        <button type="button" aria-label={`Delete ${item.target || item.description}`} onClick={() => void deleteItem(item)}>Delete</button>
       </>;
     }}</ProductSortableTimeline>
     {!editorOpen && status !== "idle" && status !== "loading" ? <p role="status">
-      {status === "saving" ? "正在保存排序…" : status === "saved" ? "已保存" : status === "error" ? "排序保存失败" : ""}
+      {status === "saving" ? "Saving order…" : status === "saved" ? "Saved" : status === "error" ? "Unable to save order" : ""}
     </p> : null}
-    {editorOpen ? <form className="itemEditorForm" aria-label={editing ? "编辑事项" : "新增事项"} onSubmit={(event) => { event.preventDefault(); void save(); }}>
-      <header><h3>{editing ? "编辑事项" : `新增 ${draft.kind}`}</h3><button type="button" onClick={() => {
-        if (["dirty", "saving", "error"].includes(status) && !window.confirm("仍有未保存修改，确定离开吗？")) return;
+    {editorOpen ? <form className="itemEditorForm" aria-label={editing ? "Edit item" : "Add item"} onSubmit={(event) => { event.preventDefault(); void save(); }}>
+      <header><h3>{editing ? "Edit item" : `Add ${draft.kind}`}</h3><button type="button" onClick={() => {
+        if (["dirty", "saving", "error"].includes(status) && !window.confirm("Discard unsaved changes?")) return;
         setEditorOpen(false);
-      }}>关闭</button></header>
-      <label>事项类型<select aria-label="事项类型" value={draft.kind} onChange={(event) => update("kind", event.target.value as ItemKind)}>
+      }}>Cancel</button></header>
+      <label>Item type<select aria-label="Item type" value={draft.kind} onChange={(event) => update("kind", event.target.value as ItemKind)}>
         <option value="activity">Activity</option><option value="attraction">Attraction</option><option value="dining">Dining</option><option value="accommodation">Hotel</option><option value="transport">Transport</option><option value="other">Other</option>
       </select></label>
-      <label>事项名称<input value={draft.target} onChange={(event) => update("target", event.target.value)} /></label>
-      <label>描述<textarea value={draft.description} onChange={(event) => update("description", event.target.value)} /></label>
+      <label>Item name<input value={draft.target} onChange={(event) => update("target", event.target.value)} /></label>
+      <label>Description<textarea value={draft.description} onChange={(event) => update("description", event.target.value)} /></label>
       <div className="formRow">
-        <label>时间类型<select value={draft.timeKind} onChange={(event) => update("timeKind", event.target.value as ItemDraft["timeKind"])}><option value="unscheduled">未排期</option><option value="clock">时刻</option><option value="range">范围</option><option value="period">时段</option></select></label>
-        {draft.timeKind === "period" ? <label>时段<select value={draft.timePeriod} onChange={(event) => update("timePeriod", event.target.value)}><option value="">请选择</option><option value="morning">morning</option><option value="noon">noon</option><option value="afternoon">afternoon</option><option value="evening">evening</option><option value="night">night</option></select></label> : null}
-        {draft.timeKind === "clock" || draft.timeKind === "range" ? <label>开始时间<input type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} /></label> : null}
-        {draft.timeKind === "range" ? <label>结束时间<input type="time" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} /></label> : null}
+        <label>Time type<select value={draft.timeKind} onChange={(event) => update("timeKind", event.target.value as ItemDraft["timeKind"])}><option value="unscheduled">Unscheduled</option><option value="clock">Time</option><option value="range">Range</option><option value="period">Period</option></select></label>
+        {draft.timeKind === "period" ? <label>Period<select value={draft.timePeriod} onChange={(event) => update("timePeriod", event.target.value)}><option value="">Select</option><option value="morning">Morning</option><option value="noon">Noon</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="night">Night</option></select></label> : null}
+        {draft.timeKind === "clock" || draft.timeKind === "range" ? <label>Start time<input type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} /></label> : null}
+        {draft.timeKind === "range" ? <label>End time<input type="time" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} /></label> : null}
       </div>
-      {draft.timeKind === "range" ? <label><input type="checkbox" checked={draft.crossesMidnight} onChange={(event) => update("crossesMidnight", event.target.checked)} />跨午夜</label> : null}
-      <label>时长（分钟）<input type="number" min="0" value={draft.durationMinutes ?? ""} onChange={(event) => update("durationMinutes", event.target.value ? Number(event.target.value) : undefined)} /></label>
+      {draft.timeKind === "range" ? <label><input type="checkbox" checked={draft.crossesMidnight} onChange={(event) => update("crossesMidnight", event.target.checked)} />Crosses midnight</label> : null}
+      <label>Duration (minutes)<input type="number" min="0" value={draft.durationMinutes ?? ""} onChange={(event) => update("durationMinutes", event.target.value ? Number(event.target.value) : undefined)} /></label>
       {draft.kind !== "transport" ? <LocationProductPicker
         tripId={tripId}
         locationId={draft.locationId}
@@ -577,18 +595,18 @@ export function ItineraryPanel({
           update("locationText", inputText);
         }}
       /> : null}
-      {draft.kind !== "transport" ? <label>入站交通方式<select aria-label="入站交通方式" value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">未指定（OTHER）</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label}{mode.enabled ? "" : "（已停用）"}</option>)}</select></label> : null}
-      {draft.kind === "dining" ? <fieldset><legend>餐饮信息</legend><label>餐厅<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>餐别<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">未指定</option><option value="breakfast">breakfast</option><option value="lunch">lunch</option><option value="dinner">dinner</option><option value="snack">snack</option></select></label></fieldset> : null}
-      {draft.kind === "accommodation" ? <fieldset><legend>住宿信息</legend><label>住宿名称<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><label>住宿详情<input value={draft.accommodationType} onChange={(event) => update("accommodationType", event.target.value)} /></label><div className="formRow"><label>入住日期<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>退房日期<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
+      {draft.kind !== "transport" ? <label>Inbound transport mode<select aria-label="Inbound transport mode" value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Unspecified (OTHER)</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label> : null}
+      {draft.kind === "dining" ? <fieldset><legend>Dining details</legend><label>Restaurant<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>Meal<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">Unspecified</option><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></label></fieldset> : null}
+      {draft.kind === "accommodation" ? <fieldset><legend>Accommodation details</legend><label>Property name<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><label>Details<input value={draft.accommodationType} onChange={(event) => update("accommodationType", event.target.value)} /></label><div className="formRow"><label>Check-in date<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>Check-out date<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
       {draft.kind === "transport" ? <>
-        <LocationProductPicker tripId={tripId} locationId={draft.transportOrigin} legend="交通起点" inputLabel="起点地点文字" onLocationChange={(locationId) => update("transportOrigin", locationId)} />
-        <LocationProductPicker tripId={tripId} locationId={draft.transportDestination} legend="交通终点" inputLabel="终点地点文字" onLocationChange={(locationId) => update("transportDestination", locationId)} />
-        <label>交通方式<select aria-label="交通方式" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">请选择</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label}{mode.enabled ? "" : "（已停用）"}</option>)}</select></label>
+        <LocationProductPicker tripId={tripId} locationId={draft.transportOrigin} legend="Transport origin" inputLabel="Origin location" onLocationChange={(locationId) => update("transportOrigin", locationId)} />
+        <LocationProductPicker tripId={tripId} locationId={draft.transportDestination} legend="Transport destination" inputLabel="Destination location" onLocationChange={(locationId) => update("transportDestination", locationId)} />
+        <label>Transport mode<select aria-label="Transport mode" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Select</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label>
       </> : null}
-      <fieldset><legend>预订与联系</legend><label>预订编号<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>联系人<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>联系电话<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
-      <fieldset disabled={expenseLoading}><legend>费用</legend><div className="formRow"><label>金额<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>币种<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label><label>类别<input value={draft.costCategory} onChange={(event) => update("costCategory", event.target.value.toUpperCase())} /></label></div>{expenseLoading ? <p role="status">正在载入事项费用…</p> : null}</fieldset>
-      <label>备注<textarea value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
-      <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "正在保存…" : "保存事项"}</button><span role="status">{status === "dirty" ? "有未保存更改" : status === "saving" ? "正在保存…" : status === "saved" ? "已保存" : status === "error" ? "保存失败" : ""}</span></footer>
+      <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
+      <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label><label>Category<input value={draft.costCategory} onChange={(event) => update("costCategory", event.target.value.toUpperCase())} /></label></div>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
+      <label>Notes<textarea value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
+      <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" disabled={status === "saving"} onClick={() => setEditorOpen(false)}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
     </form> : null}
   </section>;
 }

@@ -188,12 +188,18 @@ button:disabled {
 }
 
 .tripWorkspace { display: grid; gap: 1rem; margin-top: 2rem; text-align: left; }
+.dayRouteWorkspace { display: grid; grid-template-columns: minmax(22rem, .9fr) minmax(0, 1.35fr); gap: 1rem; align-items: start; }
+.routeWorkspace { position: sticky; top: 1rem; }
 .workspaceCard { min-width: 0; border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; background: rgb(255 255 255 / 84%); padding: 1rem; box-shadow: 0 8px 24px rgb(25 50 80 / 7%); }
 .workspaceCard h2 { margin: 0 0 .25rem; }
 .workspaceCard header p { color: #667085; margin-top: 0; }
 .tripSettings { margin-top: 2rem; text-align: left; }
 .tripSettings > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .tripSettingsForms { display: grid; gap: 1rem; }
+.settingsSummary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+.settingsSummary div { border: 1px solid #e4e7ec; border-radius: .75rem; padding: .75rem; }
+.settingsSummary dt { color: #667085; font-size: .85rem; }
+.settingsSummary dd { margin: .25rem 0 0; font-weight: 650; overflow-wrap: anywhere; }
 .tripSettings .tripForm { margin-top: 1rem; }
 .tripSettings textarea { min-height: 6rem; resize: vertical; }
 .dangerZone { border: 1px solid #d9a39a; border-radius: 1rem; padding: 1rem; background: #fff8f6; }
@@ -290,4 +296,6 @@ article p {
   .routeLayout { grid-template-columns: 1fr; }
   .costDimensions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tripWorkspace { margin-top: 1rem; }
+  .dayRouteWorkspace, .settingsSummary { grid-template-columns: 1fr; }
+  .routeWorkspace { position: static; }
 }

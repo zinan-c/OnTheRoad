@@ -17,12 +17,12 @@ export function formatCost(value: string, currency: string): string {
 }
 
 export function budgetPresentation(summary: Pick<CostSummary, "settledActualTotal" | "unconverted">, budget: string | null) {
-  if (budget === null) return { label: "预算未设置", tone: "neutral" as const };
-  if (summary.unconverted.length > 0) return { label: `已知实际 ${formatCost(summary.settledActualTotal, "")}；仍有未折算费用`, tone: "warning" as const };
+  if (budget === null) return { label: "Budget not set", tone: "neutral" as const };
+  if (summary.unconverted.length > 0) return { label: `Known actual ${formatCost(summary.settledActualTotal, "")}; some expenses remain unconverted`, tone: "warning" as const };
   const remaining = Number(budget) - Number(summary.settledActualTotal);
   return remaining < 0
-    ? { label: `已超支 ${Math.abs(remaining).toFixed(4)}`, tone: "danger" as const }
-    : { label: `暂定剩余 ${remaining.toFixed(4)}`, tone: "positive" as const };
+    ? { label: `Over budget by ${Math.abs(remaining).toFixed(4)}`, tone: "danger" as const }
+    : { label: `Estimated remaining ${remaining.toFixed(4)}`, tone: "positive" as const };
 }
 
 export function dimensionRows(summary: CostSummary, dimension: string): Array<[string, ExpenseBreakdown]> {

@@ -47,15 +47,15 @@ describe("E2E-007 Trip date settings", () => {
     render(<TripSettings trip={trip} gateway={gateway} onTripChange={onTripChange} />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "打开旅行设置" }));
-    const endDate = screen.getByLabelText("结束日期");
+    await user.click(screen.getByRole("button", { name: "Edit trip" }));
+    const endDate = screen.getByLabelText("End date");
     await user.clear(endDate);
     await user.type(endDate, "2026-10-05");
-    await user.click(screen.getByRole("button", { name: "预览日期变更" }));
+    await user.click(screen.getByRole("button", { name: "Preview date changes" }));
 
-    expect(screen.getByText("新增 Day：2026-10-04、2026-10-05")).toBeTruthy();
-    expect(screen.getByText("保留 Day：3")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "确认应用日期变更" }));
+    expect(screen.getByText("Days added: 2026-10-04, 2026-10-05")).toBeTruthy();
+    expect(screen.getByText("Days retained: 3")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Apply date changes" }));
 
     expect(changeDates).toHaveBeenCalledWith(
       "trip-7",
@@ -110,15 +110,15 @@ describe("E2E-007 Trip date settings", () => {
     );
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "打开旅行设置" }));
-    await user.clear(screen.getByLabelText("旅行名称"));
-    await user.type(screen.getByLabelText("旅行名称"), "已确认旅行");
-    await user.type(screen.getByLabelText("旅行描述"), "Shanghai 与舟山 mixed description");
-    await user.clear(screen.getByLabelText("同行人数"));
-    await user.type(screen.getByLabelText("同行人数"), "4");
-    await user.type(screen.getByLabelText("预算"), "12000.50");
-    await user.selectOptions(screen.getByLabelText("默认币种"), "EUR");
-    await user.click(screen.getByRole("button", { name: "保存基本设置" }));
+    await user.click(screen.getByRole("button", { name: "Edit trip" }));
+    await user.clear(screen.getByLabelText("Trip name"));
+    await user.type(screen.getByLabelText("Trip name"), "已确认旅行");
+    await user.type(screen.getByLabelText("Description"), "Shanghai 与舟山 mixed description");
+    await user.clear(screen.getByLabelText("Travelers"));
+    await user.type(screen.getByLabelText("Travelers"), "4");
+    await user.type(screen.getByLabelText("Budget"), "12000.50");
+    await user.selectOptions(screen.getByLabelText("Default currency"), "EUR");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(gateway.update).toHaveBeenCalledWith("trip-8", expect.objectContaining({
       name: "已确认旅行",
@@ -132,8 +132,8 @@ describe("E2E-007 Trip date settings", () => {
     rerender(
       <TripSettings trip={updated} gateway={gateway} onTripChange={onTripChange} onDeleted={onDeleted} />,
     );
-    await user.click(screen.getByRole("button", { name: "删除旅行" }));
-    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    await user.click(screen.getByRole("button", { name: "Delete trip" }));
+    await user.click(screen.getByRole("button", { name: "Confirm delete" }));
     expect(gateway.delete).toHaveBeenCalledWith("trip-8", 2);
     expect(onDeleted).toHaveBeenCalledWith(expect.objectContaining({ status: "deleted", version: 3 }));
   });

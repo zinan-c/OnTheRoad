@@ -41,13 +41,13 @@ test("E2E-009 exposes all six Item types and creates through the public API", as
 
   render(<ItineraryPanel tripId="trip-1" />);
   for (const kind of ["activity", "attraction", "dining", "accommodation", "transport", "other"]) {
-    expect(await screen.findByRole("button", { name: `新增 ${kind}` })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: `Add ${kind}` })).toBeTruthy();
   }
-  fireEvent.click(screen.getByRole("button", { name: "新增 other" }));
-  fireEvent.change(screen.getByLabelText("事项名称"), { target: { value: "自由安排" } });
-  fireEvent.click(screen.getByRole("button", { name: "保存事项" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add other" }));
+  fireEvent.change(screen.getByLabelText("Item name"), { target: { value: "自由安排" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save item" }));
 
-  await screen.findByText("已保存");
+  await screen.findByText("Saved");
   await waitFor(() => expect(calls.some(({ url, init }) =>
     url.endsWith("/trips/trip-1/days/day-1/itinerary-items")
     && init?.method === "POST"
@@ -84,28 +84,28 @@ test("E2E-009 persists and reloads the complete Hotel schedule and accommodation
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  fireEvent.click(await screen.findByRole("button", { name: "新增 accommodation" }));
-  fireEvent.change(screen.getByLabelText("事项名称"), { target: { value: "夜宿酒店" } });
-  fireEvent.change(screen.getByLabelText("时间类型"), { target: { value: "range" } });
-  fireEvent.change(screen.getByLabelText("开始时间"), { target: { value: "22:30" } });
-  fireEvent.change(screen.getByLabelText("结束时间"), { target: { value: "07:30" } });
-  fireEvent.click(screen.getByLabelText("跨午夜"));
-  fireEvent.change(screen.getByLabelText("住宿名称"), { target: { value: "山间酒店" } });
-  fireEvent.change(screen.getByLabelText("住宿详情"), { target: { value: "大床房" } });
-  fireEvent.change(screen.getByLabelText("入住日期"), { target: { value: "2026-10-01" } });
-  fireEvent.change(screen.getByLabelText("退房日期"), { target: { value: "2026-10-02" } });
-  fireEvent.click(screen.getByRole("button", { name: "保存事项" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Add accommodation" }));
+  fireEvent.change(screen.getByLabelText("Item name"), { target: { value: "夜宿酒店" } });
+  fireEvent.change(screen.getByLabelText("Time type"), { target: { value: "range" } });
+  fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "22:30" } });
+  fireEvent.change(screen.getByLabelText("End time"), { target: { value: "07:30" } });
+  fireEvent.click(screen.getByLabelText("Crosses midnight"));
+  fireEvent.change(screen.getByLabelText("Property name"), { target: { value: "山间酒店" } });
+  fireEvent.change(screen.getByLabelText("Details"), { target: { value: "大床房" } });
+  fireEvent.change(screen.getByLabelText("Check-in date"), { target: { value: "2026-10-01" } });
+  fireEvent.change(screen.getByLabelText("Check-out date"), { target: { value: "2026-10-02" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save item" }));
 
-  await screen.findByText("已保存");
+  await screen.findByText("Saved");
   const create = calls.find(({ url, init }) => url.endsWith("/itinerary-items") && init?.method === "POST");
   expect(JSON.parse(String(create?.init?.body))).toMatchObject({
     itemType: "hotel", timeKind: "range", startTime: "22:30", endTime: "07:30", endDayOffset: 1,
     accommodation: { name: "山间酒店", details: "大床房", checkInDate: "2026-10-01", checkOutDate: "2026-10-02" },
   });
-  expect(screen.getByLabelText("住宿详情")).toHaveProperty("value", "大床房");
+  expect(screen.getByLabelText("Details")).toHaveProperty("value", "大床房");
 });
 
-test("E2E-010 debounces edits, persists the final value and warns while dirty", async () => {
+test("E2E-010 explicitly saves the final edit and warns while dirty", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const item = {
     id: "item-1", tripDayId: "day-1", itemType: "attraction" as const,
@@ -133,19 +133,21 @@ test("E2E-010 debounces edits, persists the final value and warns while dirty", 
 
   render(<ItineraryPanel tripId="trip-1" />);
   fireEvent.click((await screen.findByText("外滩")).closest("button")!);
-  await waitFor(() => expect((screen.getByLabelText("金额") as HTMLInputElement).disabled).toBe(false));
-  const description = screen.getByLabelText("描述");
+  await waitFor(() => expect((screen.getByLabelText("Amount") as HTMLInputElement).disabled).toBe(false));
+  const description = screen.getByLabelText("Description");
   fireEvent.change(description, { target: { value: "第一次" } });
   fireEvent.change(description, { target: { value: "第二次" } });
   fireEvent.change(description, { target: { value: "最终描述" } });
-  fireEvent.change(screen.getByLabelText("金额"), { target: { value: "88" } });
-  fireEvent.change(screen.getByLabelText("类别"), { target: { value: "TICKET" } });
-  expect(screen.getByText("有未保存更改")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "88" } });
+  fireEvent.change(screen.getByLabelText("Category"), { target: { value: "TICKET" } });
+  expect(screen.getByText("Unsaved changes")).toBeTruthy();
   const leaving = new Event("beforeunload", { cancelable: true });
   window.dispatchEvent(leaving);
   expect(leaving.defaultPrevented).toBe(true);
 
-  await screen.findByText("已保存", {}, { timeout: 1_500 });
+  expect(calls.filter(({ init }) => init?.method === "PATCH")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Save item" }));
+  await screen.findByText("Saved", {}, { timeout: 1_500 });
   const patches = calls.filter(({ init }) => init?.method === "PATCH");
   expect(patches).toHaveLength(1);
   expect(JSON.parse(String(patches[0]!.init!.body)).description).toBe("最终描述");
@@ -181,13 +183,13 @@ test("E2E-011 exposes copy and confirmed soft-delete operations", async () => {
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  fireEvent.change(await screen.findByLabelText("复制 早餐 到"), { target: { value: "day-2" } });
+  fireEvent.change(await screen.findByLabelText("Copy 早餐 to"), { target: { value: "day-2" } });
   await waitFor(() => expect(calls.some(({ url, init }) =>
     url.endsWith("/itinerary-items/item-1/copy")
     && init?.method === "POST"
     && JSON.parse(String(init.body)).targetTripDayId === "day-2",
   )).toBe(true));
-  fireEvent.click(screen.getByRole("button", { name: "删除 早餐" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete 早餐" }));
   await waitFor(() => expect(calls.some(({ url, init }) =>
     url.endsWith("/itinerary-items/item-1")
     && init?.method === "DELETE"
@@ -218,7 +220,7 @@ test("E2E-012 persists the complete Day order with its current version", async (
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  fireEvent.click(await screen.findByRole("button", { name: "下移 外滩" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Move 外滩 down" }));
 
   await waitFor(() => expect(calls.some(({ url, init }) => {
     if (!url.endsWith("/trips/trip-1/days/day-1/itinerary-items/reorder") || init?.method !== "POST") return false;
@@ -227,10 +229,10 @@ test("E2E-012 persists the complete Day order with its current version", async (
       orderedIds: ["b", "a", "c"],
     });
   })).toBe(true));
-  await screen.findByText("已保存");
-  expect(screen.getByText("已将 外滩移动到第 2 位").getAttribute("aria-live")).toBe("polite");
-  expect(screen.getByRole("button", { name: "拖动 午餐" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "上移 外滩" })).toBeTruthy();
+  await screen.findByText("Saved");
+  expect(screen.getByText("外滩 moved to position 2").getAttribute("aria-live")).toBe("polite");
+  expect(screen.getByRole("button", { name: "Drag 午餐" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Move 外滩 up" })).toBeTruthy();
 });
 
 test("E2E-013 makes a newly persisted custom Mode immediately selectable", async () => {
@@ -255,15 +257,15 @@ test("E2E-013 makes a newly persisted custom Mode immediately selectable", async
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  await screen.findByRole("button", { name: "新增 transport" });
-  fireEvent.click(screen.getByRole("button", { name: "交通方式设置" }));
-  fireEvent.change(await screen.findByLabelText("交通方式 Code"), { target: { value: custom.code } });
-  fireEvent.change(screen.getByLabelText("交通方式名称"), { target: { value: custom.label } });
-  fireEvent.change(screen.getByLabelText("交通方式图标"), { target: { value: custom.icon } });
-  fireEvent.change(screen.getByLabelText("交通方式颜色"), { target: { value: custom.color } });
-  fireEvent.change(screen.getByLabelText("交通方式线型"), { target: { value: custom.lineStyle } });
-  fireEvent.click(screen.getByRole("button", { name: "新增交通方式" }));
+  await screen.findByRole("button", { name: "Add transport" });
+  fireEvent.click(screen.getByRole("button", { name: "Transport modes" }));
+  fireEvent.change(await screen.findByLabelText("Transport mode code"), { target: { value: custom.code } });
+  fireEvent.change(screen.getByLabelText("Transport mode name"), { target: { value: custom.label } });
+  fireEvent.change(screen.getByLabelText("Transport mode icon"), { target: { value: custom.icon } });
+  fireEvent.change(screen.getByLabelText("Transport mode color"), { target: { value: custom.color } });
+  fireEvent.change(screen.getByLabelText("Transport mode line style"), { target: { value: custom.lineStyle } });
+  fireEvent.click(screen.getByRole("button", { name: "Add transport mode" }));
   await screen.findByText(custom.code);
-  fireEvent.click(screen.getByRole("button", { name: "新增 transport" }));
-  expect(await screen.findByRole("option", { name: custom.label })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Add transport" }));
+  expect(await screen.findByRole("option", { name: custom.code })).toBeTruthy();
 });

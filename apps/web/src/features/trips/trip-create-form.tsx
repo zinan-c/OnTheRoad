@@ -103,7 +103,7 @@ export function TripCreateForm({
       if (navigate) navigate(trip);
       else router.push(`/trips/${trip.id}`);
     } catch {
-      setError("创建失败，请检查服务连接后重试。");
+      setError("Unable to create the trip. Check the service connection and try again.");
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -111,14 +111,14 @@ export function TripCreateForm({
   }
 
   return (
-    <form className="tripForm" onSubmit={submit} aria-label="新建旅行">
+    <form className="tripForm" onSubmit={submit} aria-label="New trip">
       <label>
-        旅行名称
-        <input name="name" required minLength={2} defaultValue="上海与舟山五日" />
+        Trip name
+        <input name="name" required minLength={2} defaultValue="Shanghai and Zhoushan" />
       </label>
       <div className="formRow">
         <label>
-          开始日期
+          Start date
           <input
             name="startDate"
             type="date"
@@ -128,7 +128,7 @@ export function TripCreateForm({
           />
         </label>
         <label>
-          结束日期
+          End date
           <input
             name="endDate"
             type="date"
@@ -139,29 +139,29 @@ export function TripCreateForm({
         </label>
       </div>
       <p className={totalDays === null ? "formError" : "formHint"} aria-live="polite">
-        {totalDays === null ? "结束日期不能早于开始日期。" : `将自动生成 ${totalDays} 天计划`}
+        {totalDays === null ? "The end date cannot be earlier than the start date." : `${totalDays} daily ${totalDays === 1 ? "plan" : "plans"} will be created automatically.`}
       </p>
       <label>
-        目的地
-        <input name="destinations" required defaultValue="上海、舟山" />
+        Destinations
+        <input name="destinations" required defaultValue="Shanghai, Zhoushan" />
       </label>
       <div className="formRow">
         <label>
-          同行人数
+          Travelers
           <input name="travelers" type="number" min="1" max="99" defaultValue="2" />
         </label>
         <label>
-          默认币种
+          Default currency
           <select name="defaultCurrency" defaultValue="CNY">
-            {currencies.map(({ code, label }) => (
-              <option key={code} value={code}>{code} · {label}</option>
+            {currencies.map(({ code }) => (
+              <option key={code} value={code}>{code}</option>
             ))}
           </select>
         </label>
       </div>
       {error ? <p className="formError" role="alert">{error}</p> : null}
       <button className="primary formSubmit" disabled={submitting || totalDays === null}>
-        {submitting ? "正在创建…" : "创建旅行"}
+        {submitting ? "Creating…" : "Create trip"}
       </button>
     </form>
   );

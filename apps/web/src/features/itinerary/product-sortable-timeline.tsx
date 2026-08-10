@@ -52,15 +52,15 @@ function SortableRow({
     <button
       type="button"
       className="dragHandle"
-      aria-label={`拖动 ${entry.label}`}
+      aria-label={`Drag ${entry.label}`}
       disabled={disabled}
       {...attributes}
       {...listeners}
     >⠿</button>
     <div className="timelineItemContent">{children}</div>
-    <div className="keyboardOrderActions" aria-label={`${entry.label} 排序操作`}>
-      <button type="button" aria-label={`上移 ${entry.label}`} disabled={disabled || index === 0} onClick={() => onKeyboardMove(entry.id, -1)}>↑</button>
-      <button type="button" aria-label={`下移 ${entry.label}`} disabled={disabled || index === total - 1} onClick={() => onKeyboardMove(entry.id, 1)}>↓</button>
+    <div className="keyboardOrderActions" aria-label={`${entry.label} ordering controls`}>
+      <button type="button" aria-label={`Move ${entry.label} up`} disabled={disabled || index === 0} onClick={() => onKeyboardMove(entry.id, -1)}>↑</button>
+      <button type="button" aria-label={`Move ${entry.label} down`} disabled={disabled || index === total - 1} onClick={() => onKeyboardMove(entry.id, 1)}>↓</button>
     </div>
   </li>;
 }
@@ -90,7 +90,7 @@ export function ProductSortableTimeline({
     const to = entries.findIndex(({ id }) => id === overId);
     if (from < 0 || to < 0 || from === to) return;
     const entry = entries[from];
-    if (entry) setAnnouncement(`已将 ${entry.label}移动到第 ${to + 1} 位`);
+    if (entry) setAnnouncement(`${entry.label} moved to position ${to + 1}`);
     onReorder(arrayMove([...entries], from, to).map(({ id }) => id), input);
   }
 

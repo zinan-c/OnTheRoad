@@ -31,16 +31,16 @@ test("E2E-013 creates and deactivates a custom Mode through the public API", asy
   render(<TransportModeManager tripId="trip-1" onCatalogChange={catalog} />);
   await waitFor(() => expect(calls.some(({ url, init }) => url.endsWith("/trips/trip-1/transport-modes") && !init?.method)).toBe(true));
 
-  fireEvent.change(screen.getByLabelText("交通方式 Code"), { target: { value: "CABLE_SHUTTLE_CUSTOM" } });
-  fireEvent.change(screen.getByLabelText("交通方式名称"), { target: { value: "缆车接驳" } });
-  fireEvent.change(screen.getByLabelText("交通方式图标"), { target: { value: "cable-car" } });
-  fireEvent.change(screen.getByLabelText("交通方式颜色"), { target: { value: "#123456" } });
-  fireEvent.change(screen.getByLabelText("交通方式线型"), { target: { value: "dotted" } });
-  fireEvent.click(screen.getByRole("button", { name: "新增交通方式" }));
+  fireEvent.change(screen.getByLabelText("Transport mode code"), { target: { value: "CABLE_SHUTTLE_CUSTOM" } });
+  fireEvent.change(screen.getByLabelText("Transport mode name"), { target: { value: "缆车接驳" } });
+  fireEvent.change(screen.getByLabelText("Transport mode icon"), { target: { value: "cable-car" } });
+  fireEvent.change(screen.getByLabelText("Transport mode color"), { target: { value: "#123456" } });
+  fireEvent.change(screen.getByLabelText("Transport mode line style"), { target: { value: "dotted" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add transport mode" }));
 
   expect(await screen.findByText("CABLE_SHUTTLE_CUSTOM")).toBeTruthy();
   expect(catalog).toHaveBeenLastCalledWith([custom]);
-  fireEvent.click(screen.getByRole("button", { name: "停用 缆车接驳" }));
+  fireEvent.click(screen.getByRole("button", { name: "Deactivate 缆车接驳" }));
   await waitFor(() => expect(calls.some(({ url, init }) =>
     url.endsWith("/transport-modes/mode-1")
     && init?.method === "DELETE"

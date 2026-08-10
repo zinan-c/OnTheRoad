@@ -36,13 +36,13 @@ describe("E2E-008 Trip list and recycle bin", () => {
     render(<TripList gateway={gateway} />);
     const user = userEvent.setup();
 
-    expect(await screen.findByText("这里还没有旅行。")).toBeTruthy();
-    await user.click(screen.getByRole("tab", { name: "回收站" }));
+    expect(await screen.findByText("No trips here yet.")).toBeTruthy();
+    await user.click(screen.getByRole("tab", { name: "Trash" }));
     expect(await screen.findByText("已确认旅行")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "恢复旅行" }));
+    await user.click(screen.getByRole("button", { name: "Restore trip" }));
 
     expect(gateway.restore).toHaveBeenCalledWith("trip-8", 3);
-    expect((await screen.findByRole("status")).textContent).toContain("已恢复");
+    expect((await screen.findByRole("status")).textContent).toContain("was restored");
     expect(list).toHaveBeenCalledWith("active");
   });
 });

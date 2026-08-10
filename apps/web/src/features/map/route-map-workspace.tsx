@@ -32,8 +32,8 @@ export type RouteSegment = PersistedRoute & {
 
 const DAY_COLORS = ["#2563eb", "#d9485f", "#0f766e", "#9333ea", "#c2410c"] as const;
 const ROUTE_BLOCKER_LABELS: Readonly<Record<string, string>> = {
-  LOCATION_MISSING: "地点缺失",
-  LOCATION_NOT_CONFIRMED: "地点尚未确认",
+  LOCATION_MISSING: "Location missing",
+  LOCATION_NOT_CONFIRMED: "Location not confirmed",
 };
 
 export function buildRouteMapItems(
@@ -59,14 +59,14 @@ export function buildRouteMapItems(
       };
     };
     if (item.itemType === "transport") {
-      const label = item.target ?? "交通事项";
+      const label = item.target ?? "Transport item";
       return [
-        toMapItem(`${item.id}:start`, `${label} · 起点`, item.startLocationId),
-        toMapItem(`${item.id}:end`, `${label} · 终点`, item.endLocationId),
+        toMapItem(`${item.id}:start`, `${label} · Origin`, item.startLocationId),
+        toMapItem(`${item.id}:end`, `${label} · Destination`, item.endLocationId),
       ];
     }
     const location = item.locationId ? locations[item.locationId] : undefined;
-    return [toMapItem(item.id, item.target ?? location?.name ?? location?.inputText ?? "未命名事项", item.locationId)];
+    return [toMapItem(item.id, item.target ?? location?.name ?? location?.inputText ?? "Untitled item", item.locationId)];
   });
 }
 
@@ -74,10 +74,11 @@ export function currentRouteSegments(routes: readonly RouteSegment[], dayId: str
   return dayId ? routes.filter((route) => route.tripDayId === dayId) : [...routes];
 }
 
-export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0 }: {
+export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, selectedDayId }: {
   readonly tripId: string;
   readonly transportModes: readonly TransportModeView[];
   readonly refreshVersion?: number;
+  readonly selectedDayId: string | null;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [items, setItems] = useState<ProductItem[]>([]);
@@ -92,7 +93,6 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0 }
     () => selectionStore.state,
   );
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
-  const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const selectMapItem = useCallback((id: string) => {
     selectionStore.selectFromMarker(id.split(":", 1)[0]!);
     setSelectedRouteId(null);
@@ -114,7 +114,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0 }
       setRoutes((current) => sameJson(current, loadedRoutes) ? current : loadedRoutes);
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "路线载入失败");
+      setLoadError(error instanceof Error ? error.message : "Unable to load routes");
     }
   }, [tripId]);
 
@@ -148,7 +148,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0 }
   const isGenerating = settledRefreshVersion < refreshVersion || (items.length >= 2 && (routes.length === 0 || routes.some((route) => route.status === "resolving" || (route.status === "pending" && !Array.isArray(route.sourceContext.blockers)))));
 
   function itemLabel(id: string | null): string {
-    if (!id) return "未知端点";
+    if (!id) return "Unknown endpoint";
     const item = itemById.get(id);
     return item?.target ?? id;
   }
@@ -159,14 +159,12 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0 }
     return { code, style: routeStyle({ modeCode: code, quality: "actual", ...(customMode ? { customMode } : {}) }) };
   });
 
-  return <section aria-label="路线地图" className="workspaceCard routeWorkspace">
-    <header><h2>路线与时间线</h2><p>地图只绘制 Route API 返回的持久化 WGS84 几何。</p></header>
-    {isGenerating ? <p role="status">路线生成中…</p> : null}
+  const selectedDay = days.find(({ id }) => id === selectedDayId);
+
+  return <section aria-label="Route map" className="workspaceCard routeWorkspace">
+    <header><h2>{selectedDay ? `Day ${selectedDay.dayNumber} route` : "Route map"}</h2><p>The map uses persisted WGS84 geometry returned by the Route API.</p></header>
+    {isGenerating ? <p role="status">Generating routes…</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
-    <nav aria-label="地图范围">
-      <button type="button" aria-pressed={selectedDayId === null} onClick={() => setSelectedDayId(null)}>全局地图</button>
-      {days.map((day) => <button key={day.id} type="button" aria-pressed={selectedDayId === day.id} onClick={() => setSelectedDayId(day.id)}>Day {day.dayNumber}</button>)}
-    </nav>
     {visibleItems.some(({ point }) => point) ? <RealRouteMap
       items={visibleItems}
       routes={visibleRoutes}
@@ -175,34 +173,34 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0 }
       selectedItemId={selectedItemId}
       onSelect={selectMapItem}
       onRouteSelect={selectRoute}
-    /> : <p role="status">无有效坐标：请先确认地点</p>}
-    <small className="otr-map-attribution">地图数据 © On The Road fixture</small>
-    {modeLegend.length > 0 ? <ul aria-label="路线交通方式图例">{modeLegend.map(({ code, style }) => <li key={code} data-line-style={style.dasharray.join(" ")}><span aria-hidden="true">{style.icon}</span> {style.label}{code === "OTHER" ? "（未指定交通方式，请确认）" : ""}</li>)}</ul> : null}
-    {gaps.length > 0 ? <aside aria-label="路线缺口"><h3>路线缺口</h3><ul>{gaps.map((route) => {
+    /> : <p role="status">No valid coordinates. Confirm a location to show it on the map.</p>}
+    <small className="otr-map-attribution">Map data © On The Road fixture</small>
+    {modeLegend.length > 0 ? <ul aria-label="Route mode legend">{modeLegend.map(({ code, style }) => <li key={code} data-line-style={style.dasharray.join(" ")}><span aria-hidden="true">{style.icon}</span> {style.label}{code === "OTHER" ? " (transport mode not specified)" : ""}</li>)}</ul> : null}
+    {gaps.length > 0 ? <aside aria-label="Route gaps"><h3>Route gaps</h3><ul>{gaps.map((route) => {
       const blockers = Array.isArray(route.sourceContext.blockers)
-        ? route.sourceContext.blockers.map((blocker) => ROUTE_BLOCKER_LABELS[String(blocker)] ?? String(blocker)).join("、")
-        : "地点尚未确认";
-      return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}：{blockers}</li>;
+        ? route.sourceContext.blockers.map((blocker) => ROUTE_BLOCKER_LABELS[String(blocker)] ?? String(blocker)).join(", ")
+        : "Location not confirmed";
+      return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}: {blockers}</li>;
     })}</ul></aside> : null}
-    <ol aria-label="行程时间线" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
+    <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
       type="button"
       aria-pressed={selectedItemId === item.id}
       data-selected={selectedItemId === item.id}
       onClick={() => { selectionStore.selectFromTimeline(item.id, item.tripDayId); setSelectedRouteId(null); }}
-    >{item.target ?? "未命名事项"}</button></li>)}</ol>
-    {selectedItemId ? <p role="status">当前选择：{itemLabel(selectedItemId)}</p> : null}
-    {visibleRoutes.length > 0 ? <ol aria-label="路线列表">{visibleRoutes.map((route) => {
+    >{item.target ?? "Untitled item"}</button></li>)}</ol>
+    {selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
+    {visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
       const customMode = transportModes.find(({ code }) => code === route.transportModeCode);
       const style = routeStyle({ modeCode: route.transportModeCode, quality: route.quality ?? "unknown", ...(customMode ? { customMode } : {}) });
-      return <li key={route.id}><button type="button" onClick={() => setSelectedRouteId(route.id)}>{route.kind === "item_transport" ? "Transport 内部路线" : "连接路线"}：{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)} · {style.label} · {style.qualityLabel}</button></li>;
+      return <li key={route.id}><button type="button" onClick={() => setSelectedRouteId(route.id)}>{route.kind === "item_transport" ? "Transport route" : "Connection route"}: {itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)} · {style.label} · {style.qualityLabel}</button></li>;
     })}</ol> : null}
-    {selectedRoute ? <aside aria-label="路线详情">
+    {selectedRoute ? <aside aria-label="Route details">
       <h3>{itemLabel(selectedRoute.fromItineraryItemId)} → {itemLabel(selectedRoute.toItineraryItemId)}</h3>
       <dl>
-        <div><dt>交通方式</dt><dd>{routeStyle({ modeCode: selectedRoute.transportModeCode, quality: selectedRoute.quality ?? "unknown", ...(transportModes.find(({ code }) => code === selectedRoute.transportModeCode) ? { customMode: transportModes.find(({ code }) => code === selectedRoute.transportModeCode)! } : {}) }).label}</dd></div>
-        <div><dt>Provider</dt><dd>{selectedRoute.provider ?? "尚未生成"}</dd></div>
-        <div><dt>质量</dt><dd>{routeStyle({ quality: (selectedRoute.quality ?? "unknown") as RouteQuality }).qualityLabel}</dd></div>
-        <div><dt>端点</dt><dd>{selectedRoute.fromLocationId ?? "未解析"} → {selectedRoute.toLocationId ?? "未解析"}</dd></div>
+        <div><dt>Transport mode</dt><dd>{routeStyle({ modeCode: selectedRoute.transportModeCode, quality: selectedRoute.quality ?? "unknown", ...(transportModes.find(({ code }) => code === selectedRoute.transportModeCode) ? { customMode: transportModes.find(({ code }) => code === selectedRoute.transportModeCode)! } : {}) }).label}</dd></div>
+        <div><dt>Provider</dt><dd>{selectedRoute.provider ?? "Not generated"}</dd></div>
+        <div><dt>Quality</dt><dd>{routeStyle({ quality: (selectedRoute.quality ?? "unknown") as RouteQuality }).qualityLabel}</dd></div>
+        <div><dt>Endpoints</dt><dd>{selectedRoute.fromLocationId ?? "Unresolved"} → {selectedRoute.toLocationId ?? "Unresolved"}</dd></div>
       </dl>
     </aside> : null}
   </section>;

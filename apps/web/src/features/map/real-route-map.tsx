@@ -58,7 +58,7 @@ export function RealRouteMap({ items, routes, transportModes = [], selectedRoute
     let disposed = false;
     void loadMapLibreRuntime({
       tileTemplate: "/api/map/tiles/{z}/{x}/{y}",
-      attribution: "地图数据 © On The Road fixture",
+      attribution: "Map data © On The Road fixture",
     }).then((runtime) => {
       if (disposed || !containerRef.current) return;
       const wrapper = new MapLibreWrapper(runtime as unknown as MapRuntimeFactory);
@@ -75,5 +75,5 @@ export function RealRouteMap({ items, routes, transportModes = [], selectedRoute
   useEffect(() => { wrapperRef.current?.setRouteGeoJson(routeGeoJson); }, [routeGeoJson]);
   useEffect(() => { wrapperRef.current?.selectItem(selectedItemId ?? null); }, [selectedItemId]);
 
-  return <div ref={containerRef} className="realRouteMap" role="application" aria-label="真实地图路线" data-route-count={routeGeoJson.features.length} />;
+  return <div ref={containerRef} className="realRouteMap" role="application" aria-label="Route map" data-route-count={routeGeoJson.features.length} />;
 }

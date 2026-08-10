@@ -65,7 +65,7 @@ export function LocationCoordinateEditor({
       });
       if (!response.ok) {
         const problem = await response.json().catch(() => null) as { code?: string; title?: string; detail?: string } | null;
-        throw Object.assign(new Error(problem?.detail ?? problem?.title ?? `坐标保存失败：${response.status}`), {
+        throw Object.assign(new Error(problem?.detail ?? problem?.title ?? `Unable to save coordinates: ${response.status}`), {
           status: response.status,
           code: problem?.code,
         });
@@ -76,7 +76,7 @@ export function LocationCoordinateEditor({
     } catch (caught) {
       const conflict = caught && typeof caught === "object" && "code" in caught
         && caught.code === "LOCATION_VERSION_CONFLICT";
-      setError(conflict ? "Location 已被其他操作更新，请刷新后重试（版本冲突）" : caught instanceof Error ? caught.message : "坐标保存失败");
+      setError(conflict ? "This location was updated elsewhere. Refresh and try again." : caught instanceof Error ? caught.message : "Unable to save coordinates");
     } finally {
       setPending(false);
     }
@@ -111,16 +111,16 @@ export function LocationCoordinateEditor({
           dayNumber: 1,
           daySequence: 1,
           dayColor: "#2563EB",
-          markerLabel: `拖动 ${locationRef.current.name}`,
+          markerLabel: `Drag ${locationRef.current.name}`,
           label: locationRef.current.name,
           coordinate: [point.longitude, point.latitude],
-          tooltip: `${locationRef.current.name} · 可拖动调整`,
+          tooltip: `${locationRef.current.name} · drag to adjust`,
         }]);
         handle.fitBounds([[point.longitude, point.latitude], [point.longitude, point.latitude]], { padding: 72, maxZoom: 15 });
       } else {
         handle.setMarkers([]);
       }
-    }).catch(() => setError("地图运行时不可用，仍可使用精确坐标输入"));
+    }).catch(() => setError("The map is unavailable. You can still enter exact coordinates."));
     return () => {
       disposed = true;
       runtimeRef.current?.destroy();
@@ -133,16 +133,16 @@ export function LocationCoordinateEditor({
     if (!handle || !location.point) return;
     handle.setMarkers([{
       id: location.id, itemId: location.id, dayId: "location-editor", dayNumber: 1,
-      daySequence: 1, dayColor: "#2563EB", markerLabel: `拖动 ${location.name}`,
+      daySequence: 1, dayColor: "#2563EB", markerLabel: `Drag ${location.name}`,
       label: location.name, coordinate: [location.point.longitude, location.point.latitude],
-      tooltip: `${location.name} · 可拖动调整`,
+      tooltip: `${location.name} · drag to adjust`,
     }]);
   }, [location]);
 
   function submitExact(kind: "map-pick" | "marker-drag") {
     const point = parsePoint(mapLongitude, mapLatitude);
     if (!point) {
-      setError("请输入有效的 WGS84 经纬度");
+      setError("Enter valid WGS84 coordinates");
       return;
     }
     void persist(point, kind, "keyboard");
@@ -151,29 +151,29 @@ export function LocationCoordinateEditor({
   function submitManual() {
     const point = parsePoint(manualLongitude, manualLatitude);
     if (!point) {
-      setError("请输入有效的 WGS84 经纬度");
+      setError("Enter valid WGS84 coordinates");
       return;
     }
     void persist(point, "manual", "manual");
   }
 
-  return <section className="locationCoordinateEditor" aria-label="Location 坐标调整">
-    <h4>坐标调整</h4>
-    <p>点击地图保存点位；已有 Marker 可直接拖动。所有坐标按 WGS84 保存。</p>
-    <div ref={containerRef} className="locationPickMap" role="application" aria-label="地点点选与 Marker 拖动地图" />
-    <details><summary>键盘精确操作地图与 Marker</summary>
+  return <section className="locationCoordinateEditor" aria-label="Location coordinate adjustment">
+    <h4>Adjust coordinates</h4>
+    <p>Click the map to save a point, or drag an existing marker. Coordinates are saved as WGS84.</p>
+    <div ref={containerRef} className="locationPickMap" role="application" aria-label="Location picker and draggable marker map" />
+    <details><summary>Precise keyboard map and marker controls</summary>
       <div className="formRow">
-        <label>地图经度<input aria-label="地图操作经度" inputMode="decimal" value={mapLongitude} onChange={(event) => setMapLongitude(event.target.value)} /></label>
-        <label>地图纬度<input aria-label="地图操作纬度" inputMode="decimal" value={mapLatitude} onChange={(event) => setMapLatitude(event.target.value)} /></label>
+        <label>Map longitude<input aria-label="Map longitude" inputMode="decimal" value={mapLongitude} onChange={(event) => setMapLongitude(event.target.value)} /></label>
+        <label>Map latitude<input aria-label="Map latitude" inputMode="decimal" value={mapLatitude} onChange={(event) => setMapLatitude(event.target.value)} /></label>
       </div>
-      <button type="button" disabled={pending} onClick={() => submitExact("map-pick")}>保存地图点选</button>
-      <button type="button" disabled={pending || !location.point} onClick={() => submitExact("marker-drag")}>保存 Marker 拖动位置</button>
+      <button type="button" disabled={pending} onClick={() => submitExact("map-pick")}>Save map point</button>
+      <button type="button" disabled={pending || !location.point} onClick={() => submitExact("marker-drag")}>Save marker position</button>
     </details>
-    <fieldset><legend>手工坐标</legend><div className="formRow">
-      <label>longitude<input aria-label="手工 longitude" inputMode="decimal" value={manualLongitude} onChange={(event) => setManualLongitude(event.target.value)} /></label>
-      <label>latitude<input aria-label="手工 latitude" inputMode="decimal" value={manualLatitude} onChange={(event) => setManualLatitude(event.target.value)} /></label>
-    </div><button type="button" disabled={pending} onClick={submitManual}>保存手工坐标</button></fieldset>
-    <p role="status">version {location.version}{location.point ? ` · ${location.point.longitude}, ${location.point.latitude}` : " · 未解析"}{location.manuallyAdjusted ? " · 人工调整" : ""}</p>
+    <fieldset><legend>Manual coordinates</legend><div className="formRow">
+      <label>Longitude<input aria-label="Manual longitude" inputMode="decimal" value={manualLongitude} onChange={(event) => setManualLongitude(event.target.value)} /></label>
+      <label>Latitude<input aria-label="Manual latitude" inputMode="decimal" value={manualLatitude} onChange={(event) => setManualLatitude(event.target.value)} /></label>
+    </div><button type="button" disabled={pending} onClick={submitManual}>Save manual coordinates</button></fieldset>
+    <p role="status">Version {location.version}{location.point ? ` · ${location.point.longitude}, ${location.point.latitude}` : " · unresolved"}{location.manuallyAdjusted ? " · manually adjusted" : ""}</p>
     {error ? <p role="alert">{error}</p> : null}
   </section>;
 }

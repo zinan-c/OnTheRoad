@@ -43,19 +43,18 @@ export function CapabilityStatus() {
   }, []);
 
   if (state.kind === "loading") {
-    return <p className="status" aria-live="polite">正在连接旅行服务…</p>;
+    return <p className="status" aria-live="polite">Connecting to the travel service…</p>;
   }
   if (state.kind === "error") {
     return (
       <p className="status statusError" role="alert">
-        暂时无法连接 API。你的本地内容不会因此丢失。
+        The API is temporarily unavailable. Your local content has not been lost.
       </p>
     );
   }
   return (
     <p className="status statusReady" aria-live="polite">
-      服务已就绪 · 地点搜索 {state.geocoding ? "可用" : "降级"} · Excel{" "}
-      {state.imports ? "可用" : "维护中"}
+      Service ready · Location search {state.geocoding ? "available" : "degraded"}
     </p>
   );
 }

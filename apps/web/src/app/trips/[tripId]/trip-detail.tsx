@@ -1,12 +1,8 @@
 "use client";
 
 import { OnTheRoadClient } from "@on-the-road/contracts";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import {
-  TripSettings,
-  type TripSettingsRecord,
-} from "../../../features/trips/trip-settings";
+import type { TripSettingsRecord } from "../../../features/trips/trip-settings";
 import { TripWorkspace } from "../../../features/trips/trip-workspace";
 
 interface Trip extends TripSettingsRecord {}
@@ -16,7 +12,6 @@ const client = new OnTheRoadClient(
 );
 
 export function TripDetail({ tripId }: { readonly tripId: string }) {
-  const router = useRouter();
   const [trip, setTrip] = useState<Trip>();
   const [status, setStatus] = useState<"loading" | "ready" | "signed-out" | "error">("loading");
 
@@ -52,30 +47,28 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
     }
   }
 
-  if (status === "loading") return <p className="status">正在载入旅行…</p>;
+  if (status === "loading") return <p className="status">Loading trip…</p>;
   if (status === "signed-out") {
     return (
       <section className="emptyState">
-        <h1>会话已退出</h1>
-        <p>重新登录后可以继续编辑同一段旅程。</p>
-        <button className="primary" onClick={login}>重新登录</button>
+        <h1>Session ended</h1>
+        <p>Sign in again to continue editing this trip.</p>
+        <button className="primary" onClick={login}>Sign in again</button>
       </section>
     );
   }
-  if (status === "error" || !trip) return <p role="alert">旅行暂时无法载入。</p>;
+  if (status === "error" || !trip) return <p role="alert">This trip is temporarily unavailable.</p>;
   return (
     <section className="tripSummary">
       <p className="eyebrow">Your journey</p>
       <h1>{trip.name}</h1>
       <p className="lead">{trip.startDate} — {trip.endDate}</p>
-      <p className="status statusReady">已保存 · 刷新页面不会丢失</p>
-      <TripSettings
-        trip={trip}
-        onTripChange={(updated) => setTrip(updated as Trip)}
-        onDeleted={() => router.push("/trips")}
-      />
+      <div className="actions">
+        <a className="secondary" href={`/trips/${tripId}/settings`}>Trip settings</a>
+      </div>
+      <p className="status statusReady">Saved · your changes persist after refresh</p>
       <TripWorkspace key={trip.version} tripId={tripId} />
-      <button className="secondary" onClick={logout}>退出登录</button>
+      <button className="secondary" onClick={logout}>Sign out</button>
     </section>
   );
 }

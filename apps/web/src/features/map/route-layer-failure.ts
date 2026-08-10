@@ -24,13 +24,13 @@ export function routeLayerModel(input: {
 }): RouteLayerModel {
   const style = routeStyle(input);
   const geometry = (input.geometry ?? []).filter(validPoint);
-  if (input.status === "obsolete") return { visible: false, style, geometry: [], message: "路线已过期" };
-  if (input.status === "failed") return { visible: false, style, geometry: [], message: "路线计算失败，可查看起终点信息" };
-  if (geometry.length < 2) return { visible: false, style, geometry, message: "路线几何不可用，显示文字起终点" };
+  if (input.status === "obsolete") return { visible: false, style, geometry: [], message: "Route is obsolete" };
+  if (input.status === "failed") return { visible: false, style, geometry: [], message: "Route calculation failed; endpoint details remain available" };
+  if (geometry.length < 2) return { visible: false, style, geometry, message: "Route geometry unavailable; showing endpoint text" };
   return {
     visible: true,
     style,
     geometry,
-    message: style.isApproximate ? `${style.qualityLabel}，不代表真实导航` : style.qualityLabel,
+    message: style.isApproximate ? `${style.qualityLabel}; not turn-by-turn navigation` : style.qualityLabel,
   };
 }
