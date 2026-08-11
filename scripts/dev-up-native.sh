@@ -220,9 +220,9 @@ start_minio() {
     stack_assert_port_free minio-console "${MINIO_CONSOLE_PORT}"
     MINIO_ROOT_USER="${MINIO_ROOT_USER}" \
       MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}" \
-      "${MINIO_CMD}" server --address "${MINIO_HOST}:${MINIO_API_PORT}" \
+      nohup "${MINIO_CMD}" server --address "${MINIO_HOST}:${MINIO_API_PORT}" \
       --console-address "${MINIO_HOST}:${MINIO_CONSOLE_PORT}" "${data_dir}" \
-      >"${STACK_RUNTIME_DIR}/logs/minio.log" 2>&1 &
+      >"${STACK_RUNTIME_DIR}/logs/minio.log" 2>&1 </dev/null &
     stack_record_pid minio "$!" "${data_dir}"
   fi
   stack_wait_until minio minio_probe

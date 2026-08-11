@@ -16,6 +16,14 @@ describe("development environment shutdown", () => {
       new URL("../../scripts/stop-environment.sh", import.meta.url),
       "utf8",
     );
+    const nativeStart = await readFile(
+      new URL("../../scripts/dev-up-native.sh", import.meta.url),
+      "utf8",
+    );
+    const e2eRunner = await readFile(
+      new URL("../../scripts/run-e2e-environment.sh", import.meta.url),
+      "utf8",
+    );
 
     assert.equal(packageJson.scripts.stop, "bash scripts/stop-environment.sh native");
     for (const [service, command] of [
@@ -30,5 +38,8 @@ describe("development environment shutdown", () => {
     assert.match(stop, /dev-down\.sh" --track/u);
     assert.doesNotMatch(stop, /lsof.*kill|kill.*lsof/u);
     assert.doesNotMatch(stop, /kill\s+-KILL|kill\s+-9/u);
+    assert.match(nativeStart, /nohup "\$\{MINIO_CMD\}" server/u);
+    assert.match(nativeStart, /<\/dev\/null &/u);
+    assert.match(e2eRunner, /dev-up\.sh" --track native/u);
   });
 });

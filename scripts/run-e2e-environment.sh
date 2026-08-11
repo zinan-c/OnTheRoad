@@ -15,6 +15,12 @@ fi
 # shellcheck disable=SC1090
 source "${STACK_FILE}"
 export PGPASSWORD="${POSTGRES_PASSWORD}"
+
+# Keep browser acceptance self-contained instead of relying on a developer's
+# separately running dependency stack. Project ownership checks make this
+# idempotently reuse healthy services and refuse unrelated port owners.
+bash "${SCRIPT_DIR}/dev-up.sh" --track native
+
 dropdb --if-exists --force --host "${POSTGRES_HOST}" --port "${POSTGRES_PORT}" --username "${POSTGRES_USER}" "${E2E_DATABASE_NAME}"
 createdb --host "${POSTGRES_HOST}" --port "${POSTGRES_PORT}" --username "${POSTGRES_USER}" "${E2E_DATABASE_NAME}"
 E2E_DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${E2E_DATABASE_NAME}"
