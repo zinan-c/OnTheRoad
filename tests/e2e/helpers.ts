@@ -41,9 +41,10 @@ export async function selectDay(page: Page, dayNumber: number): Promise<void> {
 }
 
 export async function openNewItem(page: Page, kind: "activity" | "attraction" | "dining" | "accommodation" | "transport" | "other") {
-  await page.getByRole("button", { name: `Add ${kind}`, exact: true }).click();
+  await page.getByRole("button", { name: "Add item", exact: true }).click();
   const editor = page.getByRole("form", { name: "Add item" });
   await expect(editor).toBeVisible();
+  await editor.getByLabel("Item type").selectOption(kind);
   return editor;
 }
 

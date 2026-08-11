@@ -535,9 +535,8 @@ export function ItineraryPanel({
         selectDay(day.id);
       }}>Day {day.dayNumber}</button>)}
     </nav>
-    <div className="itemCreateActions" aria-label="Add item type">
-      {(["activity", "attraction", "dining", "accommodation", "transport", "other"] as const).map((kind) =>
-        <button key={kind} type="button" onClick={() => beginCreate(kind)}>Add {kind}</button>)}
+    <div className="itemCreateActions" aria-label="Item actions">
+      <button type="button" onClick={() => beginCreate("activity")}>Add item</button>
     </div>
     <button type="button" aria-expanded={modeManagerOpen} onClick={() => setModeManagerOpen((open) => !open)}>Transport modes</button>
     {modeManagerOpen ? <TransportModeManager tripId={tripId} onCatalogChange={(modes) => {
@@ -573,7 +572,11 @@ export function ItineraryPanel({
         if (["dirty", "saving", "error"].includes(status) && !window.confirm("Discard unsaved changes?")) return;
         setEditorOpen(false);
       }}>Cancel</button></header>
-      <label>Item type<select aria-label="Item type" value={draft.kind} onChange={(event) => update("kind", event.target.value as ItemKind)}>
+      <label>Item type<select aria-label="Item type" value={draft.kind} onChange={(event) => {
+        const kind = event.target.value as ItemKind;
+        update("kind", kind);
+        if (kind === "transport") void loadTransportModes();
+      }}>
         <option value="activity">Activity</option><option value="attraction">Attraction</option><option value="dining">Dining</option><option value="accommodation">Hotel</option><option value="transport">Transport</option><option value="other">Other</option>
       </select></label>
       <label>Item name<input value={draft.target} onChange={(event) => update("target", event.target.value)} /></label>

@@ -9,7 +9,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("E2E-009 exposes all six Item types and creates through the public API", async () => {
+test("E2E-009 creates every Item type through one category-driven form", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const responses = [
     [{ id: "day-1", dayNumber: 1, version: 1 }],
@@ -40,10 +40,14 @@ test("E2E-009 exposes all six Item types and creates through the public API", as
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  for (const kind of ["activity", "attraction", "dining", "accommodation", "transport", "other"]) {
-    expect(await screen.findByRole("button", { name: `Add ${kind}` })).toBeTruthy();
-  }
-  fireEvent.click(screen.getByRole("button", { name: "Add other" }));
+  const addButton = await screen.findByRole("button", { name: "Add item" });
+  expect(screen.getAllByRole("button", { name: "Add item" })).toHaveLength(1);
+  fireEvent.click(addButton);
+  const itemType = screen.getByLabelText("Item type") as HTMLSelectElement;
+  expect([...itemType.options].map(({ value }) => value)).toEqual([
+    "activity", "attraction", "dining", "accommodation", "transport", "other",
+  ]);
+  fireEvent.change(itemType, { target: { value: "other" } });
   fireEvent.change(screen.getByLabelText("Item name"), { target: { value: "自由安排" } });
   fireEvent.click(screen.getByRole("button", { name: "Save item" }));
 
@@ -84,7 +88,8 @@ test("E2E-009 persists and reloads the complete Hotel schedule and accommodation
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  fireEvent.click(await screen.findByRole("button", { name: "Add accommodation" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Add item" }));
+  fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "accommodation" } });
   fireEvent.change(screen.getByLabelText("Item name"), { target: { value: "夜宿酒店" } });
   fireEvent.change(screen.getByLabelText("Time type"), { target: { value: "range" } });
   fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "22:30" } });
@@ -257,7 +262,7 @@ test("E2E-013 makes a newly persisted custom Mode immediately selectable", async
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  await screen.findByRole("button", { name: "Add transport" });
+  await screen.findByRole("button", { name: "Add item" });
   fireEvent.click(screen.getByRole("button", { name: "Transport modes" }));
   fireEvent.change(await screen.findByLabelText("Transport mode code"), { target: { value: custom.code } });
   fireEvent.change(screen.getByLabelText("Transport mode name"), { target: { value: custom.label } });
@@ -266,6 +271,7 @@ test("E2E-013 makes a newly persisted custom Mode immediately selectable", async
   fireEvent.change(screen.getByLabelText("Transport mode line style"), { target: { value: custom.lineStyle } });
   fireEvent.click(screen.getByRole("button", { name: "Add transport mode" }));
   await screen.findByText(custom.code);
-  fireEvent.click(screen.getByRole("button", { name: "Add transport" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add item" }));
+  fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "transport" } });
   expect(await screen.findByRole("option", { name: custom.code })).toBeTruthy();
 });
