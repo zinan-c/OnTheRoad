@@ -94,7 +94,7 @@ test("E2E-010 — explicit Item save and reload", async ({ page }) => {
   await resolveLocation(editor, "外滩");
   await editor.getByRole("group", { name: "Expense" }).getByLabel("Amount").fill("88.50");
   await editor.getByRole("group", { name: "Expense" }).getByLabel("Currency").fill("CNY");
-  await editor.getByRole("group", { name: "Expense" }).getByLabel("Category").fill("TICKET");
+  await editor.getByRole("group", { name: "Expense" }).getByLabel("Expense notes").fill("Sunrise tickets");
   await editor.getByLabel("Notes").fill("最终备注");
   await waitForAutosave(editor);
 

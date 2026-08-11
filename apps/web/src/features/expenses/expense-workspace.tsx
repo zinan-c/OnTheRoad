@@ -22,6 +22,7 @@ type Expense = {
   readonly originalAmount: string;
   readonly currency: string;
   readonly categoryCode: string;
+  readonly remark: string | null;
   readonly settledAmount: string | null;
   readonly settlementCurrency: string;
   readonly exchangeRate: string | null;
@@ -108,7 +109,7 @@ export function ExpenseWorkspace({
           transportModeCode: item.transportModeCode ?? null,
           amount: String(form.get("amount")),
           currency: String(form.get("currency")),
-          categoryCode: String(form.get("category")),
+          remark: String(form.get("remark") ?? "").trim() || null,
         }),
       });
       await refresh();
@@ -167,7 +168,7 @@ export function ExpenseWorkspace({
       </select>
       <input name="amount" aria-label="Amount" placeholder="Amount" required />
       <select name="currency" aria-label="Currency" defaultValue="CNY">{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
-      <select name="category" aria-label="Expense category" defaultValue="DINING">{referenceData.costCategories.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
+      <input name="remark" aria-label="Expense notes" placeholder="Notes" />
       <button type="submit" disabled={!selectedItemId || !selectedDestinationId}>Add expense</button>
     </form>
     <form aria-label="Exchange rate management" onSubmit={saveRate} className="exchangeRateForm">
@@ -180,10 +181,10 @@ export function ExpenseWorkspace({
       <ul aria-label="Saved exchange rates">{rates.map((rate) => <li key={`${rate.fromCurrency}:${rate.toCurrency}`}>{rate.fromCurrency}→{rate.toCurrency}: {rate.rate} (v{rate.version})</li>)}</ul>
     </form>
     <div className="previewTableScroll">
-      <table aria-label="Expense details"><thead><tr><th>Item</th><th>Original amount</th><th>Category</th><th>Rate snapshot</th><th>Settled amount</th><th>Version</th></tr></thead><tbody>
+      <table aria-label="Expense details"><thead><tr><th>Item</th><th>Original amount</th><th>Notes</th><th>Rate snapshot</th><th>Settled amount</th><th>Version</th></tr></thead><tbody>
         {expenses.map((expense) => <tr key={expense.id}>
           <td>{items.find(({ id }) => id === expense.itineraryItemId)?.target ?? "Unlinked"}</td>
-          <td>{expense.originalAmount} {expense.currency}</td><td>{expense.categoryCode}</td>
+          <td>{expense.originalAmount} {expense.currency}</td><td>{expense.remark || "—"}</td>
           <td>{expense.exchangeRate ?? "Unconverted"}</td>
           <td>{expense.settledAmount ? `${expense.settledAmount} ${expense.settlementCurrency}` : "Unconverted"}</td>
           <td>{expense.version}</td>

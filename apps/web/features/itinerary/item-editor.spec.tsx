@@ -31,7 +31,7 @@ describe("TC-B06-01 editor field groups", () => {
       contactPhone: "+86 21 0000 0000",
       costAmount: "168.50",
       costCurrency: "CNY",
-      costCategory: "food",
+      costRemark: "Lunch with a view",
       notes: "靠窗座位",
     });
 
@@ -68,7 +68,7 @@ describe("TC-B06-01 editor field groups", () => {
         contactName: "前台",
         contactPhone: "+86 21 0000 0000",
       },
-      cost: { amount: "168.50", currency: "CNY", category: "food" },
+      cost: { amount: "168.50", currency: "CNY", remark: "Lunch with a view" },
       notes: "靠窗座位",
     });
     expect(workspaceLayout(1_440)).toBe("desktop");

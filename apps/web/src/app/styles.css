@@ -256,7 +256,7 @@ select {
 .workspaceTimeline button[aria-pressed="true"] { border-color: #d9485f; background: #fff1f3; color: #a8243c; font-weight: 700; }
 .expenseForm { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 .expenseForm input, .expenseForm select, .exchangeRateForm input, .exchangeRateForm select { border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem .7rem; background: #fff; }
-.costDimensions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
+.costDimensions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
 .costDimensions section { border: 1px solid #edf1f6; border-radius: .5rem; padding: .5rem; }
 .mappingEditor, .previewTableScroll { overflow-x: auto; }
 .previewStates { min-width: 0; }

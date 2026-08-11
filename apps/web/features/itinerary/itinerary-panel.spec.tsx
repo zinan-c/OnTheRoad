@@ -127,7 +127,7 @@ test("E2E-010 explicitly saves the final edit and warns while dirty", async () =
     if (url.endsWith("/expenses") && init?.method === "POST") {
       return Response.json({
         id: "expense-1", itineraryItemId: "item-1", originalAmount: "88.0000",
-        currency: "CNY", categoryCode: "TICKET", version: 1,
+        currency: "CNY", categoryCode: "OTHER", remark: null, version: 1,
       }, { status: 201 });
     }
     const body = init?.method === "PATCH"
@@ -144,7 +144,7 @@ test("E2E-010 explicitly saves the final edit and warns while dirty", async () =
   fireEvent.change(description, { target: { value: "第二次" } });
   fireEvent.change(description, { target: { value: "最终描述" } });
   fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "88" } });
-  fireEvent.change(screen.getByLabelText("Category"), { target: { value: "TICKET" } });
+  fireEvent.change(screen.getByLabelText("Expense notes"), { target: { value: "Sunrise tickets" } });
   expect(screen.getByText("Unsaved changes")).toBeTruthy();
   const leaving = new Event("beforeunload", { cancelable: true });
   window.dispatchEvent(leaving);
@@ -158,7 +158,7 @@ test("E2E-010 explicitly saves the final edit and warns while dirty", async () =
   expect(JSON.parse(String(patches[0]!.init!.body)).description).toBe("最终描述");
   const expense = calls.find(({ url, init }) => url.endsWith("/expenses") && init?.method === "POST");
   expect(JSON.parse(String(expense?.init?.body))).toEqual({
-    itineraryItemId: "item-1", amount: "88", currency: "CNY", categoryCode: "TICKET",
+    itineraryItemId: "item-1", amount: "88", currency: "CNY", remark: "Sunrise tickets",
   });
 });
 

@@ -57,6 +57,7 @@ type ProductExpense = {
   originalAmount: string;
   currency: string;
   categoryCode: string;
+  remark: string | null;
   version: number;
 };
 
@@ -104,7 +105,7 @@ function emptyDraft(kind: ItemKind = "activity"): ItemDraft {
     contactPhone: "",
     costAmount: "",
     costCurrency: "CNY",
-    costCategory: "OTHER",
+    costRemark: "",
     notes: "",
   };
 }
@@ -196,7 +197,7 @@ function draftFingerprint(draft: ItemDraft) {
     expense: {
       amount: draft.costAmount,
       currency: draft.costCurrency,
-      categoryCode: draft.costCategory,
+      remark: draft.costRemark,
     },
   });
 }
@@ -325,14 +326,14 @@ export function ItineraryPanel({
         ...nextDraft,
         costAmount: displayAmount(primary.originalAmount),
         costCurrency: primary.currency,
-        costCategory: primary.categoryCode,
+        costRemark: primary.remark ?? "",
       } : nextDraft;
       confirmedPayload.current = draftFingerprint(withExpense);
       setDraft((current) => ({
         ...current,
         costAmount: withExpense.costAmount,
         costCurrency: withExpense.costCurrency,
-        costCategory: withExpense.costCategory,
+        costRemark: withExpense.costRemark,
       }));
     }).catch((caught) => {
       setError(caught instanceof Error ? caught.message : "Unable to load item expenses");
@@ -360,12 +361,12 @@ export function ItineraryPanel({
           ? await itineraryApi<ProductExpense>(`/trips/${tripId}/expenses/${currentExpense.id}`, {
               method: "PATCH",
               headers: { "content-type": "application/json", "if-match": String(currentExpense.version) },
-              body: JSON.stringify({ amount: snapshot.costAmount, currency: snapshot.costCurrency, categoryCode: snapshot.costCategory }),
+              body: JSON.stringify({ amount: snapshot.costAmount, currency: snapshot.costCurrency, remark: snapshot.costRemark.trim() || null }),
             })
           : await itineraryApi<ProductExpense>(`/trips/${tripId}/expenses`, {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ itineraryItemId: item.id, amount: snapshot.costAmount, currency: snapshot.costCurrency, categoryCode: snapshot.costCategory }),
+              body: JSON.stringify({ itineraryItemId: item.id, amount: snapshot.costAmount, currency: snapshot.costCurrency, remark: snapshot.costRemark.trim() || null }),
             });
       }
       if (sequence !== saveSequence.current) return;
@@ -431,7 +432,7 @@ export function ItineraryPanel({
             itineraryItemId: saved.id,
             amount: draft.costAmount,
             currency: draft.costCurrency,
-            categoryCode: draft.costCategory,
+            remark: draft.costRemark.trim() || null,
           }),
         });
       }
@@ -600,7 +601,7 @@ export function ItineraryPanel({
         <label>Transport mode<select aria-label="Transport mode" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Select</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label>
       </> : null}
       <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
-      <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label><label>Category<input value={draft.costCategory} onChange={(event) => update("costCategory", event.target.value.toUpperCase())} /></label></div>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
+      <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label></div><label>Expense notes<input value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
       <label>Notes<textarea value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
       <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" disabled={status === "saving"} onClick={() => setEditorOpen(false)}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
     </form> : null}

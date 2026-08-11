@@ -15,14 +15,14 @@ test("E2E-010 lists and updates the expense attached to the edited Item", async 
     itineraryItemId: "item-a",
     amount: "10",
     currency: "CNY",
-    categoryCode: "DINING",
+    remark: "Lunch",
   });
 
   await expect(service.listForItem("owner-a", "trip-a", "item-a")).resolves.toEqual([created]);
   await expect(service.update("owner-a", "trip-a", created.id, {
-    amount: "88", currency: "CNY", categoryCode: "TICKET",
+    amount: "88", currency: "CNY", remark: "Updated note",
   }, 1)).resolves.toMatchObject({
-    originalAmount: "88.0000", categoryCode: "TICKET", version: 2,
+    originalAmount: "88.0000", categoryCode: "OTHER", remark: "Updated note", version: 2,
   });
   await expect(service.update("owner-a", "trip-a", created.id, {
     amount: "99", currency: "CNY", categoryCode: "TICKET",

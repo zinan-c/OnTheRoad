@@ -26,10 +26,10 @@ test("E2E-019 — multi-currency expense and summary reconciliation", async ({ p
   await createSimpleItem(page, "Other", { kind: "other", day: 4, mode: "PUBLIC_BUS" });
 
   const expenses = page.getByRole("region", { name: "Expense workspace" });
-  await addExpense(expenses, "Dining", "Shanghai", "200.00", "CNY", "DINING");
-  await addExpense(expenses, "Transport", "Zhoushan", "50.25", "USD", "TRANSPORT");
-  await addExpense(expenses, "Attraction", "Shanghai", "8000", "JPY", "TICKET");
-  await addExpense(expenses, "Other", "Zhoushan", "100000", "VND", "SHOPPING");
+  await addExpense(expenses, "Dining", "Shanghai", "200.00", "CNY", "Dinner");
+  await addExpense(expenses, "Transport", "Zhoushan", "50.25", "USD", "Ferry transfer");
+  await addExpense(expenses, "Attraction", "Shanghai", "8000", "JPY", "Museum tickets");
+  await addExpense(expenses, "Other", "Zhoushan", "100000", "VND", "Trip supplies");
   const summary = page.getByRole("region", { name: "Expense summary" });
   await expect(summary.getByRole("alert")).toContainText("3 expenses are missing exchange rates");
 
@@ -38,11 +38,12 @@ test("E2E-019 — multi-currency expense and summary reconciliation", async ({ p
   await saveRate(expenses, "VND", "0.00030");
   await expect(summary).toContainText("975.8000 CNY");
   await expect(summary.getByRole("alert")).toHaveCount(0);
-  for (const dimension of ["day", "destination", "category", "mode", "currency"]) {
+  for (const dimension of ["day", "destination", "mode", "currency"]) {
     await expect(summary.getByRole("region", { name: `${dimension} summary` })).not.toBeEmpty();
   }
   const details = expenses.getByRole("table", { name: "Expense details" });
   await expect(details).toContainText("50.2500 USD");
+  await expect(details).toContainText("Ferry transfer");
   await expect(details).toContainText("7.2000");
   await page.reload();
   await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("975.8000 CNY");
@@ -69,14 +70,14 @@ test("E2E-021 — shared currency Reference Data remains available in active pro
   await expect(expenseWorkspace.getByLabel("Settlement currency").locator("option").allTextContents()).resolves.toEqual([...CURRENCIES]);
 });
 
-async function addExpense(workspace: Locator, item: string, destination: string, amount: string, currency: string, category: string) {
+async function addExpense(workspace: Locator, item: string, destination: string, amount: string, currency: string, notes: string) {
   const form = workspace.getByRole("form", { name: "Add expense" });
   const itemOption = form.getByLabel("Expense item").locator("option").filter({ hasText: item });
   await form.getByLabel("Expense item").selectOption(await itemOption.getAttribute("value") ?? "");
   await form.getByLabel("Expense destination").selectOption({ label: destination });
   await form.getByLabel("Amount").fill(amount);
   await form.getByLabel("Currency").selectOption(currency);
-  await form.getByLabel("Expense category").selectOption(category);
+  await form.getByLabel("Expense notes").fill(notes);
   await form.getByRole("button", { name: "Add expense" }).click();
   await expect(workspace.getByRole("status")).toContainText(`Expense saved for “${item}”`);
 }

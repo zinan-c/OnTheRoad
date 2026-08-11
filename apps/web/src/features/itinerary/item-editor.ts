@@ -40,7 +40,7 @@ export type EditorDraft = {
   contactPhone: string;
   costAmount: string;
   costCurrency: string;
-  costCategory: string;
+  costRemark: string;
   notes: string;
 };
 
@@ -71,7 +71,7 @@ export type EditorPayload = {
     contactName?: string;
     contactPhone?: string;
   };
-  cost?: { amount: string; currency: string; category?: string };
+  cost?: { amount: string; currency: string; remark?: string };
   notes?: string;
 };
 
@@ -99,7 +99,7 @@ const emptyDraft = (): EditorDraft => ({
   contactPhone: "",
   costAmount: "",
   costCurrency: "",
-  costCategory: "",
+  costRemark: "",
   notes: "",
 });
 
@@ -286,8 +286,8 @@ export class ItemEditor {
       payload.cost = {
         amount: this.draft.costAmount,
         currency: this.draft.costCurrency,
-        ...(this.draft.costCategory
-          ? { category: this.draft.costCategory }
+        ...(this.draft.costRemark.trim()
+          ? { remark: this.draft.costRemark.trim() }
           : {}),
       };
     }

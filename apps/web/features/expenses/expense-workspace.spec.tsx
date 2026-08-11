@@ -45,10 +45,11 @@ describe("E2E-019 expense product workspace", () => {
     await user.selectOptions(screen.getByLabelText("Expense destination"), "dest-b");
     await user.type(screen.getByLabelText("Amount"), "50.25");
     await user.selectOptions(screen.getByLabelText("Currency"), "USD");
-    await user.selectOptions(screen.getByLabelText("Expense category"), "TRANSPORT");
+    await user.type(screen.getByLabelText("Expense notes"), "Airport transfer");
     await user.click(screen.getByRole("button", { name: "Add expense" }));
     await waitFor(() => expect(writes.some(({ body }) => body.itineraryItemId === "item-transport"
-      && body.destinationId === "dest-b" && body.transportModeCode === "METRO")).toBe(true));
+      && body.destinationId === "dest-b" && body.transportModeCode === "METRO"
+      && body.remark === "Airport transfer" && body.categoryCode === undefined)).toBe(true));
 
     await user.selectOptions(screen.getByLabelText("Source currency"), "USD");
     await user.type(screen.getByLabelText("Exchange rate"), "7.2000");

@@ -40,6 +40,18 @@ function category(value) {
   return code;
 }
 
+/** @param {unknown} value */
+function remark(value) {
+  const normalized = String(value ?? "").trim();
+  if (normalized.length > 2_000) {
+    throw new ExpenseDomainError(
+      "EXPENSE_INVALID",
+      "Expense notes must not exceed 2000 characters.",
+    );
+  }
+  return normalized || null;
+}
+
 export class ExpenseService {
   /** @param {any} repository */
   constructor(repository) {
@@ -76,7 +88,7 @@ export class ExpenseService {
     );
     const originalCurrency = currency(input.currency);
     const originalAmount = normalizeMoney(input.amount);
-    const categoryCode = category(input.categoryCode);
+    const categoryCode = category(input.categoryCode ?? "OTHER");
     let item = null;
     if (input.itineraryItemId) {
       item = await this.repository.getItem(input.itineraryItemId);
@@ -108,6 +120,7 @@ export class ExpenseService {
       destinationId: input.destinationId ?? null,
       transportModeCode: input.transportModeCode ?? null,
       categoryCode,
+      remark: remark(input.remark),
       originalAmount,
       currency: originalCurrency,
       settlementCurrency: trip.defaultCurrency,
@@ -151,7 +164,7 @@ export class ExpenseService {
     }
     const originalCurrency = currency(input.currency);
     const originalAmount = normalizeMoney(input.amount);
-    const categoryCode = category(input.categoryCode);
+    const categoryCode = category(input.categoryCode ?? current.categoryCode ?? "OTHER");
     const exchangeRate = originalCurrency === trip.defaultCurrency
       ? "1.000000000000"
       : await this.repository.getRate(tripId, originalCurrency, trip.defaultCurrency);
@@ -159,6 +172,7 @@ export class ExpenseService {
       originalAmount,
       currency: originalCurrency,
       categoryCode,
+      remark: remark(input.remark),
       settlementCurrency: trip.defaultCurrency,
       exchangeRate: exchangeRate?.rate ?? exchangeRate ?? null,
       settledAmount: exchangeRate

@@ -127,7 +127,7 @@ describe("TC-B06-03 daily edit E2E", () => {
       mealType: "lunch",
       costAmount: "168.50",
       costCurrency: "CNY",
-      costCategory: "food",
+      costRemark: "午餐",
     });
     const dining = await firstSession.save();
 

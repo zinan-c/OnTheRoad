@@ -190,7 +190,7 @@ export class PostgresExpenseRepository {
         id, trip_id, owner_id, trip_day_id, itinerary_item_id,
         destination_id, category_code, transport_mode_code,
         original_amount, original_currency, settlement_amount,
-        settlement_currency, exchange_rate_snapshot, source
+        settlement_currency, exchange_rate_snapshot, source, remark
       )
       VALUES (
         $1::uuid,
@@ -206,7 +206,8 @@ export class PostgresExpenseRepository {
         $11::numeric,
         $12,
         $13::numeric,
-        $14
+        $14,
+        $15
       )
       RETURNING ${this.#expenseJson()}::text`,
       [
@@ -224,6 +225,7 @@ export class PostgresExpenseRepository {
         expense.settlementCurrency,
         expense.exchangeRate ?? null,
         expense.source,
+        expense.remark ?? null,
       ],
     );
   }
@@ -266,6 +268,7 @@ export class PostgresExpenseRepository {
             settlement_amount = $8::numeric,
             settlement_currency = $9,
             exchange_rate_snapshot = $10::numeric,
+            remark = $11,
             version = version + 1,
             updated_at = now()
         WHERE id = $3::uuid AND trip_id = $2::uuid AND owner_id = $1
@@ -275,7 +278,7 @@ export class PostgresExpenseRepository {
       SELECT COALESCE((SELECT * FROM changed), 'null'::jsonb)::text`,
       [ownerId, tripId, expenseId, expectedVersion, patch.originalAmount,
         patch.currency, patch.categoryCode, patch.settledAmount,
-        patch.settlementCurrency, patch.exchangeRate],
+        patch.settlementCurrency, patch.exchangeRate, patch.remark ?? null],
     );
     if (!updated) {
       const current = await this.getExpense(ownerId, tripId, expenseId);
@@ -305,6 +308,7 @@ export class PostgresExpenseRepository {
         ELSE to_char(settlement_amount, 'FM9999999999999990.0000')
       END,
       'source', source,
+      'remark', remark,
       'version', version
     )`;
   }

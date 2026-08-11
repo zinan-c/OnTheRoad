@@ -3538,8 +3538,7 @@
         "additionalProperties": false,
         "required": [
           "amount",
-          "currency",
-          "categoryCode"
+          "currency"
         ],
         "properties": {
           "amount": {
@@ -3552,6 +3551,13 @@
           },
           "categoryCode": {
             "type": "string"
+          },
+          "remark": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
           },
           "itineraryItemId": {
             "oneOf": [
@@ -3585,6 +3591,13 @@
           "currency": {
             "type": "string",
             "pattern": "^[A-Z]{3}$"
+          },
+          "remark": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
           },
           "settlementCurrency": {
             "type": "string",
