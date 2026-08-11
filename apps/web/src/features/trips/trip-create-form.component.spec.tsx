@@ -42,6 +42,7 @@ describe("REVIEW-P1-04 TripCreateForm component", () => {
     expect(screen.getByText("5 daily plans will be created automatically.")).toBeTruthy();
     await user.clear(screen.getByLabelText("Trip name"));
     await user.type(screen.getByLabelText("Trip name"), "东海秋日");
+    await user.selectOptions(screen.getByLabelText("Default currency"), "USD");
     const submit = screen.getByRole("button", { name: "Create trip" });
     await user.dblClick(submit);
 
@@ -50,6 +51,8 @@ describe("REVIEW-P1-04 TripCreateForm component", () => {
       expect.objectContaining({
         name: "东海秋日",
         travelers: 2,
+        defaultCurrency: "USD",
+        mapProfile: "international_primary",
         destinations: [
           { name: "Shanghai", countryCode: "CN" },
           { name: "Zhoushan", countryCode: "CN" },

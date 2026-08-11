@@ -112,6 +112,8 @@ export function TripSettings({
   const [editing, setEditing] = useState(false);
   const [startDate, setStartDate] = useState(trip.startDate);
   const [endDate, setEndDate] = useState(trip.endDate);
+  const [defaultCurrency, setDefaultCurrency] = useState(trip.defaultCurrency);
+  const [mapProfile, setMapProfile] = useState(trip.mapProfile);
   const [days, setDays] = useState<readonly TripDayRecord[]>();
   const [previewed, setPreviewed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -185,9 +187,9 @@ export function TripSettings({
         description: String(data.get("description") ?? "").trim() || null,
         travelers: Number(data.get("travelers")),
         budget: String(data.get("budget") ?? "").trim() || null,
-        defaultCurrency: String(data.get("defaultCurrency")),
+        defaultCurrency,
         timezone: String(data.get("timezone")),
-        mapProfile: String(data.get("mapProfile")),
+        mapProfile,
       }, trip.version);
       onTripChange(updated);
       setMessage(`Trip settings saved at version ${updated.version}.`);
@@ -219,7 +221,13 @@ export function TripSettings({
           <h2 id="trip-settings-title">Trip settings</h2>
           <p>Manage trip details, dates, and deletion from this dedicated page.</p>
         </div>
-        {!editing ? <button className="primary" type="button" onClick={() => { setEditing(true); setMessage(undefined); setError(undefined); }}>Edit trip</button> : null}
+        {!editing ? <button className="primary" type="button" onClick={() => {
+          setDefaultCurrency(trip.defaultCurrency);
+          setMapProfile(trip.mapProfile);
+          setEditing(true);
+          setMessage(undefined);
+          setError(undefined);
+        }}>Edit trip</button> : null}
       </header>
       {editing ? (
         <div className="tripSettingsForms">
@@ -245,7 +253,15 @@ export function TripSettings({
           <div className="formRow">
             <label>
               Default currency
-              <select name="defaultCurrency" defaultValue={trip.defaultCurrency}>
+              <select
+                name="defaultCurrency"
+                value={defaultCurrency}
+                onChange={(event) => {
+                  const currency = event.currentTarget.value;
+                  setDefaultCurrency(currency);
+                  setMapProfile(currency === "CNY" ? "cn_primary" : "international_primary");
+                }}
+              >
                 {currencies.map(({ code }) => (
                   <option key={code} value={code}>{code}</option>
                 ))}
@@ -258,7 +274,11 @@ export function TripSettings({
           </div>
           <label>
             Map profile
-            <select name="mapProfile" defaultValue={trip.mapProfile}>
+            <select
+              name="mapProfile"
+              value={mapProfile}
+              onChange={(event) => setMapProfile(event.currentTarget.value as TripSettingsRecord["mapProfile"])}
+            >
               <option value="cn_primary">Mainland China</option>
               <option value="international_primary">International</option>
               <option value="hybrid">Hybrid</option>
@@ -269,6 +289,8 @@ export function TripSettings({
             <button className="secondary" type="button" disabled={pending} onClick={() => {
               setStartDate(trip.startDate);
               setEndDate(trip.endDate);
+              setDefaultCurrency(trip.defaultCurrency);
+              setMapProfile(trip.mapProfile);
               setPreviewed(false);
               setEditing(false);
             }}>Cancel</button>

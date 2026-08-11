@@ -91,6 +91,7 @@ describe("E2E-007 Trip date settings", () => {
       travelers: 4,
       budget: "12000.50",
       defaultCurrency: "EUR",
+      mapProfile: "international_primary" as const,
       version: 2,
     };
     const gateway: TripSettingsGateway = {
@@ -126,7 +127,7 @@ describe("E2E-007 Trip date settings", () => {
       budget: "12000.50",
       defaultCurrency: "EUR",
       timezone: "Asia/Shanghai",
-      mapProfile: "cn_primary",
+      mapProfile: "international_primary",
     }), 1);
 
     rerender(

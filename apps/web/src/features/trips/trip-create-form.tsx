@@ -76,14 +76,15 @@ export function TripCreateForm({
     setSubmitting(true);
     setError(undefined);
     const data = new FormData(event.currentTarget);
+    const defaultCurrency = String(data.get("defaultCurrency"));
     const input = {
       name: String(data.get("name") ?? "").trim(),
       startDate,
       endDate,
       travelers: Number(data.get("travelers")),
-      defaultCurrency: String(data.get("defaultCurrency")),
+      defaultCurrency,
       timezone: "Asia/Shanghai",
-      mapProfile: "cn_primary",
+      mapProfile: defaultCurrency === "CNY" ? "cn_primary" : "international_primary",
       destinations: String(data.get("destinations") ?? "")
         .split(/[、,，]/u)
         .map((name) => name.trim())
