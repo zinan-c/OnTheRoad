@@ -59,7 +59,7 @@ software automatically.
 
 ```sh
 pnpm run dev:prepare
-bash scripts/dev-down.sh --track native
+pnpm run stop
 ```
 
 The start command will:
@@ -78,6 +78,10 @@ starts them with the generated profile, and waits for API, Web, and Worker
 heartbeat readiness. `pnpm run qa` uses the same flow and can select Compose
 with `OTR_QA_TRACK=compose`. Production validates injected `OTR_ENV_*` values
 only; it does not start local dependencies or write a profile.
+
+`pnpm run stop` first stops the recorded API, Worker, and Web process trees,
+then stops the project-managed Native dependencies. It preserves PostgreSQL
+and object-storage data.
 
 PID files must record both PID and an ownership fingerprint. Stop/recovery must
 verify that fingerprint before signaling a process, so stale PID files cannot

@@ -3,6 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=local-stack-common.sh
+source "${SCRIPT_DIR}/local-stack-common.sh"
 profile="${1:-dev}"
 track="${2:-native}"
 runtime_profile="${profile}"
@@ -95,15 +97,31 @@ pnpm exec turbo run build \
 
 pids=()
 child_names=()
+child_services=()
 cleanup() {
+  local index pid pid_file recorded_pid
   for pid in "${pids[@]:-}"; do kill "${pid}" 2>/dev/null || true; done
   wait 2>/dev/null || true
+  for index in "${!pids[@]}"; do
+    pid_file="$(stack_pid_file "${child_services[${index}]}")"
+    if [[ -f "${pid_file}" ]]; then
+      IFS= read -r recorded_pid <"${pid_file}" || true
+      if [[ "${recorded_pid}" == "${pids[${index}]}" ]]; then
+        rm -f -- "${pid_file}"
+      fi
+    fi
+  done
 }
 trap cleanup EXIT INT TERM
 
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:api & pids+=("$!"); child_names+=("API")
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:worker & pids+=("$!"); child_names+=("Worker")
-bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:web & pids+=("$!"); child_names+=("Web")
+stack_validate_runtime_dir
+mkdir -p "${STACK_RUNTIME_DIR}/pids"
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:api & application_pid="$!"; pids+=("${application_pid}"); child_names+=("API"); child_services+=("app-api")
+stack_record_pid "app-api" "${application_pid}" "pnpm run start:api"
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:worker & application_pid="$!"; pids+=("${application_pid}"); child_names+=("Worker"); child_services+=("app-worker")
+stack_record_pid "app-worker" "${application_pid}" "pnpm run start:worker"
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:web & application_pid="$!"; pids+=("${application_pid}"); child_names+=("Web"); child_services+=("app-web")
+stack_record_pid "app-web" "${application_pid}" "pnpm run start:web"
 
 assert_children_running() {
   local index status

@@ -107,11 +107,15 @@ The Web application is available at `http://localhost:3000`. API liveness and
 readiness are exposed at `http://localhost:3001/health/live` and
 `http://localhost:3001/health/ready`.
 
-Stop the dependency stack while preserving its project-scoped data:
+Stop the API, Worker, Web application, and dependency stack while preserving
+project-scoped data:
 
 ```sh
-bash scripts/dev-down.sh --track native
+pnpm run stop
 ```
+
+Shutdown only signals processes whose PID, start time, and command fingerprint
+were recorded by this repository; it does not terminate arbitrary port owners.
 
 For prerequisites, recovery behavior, and the Compose track, use the
 [local stack runbook](./docs/runbooks/local-stack.md).
