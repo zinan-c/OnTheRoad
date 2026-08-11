@@ -105,6 +105,14 @@ button:disabled {
   opacity: 0.6;
 }
 
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select {
+  box-sizing: border-box;
+  min-width: 0;
+  height: 44px;
+  font: inherit;
+}
+
 .formPage {
   max-width: 760px;
   padding: 48px 0;
@@ -213,6 +221,7 @@ button:disabled {
 .tripList h2 { margin: 0; }
 .expenseWorkspace { display: grid; gap: 1rem; }
 .expenseForm, .exchangeRateForm { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; }
+.expenseForm input, .expenseForm select, .exchangeRateForm input, .exchangeRateForm select { flex: 1 1 10rem; }
 .exchangeRateForm { border: 1px solid #e4e7ec; border-radius: .75rem; padding: .85rem; }
 .exchangeRateForm h3, .exchangeRateForm ul { flex-basis: 100%; margin: 0; }
 .itineraryProduct .dayTabs, .itineraryProduct .itemCreateActions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
@@ -236,6 +245,9 @@ button:disabled {
 .itemEditorForm { display: grid; gap: .85rem; margin-top: 1rem; padding: 1rem; border: 1px solid #d0d5dd; border-radius: 1rem; background: #fff; }
 .itemEditorForm > header, .itemEditorForm > footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .itemEditorForm fieldset { display: grid; gap: .75rem; border: 1px solid #e4e7ec; border-radius: .75rem; }
+.itemEditorForm label, .locationProductPicker > label, .locationCoordinateEditor label { display: grid; gap: .4rem; }
+.itemEditorForm input:not([type="checkbox"]):not([type="radio"]), .itemEditorForm select,
+.locationProductPicker input:not([type="radio"]), .locationCoordinateEditor input { width: 100%; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem .7rem; background: #fff; }
 .routeLayout { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1rem; align-items: start; }
 .routeMap { width: 100%; min-height: 16rem; border-radius: .75rem; background: #f3f7fb; }
 .realRouteMap { min-height: 20rem; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f8fafc; }
@@ -243,7 +255,7 @@ button:disabled {
 .workspaceTimeline button, .expenseForm button, .mappingEditor button, .previewStates button { border: 1px solid #c4cfdd; border-radius: .5rem; background: #fff; padding: .5rem .7rem; cursor: pointer; }
 .workspaceTimeline button[aria-pressed="true"] { border-color: #d9485f; background: #fff1f3; color: #a8243c; font-weight: 700; }
 .expenseForm { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-.expenseForm input, .expenseForm select { border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem; }
+.expenseForm input, .expenseForm select, .exchangeRateForm input, .exchangeRateForm select { border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem .7rem; background: #fff; }
 .costDimensions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
 .costDimensions section { border: 1px solid #edf1f6; border-radius: .5rem; padding: .5rem; }
 .mappingEditor, .previewTableScroll { overflow-x: auto; }
