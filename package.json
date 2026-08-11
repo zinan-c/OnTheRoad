@@ -25,7 +25,7 @@
     "profile:release": "bash scripts/run-profile.sh release",
     "dev:prepare": "bash scripts/prepare-environment.sh dev native",
     "dev": "bash scripts/run-environment.sh dev",
-    "stop": "bash scripts/stop-environment.sh native",
+    "stop": "bash scripts/stop-environment.sh",
     "qa": "bash scripts/run-environment.sh qa ${OTR_QA_TRACK:-native}",
     "prod": "bash scripts/run-environment.sh prod native",
     "test:runtime-smoke": "bash scripts/run-profile.sh dev -- vitest run tests/runtime/real-stack.e2e.spec.ts",

@@ -116,11 +116,16 @@ When the application is ready, `pnpm run dev` prints the current Web URL and
 API live/ready/base URLs. The Web and API ports are selected from the project
 defaults (`18100`/`18101`) and move together to the next free pair when needed.
 
-Stop the API, Worker, Web application, and dependency stack while preserving
-project-scoped data:
+Stop the API, Worker, Web application, and the selected dependency stack while
+preserving project-scoped data. Native is the default; pass `compose` to stop
+the Compose services and free their published ports before starting Native:
 
 ```sh
+# Native Track (default)
 pnpm run stop
+
+# Compose Track
+pnpm run stop compose
 ```
 
 Shutdown only signals processes whose PID, start time, and command fingerprint

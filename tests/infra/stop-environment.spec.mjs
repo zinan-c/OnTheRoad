@@ -25,7 +25,9 @@ describe("development environment shutdown", () => {
       "utf8",
     );
 
-    assert.equal(packageJson.scripts.stop, "bash scripts/stop-environment.sh native");
+    assert.equal(packageJson.scripts.stop, "bash scripts/stop-environment.sh");
+    assert.match(stop, /track="\$\{1:-native\}"/u);
+    assert.match(stop, /native\|compose/u);
     for (const [service, command] of [
       ["app-api", "pnpm run start:api"],
       ["app-worker", "pnpm run start:worker"],

@@ -89,7 +89,9 @@ only; it does not start local dependencies or write a profile.
 
 `pnpm run stop` first stops the recorded API, Worker, and Web process trees,
 then stops the project-managed Native dependencies. It preserves PostgreSQL
-and object-storage data.
+and object-storage data. Use `pnpm run stop compose` when the Compose Track is
+running; it stops the same application process trees and the Compose services,
+releasing the published dependency ports without removing named volumes.
 
 PID files must record both PID and an ownership fingerprint. Stop/recovery must
 verify that fingerprint before signaling a process, so stale PID files cannot
@@ -119,7 +121,10 @@ non-zero and media processing must not start.
 
 ```sh
 bash scripts/prepare-environment.sh qa compose
+# Stack-only shutdown:
 bash scripts/dev-down.sh --track compose
+# Application and stack shutdown:
+pnpm run stop compose
 ```
 
 Compose uses short-lived volumes for clean-start cases and named volumes for
