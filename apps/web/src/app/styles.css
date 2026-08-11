@@ -248,6 +248,8 @@ select {
 .itemEditorForm label, .locationProductPicker > label, .locationCoordinateEditor label { display: grid; gap: .4rem; }
 .itemEditorForm input:not([type="checkbox"]):not([type="radio"]), .itemEditorForm select,
 .locationProductPicker input:not([type="radio"]), .locationCoordinateEditor input { width: 100%; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem .7rem; background: #fff; }
+.itemNotesField { align-items: start; }
+.itemNotesField textarea { box-sizing: border-box; width: 100%; min-height: 10rem; resize: vertical; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .7rem; font: inherit; }
 .routeLayout { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1rem; align-items: start; }
 .routeMap { width: 100%; min-height: 16rem; border-radius: .75rem; background: #f3f7fb; }
 .realRouteMap { min-height: 20rem; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f8fafc; }
