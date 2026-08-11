@@ -108,7 +108,7 @@ test("E2E-010 — explicit Item save and reload", async ({ page }) => {
   expect(promptMessage).toContain("unsaved changes");
   await expect(editor).toBeVisible();
   await editor.getByLabel("Description").fill("最终描述");
-  await waitForAutosave(editor);
+  await expect(editor.locator("footer").getByRole("status")).toHaveText("Saved");
   await page.reload();
   const reloaded = await openItem(page, "外滩日出");
   await expect(reloaded.getByLabel("Description")).toHaveValue("最终描述");
