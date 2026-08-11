@@ -144,7 +144,7 @@ test("E2E-010 explicitly saves the final edit and warns while dirty", async () =
   fireEvent.change(description, { target: { value: "第二次" } });
   fireEvent.change(description, { target: { value: "最终描述" } });
   fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "88" } });
-  fireEvent.change(screen.getByLabelText("Expense notes"), { target: { value: "Sunrise tickets" } });
+  fireEvent.change(screen.getByLabelText("Expense remark"), { target: { value: "Sunrise tickets" } });
   const notes = screen.getByLabelText("Notes") as HTMLTextAreaElement;
   expect(notes.rows).toBe(6);
   expect(notes.closest("label")?.classList.contains("itemNotesField")).toBe(true);

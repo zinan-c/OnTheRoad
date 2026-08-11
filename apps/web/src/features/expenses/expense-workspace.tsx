@@ -168,7 +168,7 @@ export function ExpenseWorkspace({
       </select>
       <input name="amount" aria-label="Amount" placeholder="Amount" required />
       <select name="currency" aria-label="Currency" defaultValue="CNY">{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
-      <input name="remark" aria-label="Expense notes" placeholder="Notes" />
+      <input name="remark" aria-label="Expense remark" placeholder="Remark" />
       <button type="submit" disabled={!selectedItemId || !selectedDestinationId}>Add expense</button>
     </form>
     <form aria-label="Exchange rate management" onSubmit={saveRate} className="exchangeRateForm">

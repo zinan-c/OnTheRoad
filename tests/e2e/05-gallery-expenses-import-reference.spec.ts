@@ -77,7 +77,7 @@ async function addExpense(workspace: Locator, item: string, destination: string,
   await form.getByLabel("Expense destination").selectOption({ label: destination });
   await form.getByLabel("Amount").fill(amount);
   await form.getByLabel("Currency").selectOption(currency);
-  await form.getByLabel("Expense notes").fill(notes);
+  await form.getByLabel("Expense remark").fill(notes);
   await form.getByRole("button", { name: "Add expense" }).click();
   await expect(workspace.getByRole("status")).toContainText(`Expense saved for “${item}”`);
 }
