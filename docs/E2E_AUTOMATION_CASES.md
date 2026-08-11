@@ -94,9 +94,11 @@ Every case archives at least:
 
 ### Manual steps
 
-1. Run `pnpm run dev` as described in the README.
+1. Run `pnpm run dev` as described in the README (Native is the default; use
+   `pnpm run dev -- -native` explicitly when needed).
 2. Wait for explicit API, Web, and Worker-heartbeat readiness output.
-3. Open the Web URL printed by `pnpm run dev` (normally `http://127.0.0.1:18100/`).
+3. Open the Web URL printed by `pnpm run dev` (normally
+   `http://127.0.0.1:18100/`); the same output includes API live/ready/base URLs.
 4. Inspect service status and the Location search, Excel, and other capability text.
 5. Visit `/health/live`, `/health/ready`, `/api/v1/system/reference-data`, and `/api/v1/system/capabilities`.
 6. Refresh the homepage once and confirm that service status does not regress to an error state.

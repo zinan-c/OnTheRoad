@@ -48,7 +48,7 @@
 
 - `TC-A02-01` — Native bootstrap/health；代码：`tests/infra/native-health.spec.mjs`。从隔离数据目录运行原生启动命令两次；断言版本检查、PID/端口隔离和初始化幂等，并验证 PostGIS extension、authenticated Redis、MinIO bucket 与 ClamAV TCP readiness。
 - `TC-A02-02` — Native restart/degraded scanner；代码：`tests/infra/native-recovery.spec.mjs`。保留数据重启原生服务、清理残留 PID，并让 ClamAV 不可用；断言 PostgreSQL/Redis/对象数据保留，媒体 readiness fail-closed，停止命令不终止非本项目进程。
-- `TC-A02-03` — Dev gate/Compose handoff；代码：`tests/infra/dev-gate.e2e.spec.mjs`。从干净项目状态运行 Native Track 两次，断言幂等且共享健康探针全绿；随后尝试 Compose parity。Compose 可用时验证等价 capability/readiness；不可用时断言保存可行动失败原因，并且发布 checklist 包含全部 Compose 强制项。Native Case 全绿且 handoff 完整即可通过当前 A02，但未完成的 Compose 项继续阻断正式发布。
+- `TC-A02-03` — Dev gate/Compose evidence and release handoff；代码：`tests/infra/dev-gate.e2e.spec.mjs`。从干净项目状态运行 Native Track 两次，断言幂等且共享健康探针全绿；随后尝试 Compose parity。Compose 可用时验证等价 capability/readiness；不可用时断言保存可行动失败原因，并且发布 checklist 包含全部 Compose 强制项。Native Case 全绿且 handoff 完整即可通过当前 A02；本地 Compose 证据可关闭开发阶段 A02，但 CI/staging release parity 仍阻断正式发布。
 
 ### A03
 

@@ -33,10 +33,21 @@ development environment completed A02 through Native Track.
       capabilities, readiness states, and redacted errors.
 - [ ] Image/version metadata and test output are attached to the release record.
 
+The current Compose retry candidate for ClamAV is `clamav/clamav:1.5-debian`.
+The current PostgreSQL/PostGIS retry candidate is
+`ghcr.io/enterprisedb/postgresql:17.7-3.5-postgis-3-multilang`.
+The timeout against `clamav/clamav:1.4.3` recorded below is historical evidence
+and is intentionally retained unchanged.
+
+Development status (2026-08-11): **A02 Complete**. Native and local Compose
+checks are recorded in [the A02 Gate report](../reports/a02-native-gate.md).
+This release checklist remains open because its target is clean CI/staging
+Compose parity and release evidence, not only a local Docker Desktop run.
+
 Any unchecked item blocks release. Native Track evidence cannot waive this
 gate.
 
-### Current handoff — 2026-07-28
+### Historical handoff — 2026-07-28
 
 - Status: deferred to release validation; this does not block the current
   Native A02 development gate.
@@ -49,8 +60,73 @@ gate.
   `clamav/clamav:1.4.3` failed with
   `TLS handshake timeout` against `registry-1.docker.io`; the other image pulls
   were interrupted.
+- The next retry should use the multi-platform candidate
+  `clamav/clamav:1.5-debian`.
 - No Compose readiness, persistence, EICAR, or parity item above is considered
   passed by this partial pull.
+
+### Pull retry — 2026-08-11
+
+- On macOS arm64 with Docker Compose v5.2.0, the explicit command
+  `docker compose -f infra/compose/docker-compose.yml pull redis minio minio-init clamav`
+  completed successfully.
+- Redis, MinIO, MinIO client, and `clamav/clamav:1.5-debian` were pulled; the
+  PostgreSQL/PostGIS service was intentionally excluded from the command.
+- A subsequent pull of `imresamu/postgis:17-3.5-bookworm` did not complete:
+  Docker Desktop's configured mirror returned `403 Forbidden`, and a direct
+  retry against `registry-1.docker.io` hit a TLS handshake timeout.
+- Compose startup was not attempted because the PostgreSQL/PostGIS image was
+  not available locally.
+- This validates image resolution/download only. Compose readiness, persistence,
+  EICAR detection, and full parity remain unchecked.
+
+### Pull retry after mirror change — 2026-08-11
+
+- Docker Desktop now reports no configured registry mirrors (`mirrors=[]`).
+- Both `docker compose ... pull postgres` and a direct
+  `docker pull docker.io/imresamu/postgis:17-3.5-bookworm` retry reached
+  `registry-1.docker.io` but failed with a TLS handshake timeout.
+- The PostgreSQL/PostGIS image is still absent locally, so Compose startup
+  remains intentionally deferred.
+
+### GHCR PostgreSQL/PostGIS retry — 2026-08-11
+
+- The Compose candidate was changed to
+  `ghcr.io/enterprisedb/postgresql:17.7-3.5-postgis-3-multilang`.
+- Its manifest includes both `linux/amd64` and `linux/arm64`; the ARM64 image
+  pulled successfully from GHCR with digest
+  `sha256:ecb0a998596f16d9f4d3c542c34b09e0812444cb05a5e2f0cb2f7e579274458a`.
+- A fresh named-volume probe using the Compose `POSTGRES_*` variables and
+  `infra/compose/init/postgres` completed initialization. `pg_isready` passed
+  and `PostGIS_Full_Version()` reported PostgreSQL 17/PostGIS 3.5.2.
+- The image defaults to `PGDATA=/var/lib/postgresql/data/pgdata`; existing
+  data volumes created with a root-level PostgreSQL data directory require a
+  planned migration rather than an in-place image swap.
+
+### Compose stack retry — 2026-08-11
+
+- The complete `docker compose ... pull` command resolved the GHCR PostgreSQL,
+  Quay MinIO, and Redis images, but still exited non-zero when Docker Hub
+  timed out while checking `clamav/clamav:1.5-debian`. The ClamAV image was
+  already present locally from the successful earlier pull, so startup used
+  the local cache; a clean-machine all-image pull remains an open item.
+- The Native Track was already using the standard ports from
+  `infra/local-stack.env`. Compose was started with temporary loopback ports
+  `25432`, `26379`, `29000`, `29001`, and `23310`; the env file and Native
+  Track were not changed or stopped.
+- `postgres`, `redis`, `minio`, and `clamav` reached `healthy`; the second
+  `minio-init` run exited `0`, confirming bucket initialization is idempotent.
+- The shared Compose health probe passed PostGIS, authenticated Redis,
+  MinIO, and ClamAV. PostgreSQL restart, Redis AOF restart, and MinIO object
+  round-trip restart checks all retained data.
+- The exact 68-byte EICAR sample returned `Eicar-Test-Signature FOUND`. Stopping
+  ClamAV made the shared health probe fail with `clamav: not ready`; restarting
+  it restored `Local stack: Compose Ready`.
+- These local checks advance Compose readiness and persistence evidence, but
+  release CI/staging parity, default-port startup, and clean-network pull
+  evidence remain unchecked.
+- The local evidence closes the development-stage A02 gate; all checklist boxes
+  above remain release obligations and are intentionally not marked complete.
 
 ## A05 staging identity gate
 

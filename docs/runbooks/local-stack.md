@@ -15,12 +15,14 @@ They must not branch on the selected track.
 
 - `Native Ready`: the native services pass the shared health probes.
 - `A02 Complete`: Native Track bootstrap, restart/recovery, persistence, and
-  fail-closed cases pass, and the current Compose attempt has either produced
-  evidence or an actionable release-checklist handoff.
+  fail-closed cases pass, and the current Compose attempt has produced evidence
+  or an actionable release-checklist handoff.
 - `Release Ready`: the Compose parity/release gate passes in CI or staging.
 
-`A02 Complete` unblocks current development. It is not release evidence when
-the Compose handoff remains open.
+Current status (2026-08-11): **A02 Complete**. Native Track and local Compose
+evidence are recorded in [the A02 Gate report](../reports/a02-native-gate.md).
+This unblocks current development; it does not close the CI/staging
+Compose/Linux release gate in [the release checklist](./release-checklist.md).
 
 ## Shared contract
 
@@ -61,6 +63,12 @@ software automatically.
 pnpm run dev:prepare
 pnpm run stop
 ```
+
+`pnpm run dev` uses Native dependencies by default. Select the dependency
+track explicitly with `pnpm run dev -- -native` or
+`pnpm run dev -- -compose`; `-componse` is accepted as a compatibility alias.
+After API, Web, and Worker readiness succeeds, the command prints the current
+Web URL and API live/ready/base URLs.
 
 The start command will:
 

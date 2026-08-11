@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, test } from "vitest";
 
-describe("TC-A02-03 development gate and Compose handoff", () => {
+describe("TC-A02-03 development gate and Compose release handoff", () => {
   test("both tracks expose the same four readiness capabilities", async () => {
     const nativeHealth = await readFile(
       new URL("../../scripts/dev-up-native-health.sh", import.meta.url),
@@ -32,7 +32,7 @@ describe("TC-A02-03 development gate and Compose handoff", () => {
     assert.match(compose, /^volumes:\s*$/m);
   });
 
-  test("an incomplete Compose attempt remains a mandatory release item", async () => {
+  test("Compose parity remains a mandatory release item", async () => {
     const checklist = await readFile(
       new URL("../../docs/runbooks/release-checklist.md", import.meta.url),
       "utf8",

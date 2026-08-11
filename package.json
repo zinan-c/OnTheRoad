@@ -24,7 +24,7 @@
     "profile:qa": "bash scripts/run-profile.sh qa",
     "profile:release": "bash scripts/run-profile.sh release",
     "dev:prepare": "bash scripts/prepare-environment.sh dev native",
-    "dev": "bash scripts/run-environment.sh dev native",
+    "dev": "bash scripts/run-environment.sh dev",
     "stop": "bash scripts/stop-environment.sh native",
     "qa": "bash scripts/run-environment.sh qa ${OTR_QA_TRACK:-native}",
     "prod": "bash scripts/run-environment.sh prod native",

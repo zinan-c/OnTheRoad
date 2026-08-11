@@ -4,6 +4,7 @@
 - Gate execution date: 2026-08-03
 - Final closure review date: 2026-08-08
 - Latest product-browser regression date: 2026-08-11 — **22/22 passed**
+- A02 development status update: 2026-08-11 — **Complete with local Compose evidence**
 - Exact closure SHA: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
 - Baseline: macOS arm64, Node 26.0.0, pnpm 9.15.4
 - Runtime: native PostgreSQL 17/PostGIS, authenticated Redis, native MinIO,
@@ -176,4 +177,15 @@ This closes M3 only for the Dev Track. It is not production release approval:
 - real HERE Routing remains a controlled staging check requiring explicit
   network approval;
 - the A05 real Staging IdP checklist remains mandatory before release;
-- A02 Compose/Linux parity remains a release checklist item.
+- A02 development is now closed with local Native and Compose evidence; the
+  separate A02 Compose/Linux release parity checklist remains mandatory before
+  production release.
+
+## 2026-08-11 operational documentation addendum
+
+The development launcher now selects the dependency track with
+`pnpm run dev -- -native` or `pnpm run dev -- -compose`; the requested
+`-componse` spelling is accepted as an alias. After API, Web, and Worker
+readiness, it prints the current Web URL and API live/ready/base URLs. This is
+an operational improvement and does not change the M3 product scope or its
+129/129 required-case and 22/22 browser evidence.

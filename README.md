@@ -72,6 +72,15 @@ pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
+`pnpm run dev` defaults to the Native dependency track. Select the dependency
+environment explicitly with `-native` or `-compose` (the historical
+`-componse` spelling is accepted as an alias):
+
+```sh
+pnpm run dev -- -native
+pnpm run dev -- -compose
+```
+
 `pnpm run dev` first runs the prepare phase. Prepare starts or adopts the
 project-owned PostgreSQL/PostGIS, Redis, MinIO, and ClamAV services, waits for
 fail-closed readiness, applies migrations and seed data, checks schema
@@ -103,9 +112,9 @@ pnpm run prod
 chain. `prod` validates injected `OTR_ENV_*` values and does not start local
 dependencies or write a profile.
 
-The Web application is available at `http://localhost:3000`. API liveness and
-readiness are exposed at `http://localhost:3001/health/live` and
-`http://localhost:3001/health/ready`.
+When the application is ready, `pnpm run dev` prints the current Web URL and
+API live/ready/base URLs. The Web and API ports are selected from the project
+defaults (`18100`/`18101`) and move together to the next free pair when needed.
 
 Stop the API, Worker, Web application, and dependency stack while preserving
 project-scoped data:

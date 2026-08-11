@@ -102,6 +102,10 @@ flowchart LR
 - **完成标准**：健康检查可供 API readiness 使用；应用只依赖 URL/凭据/capability，不依赖本机路径或 Compose DNS；migration 和 bucket 初始化在两轨幂等；敏感默认值不进入生产配置。
 - **下游放行规则**：`A02 Complete` 放行后续开发和当前 Milestone Gate；正式发布前必须完成 Compose Track parity/release checklist，否则不得发布。
 
+**当前状态（2026-08-11）**：A02 已按开发阶段规则关闭。Native Track 全部
+Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等初始化、EICAR
+和 ClamAV fail-closed）；CI/staging 的发布 parity 仍是独立未关闭项。
+
 ### A03 配置分层、Secret 校验与 `.env.example`（1 人日）
 
 - **优先级**：`P0 / High`

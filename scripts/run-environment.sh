@@ -6,7 +6,46 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=local-stack-common.sh
 source "${SCRIPT_DIR}/local-stack-common.sh"
 profile="${1:-dev}"
-track="${2:-native}"
+if [[ "$#" -gt 0 ]]; then
+  shift
+fi
+if [[ "${1:-}" == "--" ]]; then
+  shift
+fi
+track="native"
+track_argument="${1:-}"
+case "${track_argument}" in
+  ""|native|-native|--native)
+    track="native"
+    ;;
+  # Keep the requested misspelling as an alias while documenting -compose.
+  compose|componse|-compose|--compose|-componse|--componse)
+    track="compose"
+    ;;
+  --track)
+    if [[ "$#" -lt 2 ]]; then
+      echo "Usage: bash scripts/run-environment.sh [dev|qa|prod] [-native|-compose]" >&2
+      exit 2
+    fi
+    track="${2}"
+    if [[ "${track}" != "native" && "${track}" != "compose" ]]; then
+      echo "Track must be native or compose." >&2
+      exit 2
+    fi
+    shift
+    ;;
+  *)
+    echo "Usage: bash scripts/run-environment.sh [dev|qa|prod] [-native|-compose]" >&2
+    exit 2
+    ;;
+esac
+if [[ "$#" -gt 0 ]]; then
+  shift
+fi
+if [[ "$#" -gt 0 ]]; then
+  echo "Usage: bash scripts/run-environment.sh [dev|qa|prod] [-native|-compose]" >&2
+  exit 2
+fi
 runtime_profile="${profile}"
 [[ "${profile}" == "prod" ]] && runtime_profile="release"
 
@@ -149,6 +188,11 @@ for attempt in $(seq 1 60); do
   if [[ "${api_ok}" == true && "${web_ok}" == true && "${worker_ok}" == true ]]; then
     assert_children_running
     echo "${profile} environment ready: API, Web and Worker heartbeat passed."
+    echo "Access addresses (${track}):"
+    echo "  Web: ${web_origin}/"
+    echo "  API live: ${api_origin}/health/live"
+    echo "  API ready: ${api_origin}/health/ready"
+    echo "  API base: ${API_BASE_URL:-${api_origin}/api/v1}"
     wait
   fi
   sleep 1

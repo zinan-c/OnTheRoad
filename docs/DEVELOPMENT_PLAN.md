@@ -284,7 +284,7 @@ on-the-road/
 | ID | 任务 | 角色 | 估算 | 依赖 | 完成标准 |
 |---|---|---:|---:|---|---|
 | A01 | 建立 monorepo、质量脚本和 CI | PLAT | 2 | - | install/lint/typecheck/unit/build 全绿 |
-| A02 | 双轨依赖栈：原生开发 + Compose 验证 | PLAT | 6 | A01 | Native Track 启动/恢复/fail-closed 全绿后 A02 Complete；Compose 当前尽力验证，未完成项阻断正式发布 |
+| A02 | 双轨依赖栈：原生开发 + Compose 验证 | PLAT | 6 | A01 | Native Track 启动/恢复/fail-closed 全绿后 A02 Complete；本地 Compose 证据已补齐，CI/staging 未完成项仍阻断正式发布 |
 | A03 | 配置分层、Secret 校验、`.env.example` | BE | 1 | A01 | 缺必需配置快速失败且不泄密 |
 | A04 | OpenAPI v1、Problem Details、生成客户端 | BE/FE | 2 | A01 | 契约变更由 CI 检测 |
 | A05 | 双轨身份：开发身份/Mock OIDC + Staging IdP 发布验证 | BE/PLAT | 5 | A03 | Dev Track 登录/会话/owner/轮换全绿后 A05 Complete；Staging IdP 当前尽力验证，未完成项阻断正式发布 |

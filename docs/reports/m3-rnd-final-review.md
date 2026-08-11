@@ -5,7 +5,7 @@
 - Product acceptance: `docs/reports/m3-product-acceptance.md`
 - Decision: **M3 Done for the Dev Track**
 - Exact closure SHA: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
-- Browser evidence addendum: **2026-08-09 — 21/21 passed on `c0e2e3a`**
+- Browser evidence addenda: **2026-08-09 — 21/21 passed on `c0e2e3a`; 2026-08-11 — 22/22 passed**
 
 ## Review scope
 
@@ -121,3 +121,17 @@ Gate, including E2E-016/017's complete DirectionsProvider-to-MapLibre path.
 
 The addendum changes no production-release conclusion: real external Provider,
 Staging IdP, and Compose/Linux parity remain separate release gates.
+
+## 2026-08-11 browser and A02 status addendum
+
+The E2E-022 map regression re-acceptance completed the full
+`E2E-001`–`E2E-022` matrix with **22 passed, 0 failed, 0 skipped**. It verified
+Global/Day map scope, stable MapLibre bounds, coordinate-editor raster
+configuration, and the existing M3 route/gallery/expense/import paths. No M3
+product Case or browser acceptance gap remains in the current Dev Track record.
+
+The same date's local Compose verification closed the development-stage A02
+gate: PostgreSQL/PostGIS, Redis, MinIO, and ClamAV readiness, persistence,
+idempotent initialization, EICAR detection, and ClamAV fail-closed behavior all
+passed. These local results do not close the separate CI/staging Compose/Linux
+release parity gate.

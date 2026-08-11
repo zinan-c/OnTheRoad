@@ -9,9 +9,9 @@ and context; this index states what the repository currently claims.
 | Milestone | Implemented | Runtime-integrated | CI/required-case verified | Production release verified | Evidence |
 |---|---|---|---|---|---|
 | M0 | Yes | Yes | Yes | No — release gates are separate | [`reports/a02-native-gate.md`](./reports/a02-native-gate.md) and Spike reports |
-| M1 | Yes | Yes | Yes | No — A02/A05 release items remain | [`reports/m1-gate.md`](./reports/m1-gate.md) |
-| M2 | Yes | Yes | Yes | No — A02/A05 release items remain | [`reports/m2-gate.md`](./reports/m2-gate.md) |
-| M3 | Yes | Yes | Yes — 129/129 closure Gate plus 22/22 product-browser re-acceptance | No — A02/A05 and real-provider checks remain | [`reports/m3-gate.md`](./reports/m3-gate.md), [`reports/m3-product-acceptance.md`](./reports/m3-product-acceptance.md), [`reports/m3-rnd-final-review.md`](./reports/m3-rnd-final-review.md), [`E2E_AUTOMATION_CASES.md`](./E2E_AUTOMATION_CASES.md) |
+| M1 | Yes | Yes | Yes | No — A02 release parity/A05 release items remain | [`reports/m1-gate.md`](./reports/m1-gate.md) |
+| M2 | Yes | Yes | Yes | No — A02 release parity/A05 release items remain | [`reports/m2-gate.md`](./reports/m2-gate.md) |
+| M3 | Yes | Yes | Yes — 129/129 closure Gate plus 22/22 product-browser re-acceptance | No — A02 release parity, A05, and real-provider checks remain | [`reports/m3-gate.md`](./reports/m3-gate.md), [`reports/m3-product-acceptance.md`](./reports/m3-product-acceptance.md), [`reports/m3-rnd-final-review.md`](./reports/m3-rnd-final-review.md), [`E2E_AUTOMATION_CASES.md`](./E2E_AUTOMATION_CASES.md) |
 | M4–M6 | Planned | No | No | No | [`DEVELOPMENT_MILESTONE.md`](./DEVELOPMENT_MILESTONE.md) |
 
 “Done for the Dev Track” means implemented, assembled through production
@@ -19,6 +19,16 @@ composition roots, and verified by the required development Gate. It does not
 mean release-verified. The unchecked items in
 [`runbooks/release-checklist.md`](./runbooks/release-checklist.md) remain
 blocking for a production release.
+
+## Current gate status
+
+- **A02 development gate:** Complete as of 2026-08-11. Native Track and local
+  Compose evidence are archived in [`reports/a02-native-gate.md`](./reports/a02-native-gate.md).
+- **A02 release parity:** Open. Clean CI/staging image pulls, release-SHA
+  artifacts, and formal Linux/Compose parity are still required.
+- **M3 Dev Track:** Complete; the required-case Gate is 129/129 and the latest
+  product-browser regression is 22/22. M3 production release approval remains
+  separate from A02/A05 and real-provider checks.
 
 ## Authoritative documents
 

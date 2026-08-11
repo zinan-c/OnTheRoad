@@ -2,7 +2,7 @@ name: on-the-road-local
 
 services:
   postgres:
-    image: postgis/postgis:17-3.5
+    image: ghcr.io/enterprisedb/postgresql:17.7-3.5-postgis-3-multilang
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -112,7 +112,7 @@ services:
     networks: [otr-internal]
 
   clamav:
-    image: clamav/clamav:1.4.3
+    image: clamav/clamav:1.5-debian
     restart: unless-stopped
     environment:
       CLAMAV_REQUIRED: "true"

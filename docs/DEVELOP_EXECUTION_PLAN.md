@@ -24,7 +24,7 @@
 
 M0、M2、M3、M4、M5 Gate 还必须提交一次架构/安全差异复审记录，检查模块边界、Provider/文件/网络攻击面、状态机和 Plan B 是否因本里程碑实现发生变化。M3 的补充复审与签署归档在 `docs/reports/m3-rnd-final-review.md`。每次 Gate 演示同时运行固定五日 fixture 和一条从空账号开始的真实路径；fixture 不能替代创建、权限与持久化验证。
 
-A02 使用双轨状态：Native Track 的启动、恢复和 dev gate 全绿即可标记当前阶段 `A02 Complete` 并放行后续开发。Compose Track 必须在本轮尝试；若环境不可用，记录原因并转入发布 checklist，不阻断当前 Milestone，但发布前必须补齐。
+A02 使用双轨状态：Native Track 的启动、恢复和 dev gate 全绿即可标记当前阶段 `A02 Complete` 并放行后续开发。Compose Track 必须在本轮尝试；若环境不可用，记录原因并转入发布 checklist，不阻断当前 Milestone，但发布前必须补齐。2026-08-11 的本地 Compose 健康、持久化、EICAR 和 fail-closed 证据已归档，当前 A02 已关闭；CI/staging release parity 仍由发布 checklist 管理。
 
 A05 同样使用双轨状态：Dev Identity/Mock OIDC Track 的登录、会话、owner/BOLA、密钥轮换模拟和 dev gate 全绿即可标记当前阶段 `A05 Complete` 并放行后续开发。Staging IdP Track 必须在本轮尝试；若缺少 staging 环境、IdP 配置或可达回调，记录原因并转入发布 checklist，不阻断当前 Milestone，但真实 Authorization Code + PKCE 回调、HTTPS Cookie、登出和真实密钥轮换未通过时不得正式发布。
 
