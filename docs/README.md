@@ -11,7 +11,7 @@ and context; this index states what the repository currently claims.
 | M0 | Yes | Yes | Yes | No — release gates are separate | [`reports/a02-native-gate.md`](./reports/a02-native-gate.md) and Spike reports |
 | M1 | Yes | Yes | Yes | No — A02/A05 release items remain | [`reports/m1-gate.md`](./reports/m1-gate.md) |
 | M2 | Yes | Yes | Yes | No — A02/A05 release items remain | [`reports/m2-gate.md`](./reports/m2-gate.md) |
-| M3 | Yes | Yes | Yes — 129/129 closure Gate plus 21/21 product-browser re-acceptance | No — A02/A05 and real-provider checks remain | [`reports/m3-gate.md`](./reports/m3-gate.md), [`reports/m3-product-acceptance.md`](./reports/m3-product-acceptance.md), [`reports/m3-rnd-final-review.md`](./reports/m3-rnd-final-review.md), [`E2E_AUTOMATION_CASES.md`](./E2E_AUTOMATION_CASES.md) |
+| M3 | Yes | Yes | Yes — 129/129 closure Gate plus 22/22 product-browser re-acceptance | No — A02/A05 and real-provider checks remain | [`reports/m3-gate.md`](./reports/m3-gate.md), [`reports/m3-product-acceptance.md`](./reports/m3-product-acceptance.md), [`reports/m3-rnd-final-review.md`](./reports/m3-rnd-final-review.md), [`E2E_AUTOMATION_CASES.md`](./E2E_AUTOMATION_CASES.md) |
 | M4–M6 | Planned | No | No | No | [`DEVELOPMENT_MILESTONE.md`](./DEVELOPMENT_MILESTONE.md) |
 
 “Done for the Dev Track” means implemented, assembled through production
@@ -50,9 +50,9 @@ blocking for a production release.
   used at the time. The current supported toolchain is always the root
   `.nvmrc` and `packageManager` pair.
 - The current product-browser suite is `pnpm run test:e2e`. Its accepted
-  2026-08-09 run executed E2E-001 through E2E-021 with 21 passed, zero failed,
-  and zero skipped against implementation commit
-  `c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`.
+  2026-08-11 run executed E2E-001 through E2E-022 with 22 passed, zero failed,
+  and zero skipped. E2E-022 covers the Global/Day map-scope and stable
+  MapLibre sizing regression fixed by the accompanying implementation commit.
 
 ## Maintenance rule
 

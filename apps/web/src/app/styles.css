@@ -241,7 +241,7 @@ select {
 .locationCandidates > label { display: grid; grid-template-columns: auto minmax(8rem, auto) 1fr; align-items: center; gap: .5rem; border: 1px solid #e4e7ec; border-radius: .65rem; padding: .65rem; }
 .locationCandidates > label small { grid-column: 2 / -1; color: #667085; }
 .locationCoordinateEditor { display: grid; gap: .65rem; border-top: 1px solid #e4e7ec; padding-top: .75rem; }
-.locationPickMap { min-height: 16rem; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f5f7fa; overflow: hidden; }
+.locationPickMap { position: relative; width: 100%; height: 16rem; min-height: 0; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f5f7fa; overflow: hidden; }
 .itemEditorForm { display: grid; gap: .85rem; margin-top: 1rem; padding: 1rem; border: 1px solid #d0d5dd; border-radius: 1rem; background: #fff; }
 .itemEditorForm > header, .itemEditorForm > footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .itemEditorForm fieldset { display: grid; gap: .75rem; border: 1px solid #e4e7ec; border-radius: .75rem; }
@@ -252,7 +252,9 @@ select {
 .itemNotesField textarea { box-sizing: border-box; width: 100%; min-height: 10rem; resize: vertical; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .7rem; font: inherit; }
 .routeLayout { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1rem; align-items: start; }
 .routeMap { width: 100%; min-height: 16rem; border-radius: .75rem; background: #f3f7fb; }
-.realRouteMap { min-height: 20rem; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f8fafc; }
+.realRouteMap { position: relative; width: 100%; height: 20rem; min-height: 0; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f8fafc; overflow: hidden; }
+.mapScopeActions { display: flex; gap: .5rem; margin: .75rem 0; }
+.mapScopeActions button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; }
 .workspaceTimeline { display: grid; gap: .5rem; margin: 0; padding-left: 1.25rem; }
 .workspaceTimeline button, .expenseForm button, .mappingEditor button, .previewStates button { border: 1px solid #c4cfdd; border-radius: .5rem; background: #fff; padding: .5rem .7rem; cursor: pointer; }
 .workspaceTimeline button[aria-pressed="true"] { border-color: #d9485f; background: #fff1f3; color: #a8243c; font-weight: 700; }

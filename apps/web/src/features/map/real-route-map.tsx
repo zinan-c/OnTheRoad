@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { MapLibreWrapper, type MapRuntimeFactory } from "./maplibre-wrapper";
 import type { MapFilter, MapItem } from "./map-model";
 import { loadMapLibreRuntime } from "./maplibre-runtime.mjs";
+import { TRIP_MAP_RUNTIME_OPTIONS } from "./map-runtime-options";
 import { routeStyle, type RouteQuality } from "./route-style";
 import type { TransportModeView } from "../trips/settings/transport-modes";
 
@@ -47,33 +48,46 @@ export function RealRouteMap({ items, routes, transportModes = [], selectedRoute
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<MapLibreWrapper | undefined>(undefined);
+  const itemsRef = useRef(items);
+  const filterRef = useRef(filter);
+  itemsRef.current = items;
+  filterRef.current = filter;
   const selectedItemRef = useRef(selectedItemId);
   selectedItemRef.current = selectedItemId;
   const routeGeoJson = useMemo(
     () => buildPersistedRouteGeoJson(routes, transportModes, selectedRouteId),
     [routes, selectedRouteId, transportModes],
   );
+  const routeGeoJsonRef = useRef(routeGeoJson);
+  routeGeoJsonRef.current = routeGeoJson;
 
   useEffect(() => {
     let disposed = false;
-    void loadMapLibreRuntime({
-      tileTemplate: "/api/map/tiles/{z}/{x}/{y}",
-      attribution: "Map data © On The Road fixture",
-    }).then((runtime) => {
+    void loadMapLibreRuntime(TRIP_MAP_RUNTIME_OPTIONS).then((runtime) => {
       if (disposed || !containerRef.current) return;
       const wrapper = new MapLibreWrapper(runtime as unknown as MapRuntimeFactory);
       wrapperRef.current = wrapper;
-      return wrapper.mount(containerRef.current, items, filter ?? { kind: "all" }, onSelect, onRouteSelect)
+      return wrapper.mount(containerRef.current, itemsRef.current, filterRef.current ?? { kind: "all" }, onSelect, onRouteSelect)
         .then(() => {
-          wrapper.setRouteGeoJson(routeGeoJson);
+          wrapper.setRouteGeoJson(routeGeoJsonRef.current);
           wrapper.selectItem(selectedItemRef.current ?? null);
         });
     });
     return () => { disposed = true; wrapperRef.current?.destroy(); wrapperRef.current = undefined; };
-  }, [filter, items, onRouteSelect, onSelect]);
+  }, [onRouteSelect, onSelect]);
 
+  useEffect(() => { wrapperRef.current?.updateItems(items, filter ?? { kind: "all" }); }, [filter, items]);
   useEffect(() => { wrapperRef.current?.setRouteGeoJson(routeGeoJson); }, [routeGeoJson]);
   useEffect(() => { wrapperRef.current?.selectItem(selectedItemId ?? null); }, [selectedItemId]);
 
-  return <div ref={containerRef} className="realRouteMap" role="application" aria-label="Route map" data-route-count={routeGeoJson.features.length} />;
+  const validPoints = items.filter(({ point }) => point);
+  return <div
+    id="route-map-canvas"
+    ref={containerRef}
+    className="realRouteMap"
+    role="application"
+    aria-label="Route map"
+    data-marker-count={validPoints.length}
+    data-route-count={routeGeoJson.features.length}
+  />;
 }

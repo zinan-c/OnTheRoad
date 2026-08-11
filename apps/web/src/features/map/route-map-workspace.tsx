@@ -74,11 +74,12 @@ export function currentRouteSegments(routes: readonly RouteSegment[], dayId: str
   return dayId ? routes.filter((route) => route.tripDayId === dayId) : [...routes];
 }
 
-export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, selectedDayId }: {
+export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, selectedDayId, onSelectGlobalMap }: {
   readonly tripId: string;
   readonly transportModes: readonly TransportModeView[];
   readonly refreshVersion?: number;
   readonly selectedDayId: string | null;
+  readonly onSelectGlobalMap: () => void;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [items, setItems] = useState<ProductItem[]>([]);
@@ -163,6 +164,10 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
 
   return <section aria-label="Route map" className="workspaceCard routeWorkspace">
     <header><h2>{selectedDay ? `Day ${selectedDay.dayNumber} route` : "Route map"}</h2><p>The map uses persisted WGS84 geometry returned by the Route API.</p></header>
+    <nav className="mapScopeActions" aria-label="Map scope">
+      <button id="map-scope-global" type="button" aria-pressed={selectedDayId === null} onClick={onSelectGlobalMap}>Global map</button>
+      {selectedDay ? <span role="status">Showing Day {selectedDay.dayNumber}</span> : <span role="status">Showing all days</span>}
+    </nav>
     {isGenerating ? <p role="status">Generating routes…</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
     {visibleItems.some(({ point }) => point) ? <RealRouteMap

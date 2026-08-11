@@ -3,7 +3,7 @@
 - Milestone: **M3 — Routing, gallery, expenses, and Excel staging**
 - Decision: **Accepted for the Dev Track**
 - Review date: **2026-08-08 (Asia/Shanghai)**
-- Browser re-acceptance: **2026-08-09 — 21/21 passed**
+- Latest browser regression acceptance: **2026-08-11 — 22/22 passed**
 - Product baseline: `565365a` (`fix(m3): close public contract gate`)
 - Subsequent technical closure: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
 - Browser implementation baseline: `c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`
@@ -108,3 +108,18 @@ It supplements rather than rewrites the original 2026-08-08 sign-off and does
 not approve production release-only checks.
 
 **Product browser re-acceptance:** `PROD-M3-E2E-21-PASS-2026-08-09-c0e2e3a`
+
+## 2026-08-11 map regression acceptance addendum
+
+E2E-022 was added after the combined itinerary/map page exposed three browser
+regressions: the Global-map entry was no longer reachable, Day selection
+recreated the map instead of updating its bounds, and the MapLibre stylesheet
+and coordinate-editor raster configuration were missing.
+
+The complete E2E-001 through E2E-022 suite passed with **22 passed, 0 failed,
+0 skipped**. The Product acceptance baseline now includes Global and per-Day
+map scopes, a real raster-backed coordinate-adjustment map, and stable bounded
+map canvases. This extends the browser regression record without changing the
+historical M3 technical closure or production-release exclusions.
+
+**Map regression re-acceptance:** `PROD-M3-E2E-22-PASS-2026-08-11`

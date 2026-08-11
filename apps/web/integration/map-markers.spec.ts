@@ -31,8 +31,13 @@ describe("TC-C05-03 marker, tooltip and map filtering", () => {
     expect(setMarkers.mock.calls.at(-1)?.[0].map((marker) => marker.markerLabel))
       .toEqual(["Day 1 · 1", "Day 1 · 2", "Day 2 · 1"]);
 
-    wrapper.setFilter({ kind: "day", dayId: "day-2" });
+    wrapper.updateItems(fixture.filter(({ dayId }) => dayId === "day-2"));
     expect(wrapper.state.markerCount).toBe(1);
+    expect(setGeoJson.mock.calls.at(-1)?.[0].features.map((feature) => feature.id))
+      .toEqual(["item-3"]);
+
+    wrapper.updateItems(fixture);
+    wrapper.setFilter({ kind: "day", dayId: "day-2" });
     expect(setGeoJson.mock.calls.at(-1)?.[0].features.map((feature) => feature.id))
       .toEqual(["item-3"]);
 

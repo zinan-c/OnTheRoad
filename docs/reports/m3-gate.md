@@ -3,7 +3,7 @@
 - Status: **M3 Done for the Dev Track**
 - Gate execution date: 2026-08-03
 - Final closure review date: 2026-08-08
-- Product-browser re-acceptance date: 2026-08-09 — **21/21 passed**
+- Latest product-browser regression date: 2026-08-11 — **22/22 passed**
 - Exact closure SHA: `10d7c1d03c7a1df579ac37f79b71bbfef5919424`
 - Baseline: macOS arm64, Node 26.0.0, pnpm 9.15.4
 - Runtime: native PostgreSQL 17/PostGIS, authenticated Redis, native MinIO,
@@ -145,6 +145,22 @@ suite for E2E-001 through E2E-021 and reran every documented manual path.
 The executable cases and per-case status are archived in
 `docs/E2E_AUTOMATION_CASES.md`; the Product Owner acceptance addendum is in
 `docs/reports/m3-product-acceptance.md`.
+
+## 2026-08-11 map regression re-acceptance addendum
+
+After the shared itinerary/map layout exposed a missing Global-map scope and
+unbounded MapLibre canvases, the browser suite added E2E-022 and reran the full
+matrix.
+
+- Result: **22 passed / 0 failed / 0 skipped** in 53.0 seconds.
+- E2E-022 verified initial Global scope, Day 1 and Day 2 marker filtering and
+  refitting, return to Global scope, real raster attribution in the Location
+  coordinate editor, and stable 320 px / 256 px map heights.
+- The route and coordinate maps use the same runtime Tile configuration and
+  MapLibre stylesheet; Day changes update the existing map instance rather
+  than recreating it.
+- The original 129/129 closure Gate and 2026-08-09 21-case acceptance remain
+  historical evidence; this addendum extends the current regression baseline.
 
 ## Final R&D closure review
 

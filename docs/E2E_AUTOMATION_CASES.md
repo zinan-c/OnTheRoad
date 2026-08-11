@@ -4,11 +4,11 @@
 >
 > Scope: planned and implemented M0–M3 product capabilities
 >
-> Case count: 21
+> Case count: 22
 >
 > Execution: every case can be run by Playwright or accepted manually with the same steps
 >
-> Current result: **21/21 passed, 0 failed, 0 skipped** on 2026-08-09 (Asia/Shanghai), using Playwright Chromium against the real Web/API/Worker stack and an isolated PostgreSQL/PostGIS database. Implementation commit: `c0e2e3a4f2ca65e92b33dee1f1a44e3b41ce6b28`.
+> Current result: **22/22 passed, 0 failed, 0 skipped** on 2026-08-11 (Asia/Shanghai), using Playwright Chromium against the real Web/API/Worker stack and PostgreSQL/PostGIS. E2E-022 adds the Global/Day map-scope and stable MapLibre sizing regression path in this bug-fix commit.
 >
 > Boundary: this result closes the M0–M3 browser acceptance cases defined here. M4–M6 features and production release gates remain outside the completion claim.
 
@@ -73,7 +73,7 @@ Every case archives at least:
 
 ### 2.5 Overall completion
 
-- All 21 cases are `Passed`, with zero failures and zero skips in the accepted run.
+- All 22 cases are `Passed`, with zero failures and zero skips in the accepted run.
 - Former `Partial` product entry-point gaps are closed by real UI workflows; no accepted business write is API-seeded.
 - E2E-016 and E2E-017 passed as mandatory route/map re-acceptance cases.
 - Automation may use fixture Providers, but Staging/Release still requires a separate smoke test against a real external Provider.
@@ -943,6 +943,56 @@ Trip, Expense, Exchange Rate, and Import use the same 15-currency set; all 15 pa
 
 ---
 
+## E2E-022 — Global/Day map scope and stable MapLibre sizing
+
+- **Status**: `Passed`
+- **Coverage**: M3; C08–C09; shared Trip map, Day focus, and Location coordinate adjustment
+- **Goal**: prove that the real MapLibre canvas shows the full Trip by default, follows Day selection without remounting, and remains dimensionally stable in both route and coordinate-adjustment surfaces.
+
+### Preconditions and data
+
+- Create a two-day Trip through the browser UI.
+- Create one confirmed Location-backed Item on Day 1 and another on Day 2, using different fixture coordinates.
+- Keep the fixture Tile Provider enabled through the production Web tile proxy.
+
+### Manual steps
+
+1. Reload the Trip detail page after both Items have been saved.
+2. Confirm that `Global map` is selected and both Items appear as markers.
+3. Observe the route map for at least 750 ms and confirm that its height remains fixed and its canvas stays inside the map container.
+4. Click Day 1 in the left itinerary and confirm that the right map fits and displays only the Day 1 marker and routes.
+5. Click Day 2 and confirm that the map fits and displays only the Day 2 marker and routes.
+6. Click `Global map` and confirm that both markers return.
+7. Select Day 1 and edit its Item.
+8. In the confirmed Location section, inspect `Adjust coordinates`.
+9. Confirm that the coordinate-adjustment map has a real MapLibre canvas, fixture raster attribution, and a visible marker.
+10. Observe the coordinate map for at least 750 ms and confirm that its height remains fixed without continuous growth.
+
+### Automation requirements
+
+- Create Trip, Items, and confirmed Locations only through visible UI operations.
+- Do not use `page.evaluate()` or direct CRUD requests.
+- Select persisted Items by their stable entity-backed element IDs, not by localized Item names.
+- Verify marker membership through stable `data-item-id` values.
+- Measure both the map container and canvas through Playwright bounding boxes.
+
+### Detailed checks
+
+- Initial map scope is global even though the left itinerary has Day 1 selected.
+- Global scope includes both persisted confirmed points.
+- Day selection updates the existing MapLibre instance and refits to every valid point for that Day.
+- Returning to Global scope restores all valid Trip points.
+- Route-map height remains 320 px and coordinate-map height remains 256 px across delayed measurements.
+- Neither canvas exceeds its owning container height.
+- Both map surfaces load the shared fixture raster configuration and visible attribution.
+- Location confirmation, marker persistence, and route data remain intact after scope changes and refresh.
+
+### Acceptance baseline
+
+Global, Day 1, Day 2, and coordinate-adjustment maps all render real, bounded MapLibre canvases; any missing scope, stale marker, absent raster attribution, or growing container fails the case.
+
+---
+
 ## 3. Recommended execution sets
 
 ### 3.1 Short happy path for every PR
@@ -959,7 +1009,7 @@ Trip, Expense, Exchange Rate, and Import use the same 15-currency set; all 15 pa
 
 ### 3.2 Nightly/full M0–M3 regression
 
-- Run E2E-001 through E2E-021.
+- Run E2E-001 through E2E-022.
 - Parameterize Trip/Expense currency cases across all 15 currencies.
 - Run map cases at desktop and mobile viewports.
 - Run all three import formats.
@@ -977,7 +1027,7 @@ Trip, Expense, Exchange Rate, and Import use the same 15-currency set; all 15 pa
 
 The accepted implementation resolves the earlier review questions as follows:
 
-1. all 21 cases are implemented as executable browser acceptance cases;
+1. all 22 cases are implemented as executable browser acceptance cases;
 2. every former `Partial` and `Critical gap` case is now `Passed`;
 3. E2E-016/017 remain mandatory M3 route/map gates and both pass;
 4. Item, Location, Trip settings/list/trash, Mode, Gallery, Expense, Import, and Reference Data entry points are available in the current product navigation;

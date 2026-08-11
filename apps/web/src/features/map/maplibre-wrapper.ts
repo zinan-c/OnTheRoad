@@ -122,6 +122,11 @@ export class MapLibreWrapper {
   }
 
   setFilter(filter: MapFilter): void {
+    this.updateItems(this.items, filter);
+  }
+
+  updateItems(items: readonly MapItem[], filter: MapFilter = this.state.filter): void {
+    this.items = [...items];
     const model = buildMapModel(this.items, filter);
     this.applyModelToState(model);
     if (!this.runtimeHandle) return;

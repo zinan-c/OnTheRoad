@@ -43,6 +43,7 @@ function flattenDays(days: Day[]): Item[] {
 export function TripWorkspace({ tripId }: { readonly tripId: string }) {
   const [days, setDays] = useState<Day[]>([]);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
+  const [mapDayId, setMapDayId] = useState<string | null>(null);
   const [tripTransportModes, setTripTransportModes] = useState<TransportModeView[]>([]);
   const [routeRefreshVersion, setRouteRefreshVersion] = useState(0);
 
@@ -80,6 +81,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
         tripId={tripId}
         selectedDayId={selectedDayId}
         onSelectedDayChange={setSelectedDayId}
+        onDaySelect={setMapDayId}
         onTransportModesChange={setTripTransportModes}
         onItemsChange={handleItemsChange}
         onRoutesInvalidated={() => setRouteRefreshVersion((version) => version + 1)}
@@ -88,7 +90,8 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
         tripId={tripId}
         transportModes={tripTransportModes}
         refreshVersion={routeRefreshVersion}
-        selectedDayId={selectedDayId}
+        selectedDayId={mapDayId}
+        onSelectGlobalMap={() => setMapDayId(null)}
       />
     </section>
     <ExpenseWorkspace tripId={tripId} items={items} />

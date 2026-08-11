@@ -11,20 +11,27 @@ type TestMapOptions = {
   onMapClick?: (point: TestPoint) => void;
   onMarkerDragEnd?: (id: string, point: TestPoint, inputMode: "mouse" | "touch") => void;
 };
-const mapRuntime = vi.hoisted(() => ({ options: null as TestMapOptions | null }));
+const mapRuntime = vi.hoisted(() => ({
+  options: null as TestMapOptions | null,
+  runtimeOptions: null as Record<string, unknown> | null,
+}));
 
 vi.mock("../../src/features/map/maplibre-runtime.mjs", () => ({
-  loadMapLibreRuntime: async () => ({
+  loadMapLibreRuntime: async (runtimeOptions: Record<string, unknown>) => {
+    mapRuntime.runtimeOptions = runtimeOptions;
+    return {
     createMap: async (options: TestMapOptions) => {
       mapRuntime.options = options;
       return { setGeoJson: vi.fn(), setMarkers: vi.fn(), setRouteGeoJson: vi.fn(), fitBounds: vi.fn(), resize: vi.fn(), destroy: vi.fn() };
     },
-  }),
+    };
+  },
 }));
 
 afterEach(() => {
   cleanup();
   mapRuntime.options = null;
+  mapRuntime.runtimeOptions = null;
   vi.unstubAllGlobals();
 });
 
@@ -52,6 +59,10 @@ test("E2E-015 persists map pick, Marker drag and final manual WGS84 coordinates 
   }
   render(<Harness />);
   await waitFor(() => expect(mapRuntime.options).not.toBeNull());
+  expect(mapRuntime.runtimeOptions).toMatchObject({
+    tileTemplate: "/api/map/tiles/{z}/{x}/{y}",
+    attribution: "Map data © On The Road fixture",
+  });
 
   await act(async () => mapRuntime.options!.onMapClick!({ longitude: 121.49, latitude: 31.24, crs: "WGS84" }));
   await screen.findByText(/Version 2/u);

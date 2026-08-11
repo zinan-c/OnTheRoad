@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { MapRuntimeHandle, MapRuntimeOptions } from "../map/maplibre-wrapper";
 import { loadMapLibreRuntime } from "../map/maplibre-runtime.mjs";
+import { TRIP_MAP_RUNTIME_OPTIONS } from "../map/map-runtime-options";
 import type { ProductLocation } from "./location-product-picker";
 
 type Point = { longitude: number; latitude: number; crs: "WGS84" };
@@ -84,7 +85,7 @@ export function LocationCoordinateEditor({
 
   useEffect(() => {
     let disposed = false;
-    void loadMapLibreRuntime().then(async (runtime) => {
+    void loadMapLibreRuntime(TRIP_MAP_RUNTIME_OPTIONS).then(async (runtime) => {
       if (disposed || !containerRef.current) return;
       const typedRuntime = runtime as unknown as {
         createMap: (options: MapRuntimeOptions) => MapRuntimeHandle | Promise<MapRuntimeHandle>;
@@ -101,6 +102,7 @@ export function LocationCoordinateEditor({
         return;
       }
       runtimeRef.current = handle;
+      handle.resize();
       handle.setGeoJson({ type: "FeatureCollection", features: [] });
       if (locationRef.current.point) {
         const point = locationRef.current.point;
@@ -137,6 +139,8 @@ export function LocationCoordinateEditor({
       label: location.name, coordinate: [location.point.longitude, location.point.latitude],
       tooltip: `${location.name} · drag to adjust`,
     }]);
+    handle.resize();
+    handle.fitBounds([[location.point.longitude, location.point.latitude], [location.point.longitude, location.point.latitude]], { padding: 72, maxZoom: 15 });
   }, [location]);
 
   function submitExact(kind: "map-pick" | "marker-drag") {
@@ -160,7 +164,7 @@ export function LocationCoordinateEditor({
   return <section className="locationCoordinateEditor" aria-label="Location coordinate adjustment">
     <h4>Adjust coordinates</h4>
     <p>Click the map to save a point, or drag an existing marker. Coordinates are saved as WGS84.</p>
-    <div ref={containerRef} className="locationPickMap" role="application" aria-label="Location picker and draggable marker map" />
+    <div id="location-coordinate-map" ref={containerRef} className="locationPickMap" role="application" aria-label="Location picker and draggable marker map" />
     <details><summary>Precise keyboard map and marker controls</summary>
       <div className="formRow">
         <label>Map longitude<input aria-label="Map longitude" inputMode="decimal" value={mapLongitude} onChange={(event) => setMapLongitude(event.target.value)} /></label>

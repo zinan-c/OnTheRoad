@@ -206,6 +206,7 @@ export function ItineraryPanel({
   tripId,
   selectedDayId: controlledSelectedDayId,
   onSelectedDayChange,
+  onDaySelect,
   onTransportModesChange,
   onItemsChange,
   onRoutesInvalidated,
@@ -213,6 +214,7 @@ export function ItineraryPanel({
   readonly tripId: string;
   readonly selectedDayId?: string | null;
   readonly onSelectedDayChange?: (dayId: string) => void;
+  readonly onDaySelect?: (dayId: string) => void;
   readonly onTransportModesChange?: (modes: TransportModeView[]) => void;
   readonly onItemsChange?: (dayId: string, items: ProductItem[]) => void;
   readonly onRoutesInvalidated?: () => void;
@@ -258,9 +260,10 @@ export function ItineraryPanel({
   const selectDay = useCallback((dayId: string) => {
     setLocalSelectedDayId(dayId);
     onSelectedDayChange?.(dayId);
+    onDaySelect?.(dayId);
     setEditorOpen(false);
     void loadItems(dayId);
-  }, [loadItems, onSelectedDayChange]);
+  }, [loadItems, onDaySelect, onSelectedDayChange]);
 
   useEffect(() => {
     void itineraryApi<ProductDay[]>(`/trips/${tripId}/days`).then((loaded) => {
