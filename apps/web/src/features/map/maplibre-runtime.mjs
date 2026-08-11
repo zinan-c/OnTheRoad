@@ -35,6 +35,7 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
       let markers = [];
       let selectedItemId = null;
       let suppressMapClick = false;
+      let pendingFitBounds = null;
       const markerDragEnd = (itemId, point, inputMode) => {
         suppressMapClick = true;
         onMarkerDragEnd?.(itemId, point, inputMode);
@@ -59,6 +60,12 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
         applyGeoJson(map, geojson);
         applyRouteGeoJson(map, routeGeojson);
         markers = replaceMarkers(maplibregl, map, markers, markerModels, onMarkerClick, markerDragEnd, draggableMarkers, selectedItemId);
+        if (pendingFitBounds) {
+          const { bounds, fitOptions } = pendingFitBounds;
+          pendingFitBounds = null;
+          map.resize();
+          map.fitBounds(bounds, fitOptions);
+        }
       });
 
       return {
@@ -79,6 +86,15 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
           applyMarkerSelection(markers, selectedItemId);
         },
         fitBounds(bounds, options) {
+          // MapLibre accepts fitBounds before load, but the call can be
+          // applied against its default world-sized transform. Queue it so
+          // the first view is fitted to the itinerary after the raster style
+          // and container dimensions are ready.
+          if (!ready) {
+            pendingFitBounds = { bounds, fitOptions: options };
+            return;
+          }
+          map.resize();
           map.fitBounds(bounds, options);
         },
         resize() {
@@ -136,7 +152,9 @@ function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick, o
     const element = document.createElement("button");
     element.className = "otr-maplibre-marker";
     element.type = "button";
-    element.textContent = String(model.daySequence);
+    const label = document.createElement("span");
+    label.textContent = String(model.daySequence);
+    element.append(label);
     element.style.borderColor = model.dayColor;
     element.setAttribute("aria-label", model.tooltip);
     element.setAttribute("data-item-id", model.itemId);
@@ -144,6 +162,7 @@ function replaceMarkers(maplibregl, map, current, markerModels, onMarkerClick, o
     element.addEventListener("click", () => onMarkerClick?.(model.itemId));
     const marker = new maplibregl.Marker({ element, draggable: draggableMarkers })
       .setLngLat(model.coordinate)
+      .setOffset(model.offset ?? [0, 0])
       .setPopup(new maplibregl.Popup({ offset: 18 }).setText(model.tooltip))
       .addTo(map);
     if (draggableMarkers) marker.on("dragend", (event) => {

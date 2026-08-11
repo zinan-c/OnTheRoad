@@ -89,6 +89,22 @@ describe("TC-C05-01 marker and fit selector", () => {
     }).map(({ id }) => id)).toEqual(["item-1", "item-2"]);
     expect(items[0]?.id).toBe("item-1");
   });
+
+  test("fans out markers that share a dense global-map coordinate", () => {
+    const model = buildMapModel([
+      point("same-a", 1, "day-1", "#155EEF", 123.761, 9.5506, "阿罗娜", "dest-bohol"),
+      point("same-b", 2, "day-2", "#7A5AF8", 123.761, 9.5506, "阿罗娜酒店", "dest-bohol"),
+    ]);
+
+    expect(model.markers.map(({ offset }) => offset)).toEqual([
+      [0, -22],
+      [0, 22],
+    ]);
+    expect(model.geojson.features.map(({ geometry }) => geometry.coordinates)).toEqual([
+      [123.761, 9.5506],
+      [123.761, 9.5506],
+    ]);
+  });
 });
 
 function point(

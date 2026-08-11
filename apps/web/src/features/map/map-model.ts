@@ -46,6 +46,12 @@ export type MapMarker = MarkerProperties & {
   id: string;
   coordinate: Coordinate;
   tooltip: string;
+  /**
+   * A small screen-space fan-out for markers that share (or nearly share) a
+   * coordinate. The persisted WGS84 point remains unchanged; this only keeps
+   * the HTML marker hit targets readable at the global-trip zoom level.
+   */
+  offset?: readonly [number, number];
 };
 
 export type FitPlan =
@@ -63,6 +69,8 @@ export type MapModel = {
 };
 
 const SINGLE_POINT_PADDING = 0.05;
+const MARKER_COLLISION_GRID = 0.008;
+const MARKER_FAN_RADIUS = 22;
 
 export function filterMapItems(
   items: readonly MapItem[],
@@ -125,6 +133,8 @@ export function buildMapModel(
     });
   }
 
+  fanOutOverlappingMarkers(markers);
+
   const legendByDay = new Map<number, { dayNumber: number; color: string; label: string }>();
   for (const item of selected) {
     if (!legendByDay.has(item.dayNumber)) {
@@ -145,6 +155,29 @@ export function buildMapModel(
     fit: fitPlan(markers.map(({ coordinate }) => coordinate)),
     filter,
   };
+}
+
+function fanOutOverlappingMarkers(markers: MapMarker[]): void {
+  const groups = new Map<string, MapMarker[]>();
+  for (const marker of markers) {
+    const [longitude, latitude] = marker.coordinate;
+    const key = `${Math.round(longitude / MARKER_COLLISION_GRID)}:${Math.round(latitude / MARKER_COLLISION_GRID)}`;
+    const group = groups.get(key);
+    if (group) group.push(marker);
+    else groups.set(key, [marker]);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const step = (Math.PI * 2) / group.length;
+    group.forEach((marker, index) => {
+      const angle = -Math.PI / 2 + index * step;
+      marker.offset = [
+        Math.round(Math.cos(angle) * MARKER_FAN_RADIUS),
+        Math.round(Math.sin(angle) * MARKER_FAN_RADIUS),
+      ];
+    });
+  }
 }
 
 export function fitPlan(points: readonly Coordinate[]): FitPlan {

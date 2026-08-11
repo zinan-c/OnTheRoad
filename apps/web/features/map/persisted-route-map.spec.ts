@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { buildPersistedRouteGeoJson } from "../../src/features/map/real-route-map";
 import { createMapLibreRuntime } from "../../src/features/map/maplibre-runtime.mjs";
@@ -37,5 +37,37 @@ describe("persisted route map", () => {
       tiles: ["/api/map/tiles/{z}/{x}/{y}"],
       attribution: "fixture attribution",
     });
+  });
+
+  test("defers the initial fit until the raster map has loaded", () => {
+    let load: (() => void) | undefined;
+    const fitBounds = vi.fn();
+    const resize = vi.fn();
+    class FakeMap {
+      constructor() {}
+      on(event: string, handler: () => void) {
+        if (event === "load") load = handler;
+        return this;
+      }
+      getSource() { return undefined; }
+      getLayer() { return undefined; }
+      addSource() {}
+      addLayer() {}
+      fitBounds = fitBounds;
+      resize = resize;
+      remove() {}
+    }
+    const runtime = createMapLibreRuntime({ Map: FakeMap }, {
+      tileTemplate: "/api/map/tiles/{z}/{x}/{y}",
+    });
+    const handle = runtime.createMap({ container: {}, onTileError: () => undefined });
+    const bounds = [[123, 9], [124, 10]] as [[number, number], [number, number]];
+
+    handle.fitBounds(bounds, { padding: 48, maxZoom: 14 });
+    expect(fitBounds).not.toHaveBeenCalled();
+
+    load?.();
+    expect(resize).toHaveBeenCalledOnce();
+    expect(fitBounds).toHaveBeenCalledWith(bounds, { padding: 48, maxZoom: 14 });
   });
 });

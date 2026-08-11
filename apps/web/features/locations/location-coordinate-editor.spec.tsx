@@ -60,7 +60,7 @@ test("E2E-015 persists map pick, Marker drag and final manual WGS84 coordinates 
   render(<Harness />);
   await waitFor(() => expect(mapRuntime.options).not.toBeNull());
   expect(mapRuntime.runtimeOptions).toMatchObject({
-    tileTemplate: "/api/map/tiles/{z}/{x}/{y}",
+    tileTemplate: "/api/map/tiles/{z}/{x}/{y}?v=2",
     attribution: "Map data © On The Road fixture",
   });
 
