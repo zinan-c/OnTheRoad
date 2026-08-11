@@ -6,6 +6,10 @@ test("E2E-001 — clean-stack readiness and capability discovery", async ({ page
   await page.goto("/");
   await expect(page.getByText(/Service ready/u)).toBeVisible();
   await expect(page.getByText(/Location search (available|degraded)/u)).toBeVisible();
+  await expect.poll(async () => {
+    const response = await page.goto(`${API_ORIGIN}/health/ready`);
+    return response?.ok();
+  }).toBe(true);
 
   let referenceData: {
     currencies: unknown[];
