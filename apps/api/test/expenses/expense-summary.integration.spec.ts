@@ -151,4 +151,34 @@ describe("TC-D04-03 expense summary seed", () => {
       settledActualTotal: "80.0000",
     });
   });
+
+  test("keeps manual exchange rates isolated to their Trip", async () => {
+    const repository = new InMemoryExpenseRepository({
+      trips: [
+        { id: "trip-rate-a", ownerId: "owner-shared", defaultCurrency: "CNY" },
+        { id: "trip-rate-b", ownerId: "owner-shared", defaultCurrency: "CNY" },
+      ],
+      items: [
+        { id: "item-rate-a", tripId: "trip-rate-a", ownerId: "owner-shared", tripDayId: "day-rate-a" },
+        { id: "item-rate-b", tripId: "trip-rate-b", ownerId: "owner-shared", tripDayId: "day-rate-b" },
+      ],
+    });
+    const service = new ExpenseService(repository);
+    await service.setRate("owner-shared", "trip-rate-a", {
+      fromCurrency: "USD", toCurrency: "CNY", rate: "7",
+    });
+    await service.setRate("owner-shared", "trip-rate-b", {
+      fromCurrency: "USD", toCurrency: "CNY", rate: "8",
+    });
+
+    await expect(service.create("owner-shared", "trip-rate-a", {
+      itineraryItemId: "item-rate-a", amount: "10", currency: "USD",
+    })).resolves.toMatchObject({ settledAmount: "70.0000" });
+    await expect(service.create("owner-shared", "trip-rate-b", {
+      itineraryItemId: "item-rate-b", amount: "10", currency: "USD",
+    })).resolves.toMatchObject({ settledAmount: "80.0000" });
+    await expect(service.listRates("owner-shared", "trip-rate-a")).resolves.toEqual([
+      expect.objectContaining({ tripId: "trip-rate-a", rate: "7.000000000000" }),
+    ]);
+  });
 });

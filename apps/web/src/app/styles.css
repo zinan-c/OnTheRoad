@@ -223,7 +223,7 @@ select {
 .expenseForm, .exchangeRateForm { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; }
 .expenseForm input, .expenseForm select, .exchangeRateForm input, .exchangeRateForm select { flex: 1 1 10rem; }
 .exchangeRateForm { border: 1px solid #e4e7ec; border-radius: .75rem; padding: .85rem; }
-.exchangeRateForm h3, .exchangeRateForm ul { flex-basis: 100%; margin: 0; }
+.exchangeRateForm h3, .exchangeRateForm p, .exchangeRateForm ul { flex-basis: 100%; margin: 0; }
 .itineraryProduct .dayTabs, .itineraryProduct .itemCreateActions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
 .itineraryProduct button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; }
 .productTimeline { display: grid; gap: .65rem; padding: 0; list-style: none; }

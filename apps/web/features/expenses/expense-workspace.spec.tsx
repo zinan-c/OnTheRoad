@@ -49,6 +49,7 @@ describe("E2E-019 expense product workspace", () => {
     await waitFor(() => expect(screen.getAllByText("361.8000 CNY")).toHaveLength(2));
 
     expect(screen.queryByRole("form", { name: "Add expense" })).toBeNull();
+    expect(screen.getByText(/apply only to this itinerary/u)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Day 2/u }));
     expect(screen.getByRole("table", { name: "Daily expense details" }).textContent).toContain("Airport transfer");
 

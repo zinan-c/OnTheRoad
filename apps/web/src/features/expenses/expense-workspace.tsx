@@ -126,13 +126,14 @@ export function ExpenseWorkspace({
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {message ? <p role="status" className="statusReady">{message}</p> : null}
     <form aria-label="Exchange rate management" onSubmit={saveRate} className="exchangeRateForm">
-      <h3>Manual exchange rate</h3>
+      <h3>Manual exchange rate for this Trip</h3>
+      <p>Saved rates apply only to this itinerary and do not change any other Trip.</p>
       <select name="fromCurrency" aria-label="Source currency" defaultValue="USD">{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
       <input type="hidden" name="toCurrency" value={settlementCurrency} />
       <select aria-label="Settlement currency" value={settlementCurrency} disabled>{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
       <input name="rate" aria-label="Exchange rate" inputMode="decimal" required placeholder="For example, 7.2000" />
       <button type="submit">Save rate</button>
-      <ul aria-label="Saved exchange rates">{rates.map((rate) => <li key={`${rate.fromCurrency}:${rate.toCurrency}`}>{rate.fromCurrency}→{rate.toCurrency}: {rate.rate} (v{rate.version})</li>)}</ul>
+      <ul aria-label="Rates saved for this Trip">{rates.map((rate) => <li key={`${rate.fromCurrency}:${rate.toCurrency}`}>{rate.fromCurrency}→{rate.toCurrency}: {rate.rate} (v{rate.version})</li>)}</ul>
     </form>
   </section>;
 }
