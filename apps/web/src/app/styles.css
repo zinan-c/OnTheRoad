@@ -262,6 +262,17 @@ select {
 .expenseForm input, .expenseForm select, .exchangeRateForm input, .exchangeRateForm select { border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem .7rem; background: #fff; }
 .costDimensions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
 .costDimensions section { border: 1px solid #edf1f6; border-radius: .5rem; padding: .5rem; }
+.dailyExpenseReport { display: grid; grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.dailyExpenseTree { display: grid; gap: .5rem; border-left: 2px solid #cbd5e1; padding-left: .75rem; }
+.dailyExpenseTree button { display: grid; grid-template-columns: auto 1fr auto; gap: .45rem; align-items: center; width: 100%; border: 1px solid #dbe3ed; border-radius: .65rem; padding: .65rem; background: #fff; color: #243247; text-align: left; cursor: pointer; }
+.dailyExpenseTree button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 0 1px #2563eb; }
+.dailyExpenseTree small { grid-column: 1 / -1; color: #9a3412; }
+.dailyExpenseBarTrack { height: .45rem; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+.dailyExpenseBarTrack > span { display: block; height: 100%; border-radius: inherit; background: #2563eb; }
+.dailyExpenseDetails { min-width: 0; border: 1px solid #e2e8f0; border-radius: .75rem; padding: .85rem; }
+.dailyExpenseDetails h3 { margin-top: 0; }
+.expenseDimensions { margin-top: 1rem; }
+.expenseDimensions summary { cursor: pointer; font-weight: 650; }
 .mappingEditor, .previewTableScroll { overflow-x: auto; }
 .previewStates { min-width: 0; }
 .previewStates nav { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -311,6 +322,7 @@ article p {
 
   .routeLayout { grid-template-columns: 1fr; }
   .costDimensions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dailyExpenseReport { grid-template-columns: 1fr; }
   .tripWorkspace { margin-top: 1rem; }
   .dayRouteWorkspace, .settingsSummary { grid-template-columns: 1fr; }
   .routeWorkspace { position: static; }

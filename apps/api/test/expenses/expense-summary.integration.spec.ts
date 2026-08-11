@@ -131,4 +131,24 @@ describe("TC-D04-03 expense summary seed", () => {
       },
     });
   });
+
+  test("always reports actual expenses in CNY when the Trip default currency differs", async () => {
+    const repository = new InMemoryExpenseRepository({
+      trips: [{ id: "trip-eur", ownerId: "owner-eur", defaultCurrency: "EUR" }],
+      items: [{ id: "item-eur", tripId: "trip-eur", ownerId: "owner-eur", tripDayId: "day-eur" }],
+    });
+    const service = new ExpenseService(repository);
+    await service.setRate("owner-eur", "trip-eur", {
+      fromCurrency: "EUR", toCurrency: "CNY", rate: "8",
+    });
+    const expense = await service.create("owner-eur", "trip-eur", {
+      itineraryItemId: "item-eur", amount: "10", currency: "EUR",
+    });
+
+    expect(expense).toMatchObject({ settlementCurrency: "CNY", settledAmount: "80.0000" });
+    await expect(service.summary("owner-eur", "trip-eur")).resolves.toMatchObject({
+      settlementCurrency: "CNY",
+      settledActualTotal: "80.0000",
+    });
+  });
 });

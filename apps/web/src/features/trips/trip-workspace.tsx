@@ -10,6 +10,7 @@ import type { TransportModeView } from "./settings/transport-modes";
 type Item = {
   readonly id: string;
   readonly target: string;
+  readonly tripDayId?: string;
   readonly dayNumber?: number;
   readonly locationId?: string | null;
   readonly transportModeCode?: string | null;
@@ -36,6 +37,7 @@ async function api<T>(path: string): Promise<T> {
 function flattenDays(days: Day[]): Item[] {
   return days.flatMap((day) => (day.items ?? []).map((item) => ({
     ...item,
+    tripDayId: day.id,
     dayNumber: day.dayNumber,
   })));
 }
@@ -94,6 +96,10 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
         onSelectGlobalMap={() => setMapDayId(null)}
       />
     </section>
-    <ExpenseWorkspace tripId={tripId} items={items} />
+    <ExpenseWorkspace
+      tripId={tripId}
+      days={days.map(({ id, dayNumber }) => ({ id, dayNumber }))}
+      items={items}
+    />
   </div>;
 }

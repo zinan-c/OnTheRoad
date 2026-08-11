@@ -12,44 +12,45 @@ afterEach(() => {
 });
 
 describe("E2E-019 expense product workspace", () => {
-  test("assigns an expense to the selected Item and saves a manual rate", async () => {
+  test("shows read-only daily expense details and saves a manual rate", async () => {
     const writes: Array<{ url: string; method: string; body: any }> = [];
     const summary = {
       settlementCurrency: "CNY",
-      settledActualTotal: "0.0000",
-      originalCurrencyTotals: {},
+      settledActualTotal: "361.8000",
+      originalCurrencyTotals: { USD: "50.2500" },
       unconverted: [],
-      breakdowns: {},
+      breakdowns: { day: { "day-2": { originalTotal: "50.2500", settledTotal: "361.8000", unconverted: "0" } } },
     };
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
       if (method !== "GET") writes.push({ url, method, body: JSON.parse(String(init?.body)) });
       if (url.endsWith("/system/reference-data")) return new Response("{}", { status: 503 });
-      if (url.endsWith("/trips/trip-19")) return Response.json({ destinations: [{ id: "dest-a", name: "上海" }, { id: "dest-b", name: "舟山" }] });
       if (url.endsWith("/expenses/summary")) return Response.json(summary);
       if (url.endsWith("/exchange-rates") && method === "GET") return Response.json([]);
       if (url.endsWith("/exchange-rates") && method === "PUT") return Response.json({ fromCurrency: "USD", toCurrency: "CNY", rate: "7.200000000000", version: 1, reconciledExpenseIds: [] });
+      if (url.includes("item-transport/expenses")) return Response.json([{
+        id: "expense-1", itineraryItemId: "item-transport", originalAmount: "50.2500",
+        currency: "USD", remark: "Airport transfer", settledAmount: "361.8000",
+        settlementCurrency: "CNY", exchangeRate: "7.200000000000", version: 1,
+      }]);
       if (url.includes("/itinerary-items/") && url.endsWith("/expenses")) return Response.json([]);
-      if (url.endsWith("/expenses") && method === "POST") return Response.json({ id: "expense-1" }, { status: 201 });
       return Response.json({});
     }));
-    render(<ExpenseWorkspace tripId="trip-19" items={[
-      { id: "item-dining", target: "晚餐", dayNumber: 1, transportModeCode: null },
-      { id: "item-transport", target: "地铁", dayNumber: 2, transportModeCode: "METRO" },
-    ]} />);
+    render(<ExpenseWorkspace
+      tripId="trip-19"
+      days={[{ id: "day-1", dayNumber: 1 }, { id: "day-2", dayNumber: 2 }]}
+      items={[
+        { id: "item-dining", target: "Dinner", tripDayId: "day-1", dayNumber: 1, transportModeCode: null },
+        { id: "item-transport", target: "Metro", tripDayId: "day-2", dayNumber: 2, transportModeCode: "METRO" },
+      ]}
+    />);
     const user = userEvent.setup();
-    await waitFor(() => expect(screen.getByText("0.0000 CNY")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("361.8000 CNY")).toHaveLength(2));
 
-    await user.selectOptions(screen.getByLabelText("Expense item"), "item-transport");
-    await user.selectOptions(screen.getByLabelText("Expense destination"), "dest-b");
-    await user.type(screen.getByLabelText("Amount"), "50.25");
-    await user.selectOptions(screen.getByLabelText("Currency"), "USD");
-    await user.type(screen.getByLabelText("Expense remark"), "Airport transfer");
-    await user.click(screen.getByRole("button", { name: "Add expense" }));
-    await waitFor(() => expect(writes.some(({ body }) => body.itineraryItemId === "item-transport"
-      && body.destinationId === "dest-b" && body.transportModeCode === "METRO"
-      && body.remark === "Airport transfer" && body.categoryCode === undefined)).toBe(true));
+    expect(screen.queryByRole("form", { name: "Add expense" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Day 2/u }));
+    expect(screen.getByRole("table", { name: "Daily expense details" }).textContent).toContain("Airport transfer");
 
     await user.selectOptions(screen.getByLabelText("Source currency"), "USD");
     await user.type(screen.getByLabelText("Exchange rate"), "7.2000");

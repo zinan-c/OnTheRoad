@@ -10,11 +10,15 @@ const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:3001"
 export type ExpenseItem = {
   readonly id: string;
   readonly target: string;
+  readonly tripDayId?: string;
   readonly dayNumber?: number;
   readonly transportModeCode?: string | null;
 };
 
-type Destination = { readonly id: string; readonly name: string };
+export type ExpenseDay = {
+  readonly id: string;
+  readonly dayNumber: number;
+};
 
 type Expense = {
   readonly id: string;
@@ -49,10 +53,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function ExpenseWorkspace({
   tripId,
+  days,
   items,
   budget = null,
 }: {
   readonly tripId: string;
+  readonly days: readonly ExpenseDay[];
   readonly items: readonly ExpenseItem[];
   readonly budget?: string | null;
 }) {
@@ -60,65 +66,25 @@ export function ExpenseWorkspace({
   const [summary, setSummary] = useState<CostSummary>();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [rates, setRates] = useState<ExchangeRate[]>([]);
-  const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState(items[0]?.id ?? "");
-  const [selectedDestinationId, setSelectedDestinationId] = useState("");
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
 
   const refresh = useCallback(async () => {
-    const [loadedSummary, loadedRates, loadedExpenses, trip] = await Promise.all([
+    const [loadedSummary, loadedRates, loadedExpenses] = await Promise.all([
       request<CostSummary>(`/trips/${tripId}/expenses/summary`),
       request<ExchangeRate[]>(`/trips/${tripId}/exchange-rates`),
       Promise.all(items.map(({ id }) => request<Expense[]>(
         `/trips/${tripId}/itinerary-items/${id}/expenses`,
       ))).then((groups) => groups.flat()),
-      request<{ destinations: Destination[] }>(`/trips/${tripId}`),
     ]);
     setSummary(loadedSummary);
     setRates(loadedRates);
     setExpenses(loadedExpenses);
-    setDestinations(trip.destinations);
   }, [items, tripId]);
 
   useEffect(() => {
-    if (!items.some(({ id }) => id === selectedItemId)) setSelectedItemId(items[0]?.id ?? "");
     void refresh().catch(() => setError("Unable to load expenses and exchange rates."));
-  }, [items, refresh, selectedItemId]);
-
-  useEffect(() => {
-    if (!destinations.some(({ id }) => id === selectedDestinationId)) setSelectedDestinationId(destinations[0]?.id ?? "");
-  }, [destinations, selectedDestinationId]);
-
-  async function addExpense(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const item = items.find(({ id }) => id === selectedItemId);
-    if (!item) return;
-    const form = new FormData(event.currentTarget);
-    setError(undefined);
-    try {
-      await request(`/trips/${tripId}/expenses`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": crypto.randomUUID(),
-        },
-        body: JSON.stringify({
-          itineraryItemId: item.id,
-          destinationId: selectedDestinationId || null,
-          transportModeCode: item.transportModeCode ?? null,
-          amount: String(form.get("amount")),
-          currency: String(form.get("currency")),
-          remark: String(form.get("remark") ?? "").trim() || null,
-        }),
-      });
-      await refresh();
-      setMessage(`Expense saved for “${item.target}”.`);
-      event.currentTarget.reset();
-    } catch {
-      setError("Unable to save the expense.");
-    }
-  }
+  }, [refresh]);
 
   async function saveRate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,24 +119,12 @@ export function ExpenseWorkspace({
     }
   }
 
-  const settlementCurrency = summary?.settlementCurrency ?? "CNY";
+  const settlementCurrency = "CNY";
   return <section aria-label="Expense workspace" className="workspaceCard expenseWorkspace">
-    <header><h2>Expenses</h2><p>Original amounts, exchange-rate snapshots, and summaries come from the live API.</p></header>
-    {summary ? <CostSummaryPanel summary={summary} budget={budget} /> : <p>Loading expenses…</p>}
+    <header><h2>Expense report</h2><p>Read-only totals are calculated from expenses entered on daily itinerary items.</p></header>
+    {summary ? <CostSummaryPanel summary={summary} budget={budget} days={days} items={items} expenses={expenses} /> : <p>Loading expenses…</p>}
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {message ? <p role="status" className="statusReady">{message}</p> : null}
-    <form aria-label="Add expense" onSubmit={addExpense} className="expenseForm">
-      <select aria-label="Expense item" value={selectedItemId} onChange={(event) => setSelectedItemId(event.currentTarget.value)} required>
-        {items.map((item) => <option key={item.id} value={item.id}>{item.dayNumber ? `Day ${item.dayNumber} · ` : ""}{item.target}</option>)}
-      </select>
-      <select aria-label="Expense destination" value={selectedDestinationId} onChange={(event) => setSelectedDestinationId(event.currentTarget.value)} required>
-        {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-      </select>
-      <input name="amount" aria-label="Amount" placeholder="Amount" required />
-      <select name="currency" aria-label="Currency" defaultValue="CNY">{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
-      <input name="remark" aria-label="Expense remark" placeholder="Remark" />
-      <button type="submit" disabled={!selectedItemId || !selectedDestinationId}>Add expense</button>
-    </form>
     <form aria-label="Exchange rate management" onSubmit={saveRate} className="exchangeRateForm">
       <h3>Manual exchange rate</h3>
       <select name="fromCurrency" aria-label="Source currency" defaultValue="USD">{referenceData.currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select>
@@ -180,16 +134,5 @@ export function ExpenseWorkspace({
       <button type="submit">Save rate</button>
       <ul aria-label="Saved exchange rates">{rates.map((rate) => <li key={`${rate.fromCurrency}:${rate.toCurrency}`}>{rate.fromCurrency}→{rate.toCurrency}: {rate.rate} (v{rate.version})</li>)}</ul>
     </form>
-    <div className="previewTableScroll">
-      <table aria-label="Expense details"><thead><tr><th>Item</th><th>Original amount</th><th>Notes</th><th>Rate snapshot</th><th>Settled amount</th><th>Version</th></tr></thead><tbody>
-        {expenses.map((expense) => <tr key={expense.id}>
-          <td>{items.find(({ id }) => id === expense.itineraryItemId)?.target ?? "Unlinked"}</td>
-          <td>{expense.originalAmount} {expense.currency}</td><td>{expense.remark || "—"}</td>
-          <td>{expense.exchangeRate ?? "Unconverted"}</td>
-          <td>{expense.settledAmount ? `${expense.settledAmount} ${expense.settlementCurrency}` : "Unconverted"}</td>
-          <td>{expense.version}</td>
-        </tr>)}
-      </tbody></table>
-    </div>
   </section>;
 }

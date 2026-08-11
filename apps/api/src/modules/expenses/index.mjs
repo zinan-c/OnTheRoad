@@ -15,6 +15,7 @@ import { summarizeExpenses } from "./summary.mjs";
 
 const CURRENCY_CODES = new Set(currencies.map(({ code }) => code));
 const CATEGORY_CODES = new Set(costCategories.map(({ code }) => code));
+const REPORTING_CURRENCY = "CNY";
 
 /** @param {unknown} value */
 function currency(value) {
@@ -104,12 +105,12 @@ export class ExpenseService {
         );
       }
     }
-    const exchangeRate = originalCurrency === trip.defaultCurrency
+    const exchangeRate = originalCurrency === REPORTING_CURRENCY
       ? "1.000000000000"
       : await this.repository.getRate(
         tripId,
         originalCurrency,
-        trip.defaultCurrency,
+        REPORTING_CURRENCY,
       );
     return this.repository.create({
       id: randomUUID(),
@@ -123,7 +124,7 @@ export class ExpenseService {
       remark: remark(input.remark),
       originalAmount,
       currency: originalCurrency,
-      settlementCurrency: trip.defaultCurrency,
+      settlementCurrency: REPORTING_CURRENCY,
       exchangeRate: exchangeRate?.rate ?? exchangeRate ?? null,
       settledAmount: exchangeRate
         ? convertMoney(
@@ -165,15 +166,15 @@ export class ExpenseService {
     const originalCurrency = currency(input.currency);
     const originalAmount = normalizeMoney(input.amount);
     const categoryCode = category(input.categoryCode ?? current.categoryCode ?? "OTHER");
-    const exchangeRate = originalCurrency === trip.defaultCurrency
+    const exchangeRate = originalCurrency === REPORTING_CURRENCY
       ? "1.000000000000"
-      : await this.repository.getRate(tripId, originalCurrency, trip.defaultCurrency);
+      : await this.repository.getRate(tripId, originalCurrency, REPORTING_CURRENCY);
     return this.repository.update(ownerId, tripId, expenseId, expectedVersion, {
       originalAmount,
       currency: originalCurrency,
       categoryCode,
       remark: remark(input.remark),
-      settlementCurrency: trip.defaultCurrency,
+      settlementCurrency: REPORTING_CURRENCY,
       exchangeRate: exchangeRate?.rate ?? exchangeRate ?? null,
       settledAmount: exchangeRate
         ? convertMoney(originalAmount, exchangeRate.rate ?? exchangeRate)
@@ -189,7 +190,7 @@ export class ExpenseService {
     const expenses = /** @type {Record<string, any>[]} */ (
       await this.repository.list(tripId)
     ).filter(({ source }) => source === "actual");
-    return summarizeExpenses(expenses, trip.defaultCurrency);
+    return summarizeExpenses(expenses, REPORTING_CURRENCY);
   }
 }
 
