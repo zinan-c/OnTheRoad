@@ -137,6 +137,7 @@ test("E2E-004 — single-day minimum-value Trip", async ({ page }) => {
   const settings = page.getByRole("form", { name: "Trip details" });
   await expect(settings.getByLabel("Travelers")).toHaveValue("1");
   await expect(settings.getByLabel("Default currency")).toHaveValue("USD");
+  await expect(settings.getByLabel("Map profile")).toHaveValue("international_primary");
 });
 
 test("E2E-005 — leap-date, mixed delimiters and maximum form values", async ({ page }) => {
