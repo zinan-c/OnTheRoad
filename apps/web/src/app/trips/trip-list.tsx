@@ -89,7 +89,7 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       {!pending && trips.length === 0 ? <p className="emptyState">No trips here yet.</p> : null}
       <ul className="tripList" aria-label={view === "active" ? "Active trips" : "Deleted trips"}>
         {trips.map((trip) => (
-          <li key={trip.id}>
+          <li key={trip.id} id={`trip-card-${trip.id}`}>
             <div>
               <h2>{trip.name}</h2>
               <p>{trip.startDate} — {trip.endDate} · {trip.totalDays} days</p>

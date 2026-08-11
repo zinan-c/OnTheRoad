@@ -61,7 +61,7 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
   return (
     <section className="tripSummary">
       <p className="eyebrow">Your journey</p>
-      <h1>{trip.name}</h1>
+      <h1 id="trip-title">{trip.name}</h1>
       <p className="lead">{trip.startDate} — {trip.endDate}</p>
       <div className="actions">
         <a className="secondary" href={`/trips/${tripId}/settings`}>Trip settings</a>

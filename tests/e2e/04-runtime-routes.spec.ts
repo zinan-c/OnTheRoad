@@ -26,7 +26,7 @@ test("E2E-016 — full runtime DirectionsProvider-to-MapLibre happy path", async
   await resolveLocation(editor, "人民广场");
   await editor.getByLabel("Inbound transport mode").selectOption("METRO");
   const generating = expect(page.getByRole("status").filter({ hasText: "Generating routes" })).toBeVisible();
-  await saveNewItem(editor, "C");
+  await saveNewItem(editor);
   await generating;
   const map = page.getByRole("application", { name: "Route map" });
   await expect(map).toBeVisible();
@@ -62,7 +62,7 @@ test("E2E-017 — cross-day and transport-internal route matrix", async ({ page 
     startDate: "2026-10-01",
     endDate: "2026-10-02",
   });
-  await createLocatedSequence(page, [
+  const [itemAId] = await createLocatedSequence(page, [
     { target: "A", query: "外滩", day: 1, mode: "WALK" },
     { target: "B", query: "豫园", day: 1, mode: "FLIGHT" },
     { target: "C", query: "人民广场", day: 2, mode: "FERRY" },
@@ -72,13 +72,13 @@ test("E2E-017 — cross-day and transport-internal route matrix", async ({ page 
   await resolveLocation(editor, "外滩", { legend: "Transport origin", inputLabel: "Origin location" });
   await resolveLocation(editor, "豫园", { legend: "Transport destination", inputLabel: "Destination location" });
   await editor.getByLabel("Transport mode").selectOption("CABLE_CAR");
-  await saveNewItem(editor, "D");
+  await saveNewItem(editor);
   await createLocatedSequence(page, [{ target: "E", query: "外滩", day: 2, mode: "PUBLIC_BUS" }]);
   editor = await openNewItem(page, "attraction");
   await editor.getByLabel("Item name").fill("F");
   await saveTextLocation(editor, "尚未确认的 F");
   await editor.getByLabel("Inbound transport mode").selectOption("WALK");
-  await saveNewItem(editor, "F");
+  await saveNewItem(editor);
 
   const routeList = page.getByRole("list", { name: "Route list" });
   await expect(routeList.getByRole("button")).toHaveCount(5, { timeout: 30_000 });
@@ -93,7 +93,7 @@ test("E2E-017 — cross-day and transport-internal route matrix", async ({ page 
   await selectDay(page, 1);
   await page.getByRole("button", { name: "Move B up" }).click();
   await expect(page.getByRole("status").filter({ hasText: "B moved to position 1" })).toBeVisible();
-  editor = await openItem(page, "A");
+  editor = await openItem(page, itemAId!);
   await editor.getByLabel("Inbound transport mode").selectOption("PUBLIC_BUS");
   await waitForAutosave(editor);
   await editor.getByRole("button", { name: "Cancel" }).first().click();

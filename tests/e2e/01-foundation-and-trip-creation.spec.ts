@@ -46,15 +46,15 @@ test("E2E-002 — development login, session persistence and re-login", async ({
   await page.goto(tripUrl);
   await expect(page.getByRole("heading", { name: "Session ended" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in again" }).click();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.locator("#trip-title")).toHaveText(name);
   await page.reload();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.locator("#trip-title")).toHaveText(name);
   await page.reload();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.locator("#trip-title")).toHaveText(name);
 
   const secondTab = await context.newPage();
   await secondTab.goto(tripUrl);
-  await expect(secondTab.getByRole("heading", { name })).toBeVisible();
+  await expect(secondTab.locator("#trip-title")).toHaveText(name);
   await secondTab.close();
 
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -62,7 +62,7 @@ test("E2E-002 — development login, session persistence and re-login", async ({
   await page.reload();
   await expect(page.getByRole("heading", { name: "Session ended" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in again" }).click();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.locator("#trip-title")).toHaveText(name);
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`, "u"));
 });
 
@@ -112,7 +112,7 @@ test("E2E-003 — standard five-day multi-destination Trip creation", async ({ p
   expect(body.destinations.every(({ countryCode }) => countryCode === "CN")).toBe(true);
   await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
   await page.reload();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.locator("#trip-title")).toHaveText(name);
   await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
 });
 
@@ -127,10 +127,15 @@ test("E2E-004 — single-day minimum-value Trip", async ({ page }) => {
   await form.getByLabel("Travelers").fill("1");
   await form.getByLabel("Default currency").selectOption("USD");
   await expect(form.getByText("1 daily plan will be created automatically.")).toBeVisible();
+  const created = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/v1/trips");
   await form.getByRole("button", { name: "Create trip" }).click();
+  const body = await (await created).json() as { id: string };
   await expect(page).toHaveURL(/\/trips\/[0-9a-f-]+$/u);
   await page.reload();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.locator("#trip-title")).toHaveText(name);
+  expect(page.url()).toContain(body.id);
   await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(1);
   await page.getByRole("link", { name: "Trip settings" }).click();
   await page.getByRole("button", { name: "Edit trip" }).click();
@@ -204,5 +209,7 @@ test("E2E-006 — duplicate submit and idempotent Trip creation", async ({ page 
   await expect(page).toHaveURL(new RegExp(`/trips/${firstTripId}$`, "u"));
   expect(createRequests).toBe(2);
   await page.goto("/trips");
-  await expect(page.getByRole("list", { name: "Active trips" }).getByRole("heading", { name })).toHaveCount(1);
+  const tripCard = page.locator(`#trip-card-${firstTripId}`);
+  await expect(tripCard).toHaveCount(1);
+  await expect(tripCard.locator("h2")).toHaveText(name);
 });

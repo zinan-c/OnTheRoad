@@ -51,7 +51,7 @@ export function TripSettingsScreen({ tripId }: { readonly tripId: string }) {
   return (
     <section className="settingsPage">
       <p className="eyebrow">Trip management</p>
-      <h1>{trip.name}</h1>
+      <h1 id="trip-settings-name">{trip.name}</h1>
       <TripSettings
         trip={trip}
         onTripChange={setTrip}

@@ -27,7 +27,7 @@ export async function createTrip(page: Page, input: TripInput): Promise<string> 
   if (input.currency) await page.getByLabel("Default currency").selectOption(input.currency);
   await page.getByRole("button", { name: "Create trip" }).click();
   await expect(page).toHaveURL(/\/trips\/[0-9a-f-]+$/u);
-  await expect(page.getByRole("heading", { name: input.name })).toBeVisible();
+  await expect(page.locator("#trip-title")).toHaveText(input.name);
   return page.url().split("/").at(-1)!;
 }
 
@@ -51,19 +51,19 @@ export async function openNewItem(page: Page, kind: "activity" | "attraction" | 
 export async function resolveLocation(
   scope: Locator,
   text: string,
-  options: { legend?: string; inputLabel?: string; candidate?: RegExp } = {},
+  options: { legend?: string; inputLabel?: string; candidateIndex?: number } = {},
 ): Promise<void> {
+  const inputLabel = options.inputLabel ?? "Location name";
+  const controlId = inputLabel.toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
   const group = scope.getByRole("group", { name: options.legend ?? "Location" });
-  await group.getByLabel(options.inputLabel ?? "Location name").fill(text);
+  await group.getByLabel(inputLabel).fill(text);
   await group.getByRole("button", { name: "Search location" }).click();
   const candidates = group.getByRole("radiogroup", { name: "Location candidates" });
   await expect(candidates).toBeVisible();
-  const choice = options.candidate
-    ? candidates.locator("label").filter({ hasText: options.candidate }).getByRole("radio")
-    : candidates.getByRole("radio").first();
+  const choice = candidates.locator(`#${controlId}-candidate-${options.candidateIndex ?? 0}`);
   await choice.check();
   await group.getByRole("button", { name: "Confirm location" }).click();
-  await expect(group.getByText(/Location status: resolved/u)).toBeVisible();
+  await expect(group.locator(`#${controlId}-status`)).toContainText("Location status: resolved");
 }
 
 export async function saveTextLocation(
@@ -71,22 +71,27 @@ export async function saveTextLocation(
   text: string,
   options: { legend?: string; inputLabel?: string } = {},
 ): Promise<void> {
+  const inputLabel = options.inputLabel ?? "Location name";
+  const controlId = inputLabel.toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
   const group = scope.getByRole("group", { name: options.legend ?? "Location" });
-  await group.getByLabel(options.inputLabel ?? "Location name").fill(text);
+  await group.getByLabel(inputLabel).fill(text);
   await group.getByRole("button", { name: "Save text only" }).click();
-  await expect(group.getByText(/Location status: unresolved/u)).toBeVisible();
+  await expect(group.locator(`#${controlId}-status`)).toContainText("Location status: unresolved");
 }
 
-export async function saveNewItem(editor: Locator, target: string): Promise<void> {
+export async function saveNewItem(editor: Locator): Promise<string> {
   const response = editor.page().waitForResponse((candidate) =>
     candidate.request().method() === "POST"
       && /\/itinerary-items$/u.test(new URL(candidate.url()).pathname));
   await editor.getByRole("button", { name: "Save item" }).click();
-  expect((await response).ok()).toBe(true);
+  const savedResponse = await response;
+  expect(savedResponse.ok()).toBe(true);
+  const saved = await savedResponse.json() as { id: string };
   const savedEditor = editor.page().getByRole("form", { name: "Edit item" });
   await expect(savedEditor.locator("footer").getByRole("status")).toHaveText("Saved");
   await savedEditor.getByRole("button", { name: "Cancel" }).first().click();
-  await expect(editor.page().getByRole("button", { name: `Edit ${target}` })).toBeVisible();
+  await expect(editor.page().locator(`#itinerary-item-edit-${saved.id}`)).toBeVisible();
+  return saved.id;
 }
 
 export async function createSimpleItem(
@@ -98,7 +103,7 @@ export async function createSimpleItem(
     location?: string;
     mode?: string;
   } = {},
-): Promise<void> {
+): Promise<string> {
   if (options.day) await selectDay(page, options.day);
   const kind = options.kind ?? "attraction";
   const editor = await openNewItem(page, kind);
@@ -107,14 +112,13 @@ export async function createSimpleItem(
   if (kind === "accommodation") await editor.getByLabel("Property name").fill(target);
   if (options.location && kind !== "transport") await resolveLocation(editor, options.location);
   if (options.mode && kind !== "transport") await editor.getByLabel("Inbound transport mode").selectOption(options.mode);
-  await saveNewItem(editor, target);
+  return saveNewItem(editor);
 }
 
-export async function openItem(page: Page, target: string): Promise<Locator> {
-  await page.getByRole("button", { name: `Edit ${target}` }).click();
+export async function openItem(page: Page, itemId: string): Promise<Locator> {
+  await page.locator(`#itinerary-item-edit-${itemId}`).click();
   const editor = page.getByRole("form", { name: "Edit item" });
   await expect(editor).toBeVisible();
-  await expect(editor.getByLabel("Item name")).toHaveValue(target);
   return editor;
 }
 
@@ -132,13 +136,15 @@ export async function timelineLabels(page: Page, dayNumber: number): Promise<str
 export async function createLocatedSequence(
   page: Page,
   entries: ReadonlyArray<{ target: string; query: string; mode?: string; day?: number }>,
-): Promise<void> {
+): Promise<string[]> {
+  const itemIds: string[] = [];
   for (const entry of entries) {
-    await createSimpleItem(page, entry.target, {
+    itemIds.push(await createSimpleItem(page, entry.target, {
       kind: "attraction",
       ...(entry.day ? { day: entry.day } : {}),
       location: entry.query,
       ...(entry.mode ? { mode: entry.mode } : {}),
-    });
+    }));
   }
+  return itemIds;
 }

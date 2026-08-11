@@ -55,7 +55,7 @@ test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page
   const originalName = caseName("E2E-008", "待修改旅行");
   const updatedName = `${originalName} 已确认旅行`;
   const tripId = await createTrip(page, { name: originalName });
-  await createSimpleItem(page, "生命周期保留事项", { kind: "attraction" });
+  const retainedItemId = await createSimpleItem(page, "生命周期保留事项", { kind: "attraction" });
 
   await page.getByRole("link", { name: "Trip settings" }).click();
   await page.getByRole("button", { name: "Edit trip" }).click();
@@ -70,7 +70,7 @@ test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page
   await settings.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Trip settings saved" })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: updatedName })).toBeVisible();
+  await expect(page.locator("#trip-settings-name")).toHaveText(updatedName);
   await page.getByRole("button", { name: "Edit trip" }).click();
   const refreshed = page.getByRole("form", { name: "Trip details" });
   await expect(refreshed.getByLabel("Description")).toHaveValue("Lifecycle confirmed; mixed description.");
@@ -82,16 +82,17 @@ test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page
   await danger.getByRole("button", { name: "Delete trip" }).click();
   await danger.getByRole("button", { name: "Confirm delete" }).click();
   await expect(page).toHaveURL(/\/trips$/u);
-  await expect(page.getByRole("list", { name: "Active trips" }).getByText(updatedName)).toHaveCount(0);
+  await expect(page.locator(`#trip-card-${tripId}`)).toHaveCount(0);
   await page.getByRole("tab", { name: "Trash" }).click();
   const recycleBin = page.getByRole("list", { name: "Deleted trips" });
-  await expect(recycleBin.getByRole("heading", { name: updatedName })).toBeVisible();
-  await recycleBin.getByRole("listitem").filter({ hasText: updatedName }).getByRole("button", { name: "Restore trip" }).click();
+  const tripCard = recycleBin.locator(`#trip-card-${tripId}`);
+  await expect(tripCard.locator("h2")).toHaveText(updatedName);
+  await tripCard.getByRole("button", { name: "Restore trip" }).click();
   await expect(page.getByRole("status")).toContainText(`“${updatedName}” was restored`);
-  await expect(page.getByRole("list", { name: "Active trips" }).getByRole("heading", { name: updatedName })).toBeVisible();
-  await page.getByRole("listitem").filter({ hasText: updatedName }).getByRole("link", { name: "Open trip" }).click();
+  await expect(page.locator(`#trip-card-${tripId}`).locator("h2")).toHaveText(updatedName);
+  await page.locator(`#trip-card-${tripId}`).getByRole("link", { name: "Open trip" }).click();
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`, "u"));
   await page.reload();
-  await expect(page.getByRole("button", { name: "Edit 生命周期保留事项" })).toBeVisible();
+  await expect(page.locator(`#itinerary-item-edit-${retainedItemId}`)).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
 });

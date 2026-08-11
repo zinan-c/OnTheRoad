@@ -547,15 +547,15 @@ export function ItineraryPanel({
     >{(id) => {
       const item = items.find((entry) => entry.id === id)!;
       return <>
-        <button className="timelineEditButton" type="button" aria-label={`Edit ${item.target || item.description}`} onClick={() => beginEdit(item)}>
+        <button id={`itinerary-item-edit-${item.id}`} className="timelineEditButton" type="button" aria-label={`Edit ${item.target || item.description}`} onClick={() => beginEdit(item)}>
           <strong>{item.target || item.description}</strong><span>{item.itemType} · {item.timeKind === "period" ? item.timePeriod : item.startTime || "Unscheduled"}</span>
         </button>
-        <label>Copy to<select aria-label={`Copy ${item.target || item.description} to`} defaultValue="" onChange={(event) => {
+        <label>Copy to<select id={`itinerary-item-copy-${item.id}`} aria-label={`Copy ${item.target || item.description} to`} defaultValue="" onChange={(event) => {
           const target = event.target.value;
           event.target.value = "";
           void copyItem(item, target);
         }}><option value="">Select day</option>{days.map((day) => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}</select></label>
-        <button type="button" aria-label={`Delete ${item.target || item.description}`} onClick={() => void deleteItem(item)}>Delete</button>
+        <button id={`itinerary-item-delete-${item.id}`} type="button" aria-label={`Delete ${item.target || item.description}`} onClick={() => void deleteItem(item)}>Delete</button>
       </>;
     }}</ProductSortableTimeline>
     {!editorOpen && status !== "idle" && status !== "loading" ? <p role="status">

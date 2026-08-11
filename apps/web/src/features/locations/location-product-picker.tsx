@@ -71,6 +71,7 @@ export function LocationProductPicker({
   readonly inputLabel?: string;
   readonly onLocationChange: (locationId: string, inputText: string) => void;
 }) {
+  const controlId = inputLabel.toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
   const [inputText, setInputText] = useState(initialText);
   const [location, setLocation] = useState<ProductLocation | null>(null);
   const [offer, setOffer] = useState<ResolutionOffer | null>(null);
@@ -182,10 +183,10 @@ export function LocationProductPicker({
     {!location || location.status === "unresolved" || location.status === "failed"
       ? <button type="button" disabled={pending} onClick={() => void explicitSearch()}>{pending ? "Working…" : "Search location"}</button>
       : null}
-    {location ? <p role="status">Location status: {location.status}{location.formattedAddress ? ` · ${location.formattedAddress}` : ""}{location.attribution ? ` · ${location.attribution}` : ""}</p> : null}
+    {location ? <p id={`${controlId}-status`} role="status">Location status: {location.status}{location.formattedAddress ? ` · ${location.formattedAddress}` : ""}{location.attribution ? ` · ${location.attribution}` : ""}</p> : null}
     {offer ? <div className="locationCandidates" role="radiogroup" aria-label="Location candidates">
-      {offer.candidates.map((candidate) => <label key={candidate.candidateToken}>
-        <input type="radio" name={`location-candidate-${offer.location.id}`} value={candidate.candidateToken} checked={selectedToken === candidate.candidateToken} onChange={(event) => setSelectedToken(event.target.value)} />
+      {offer.candidates.map((candidate, index) => <label key={candidate.candidateToken}>
+        <input id={`${controlId}-candidate-${index}`} type="radio" name={`location-candidate-${offer.location.id}`} value={candidate.candidateToken} checked={selectedToken === candidate.candidateToken} onChange={(event) => setSelectedToken(event.target.value)} />
         <strong>{candidate.label}</strong><span>{candidate.city ?? ""} {candidate.district ?? ""}</span><span>{candidate.formattedAddress}</span><small>{candidate.provider} · {candidate.attribution}</small>
       </label>)}
       <button type="button" disabled={pending || !selectedToken} onClick={() => void confirmCandidate()}>Confirm location</button>
