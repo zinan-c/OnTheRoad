@@ -23,6 +23,10 @@ main {
   padding-bottom: 64px;
 }
 
+main.tripPageMain {
+  width: min(1440px, calc(100% - 32px));
+}
+
 nav {
   display: flex;
   align-items: center;
@@ -201,6 +205,30 @@ select {
 .workspaceCard { min-width: 0; border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; background: rgb(255 255 255 / 84%); padding: 1rem; box-shadow: 0 8px 24px rgb(25 50 80 / 7%); }
 .workspaceCard h2 { margin: 0 0 .25rem; }
 .workspaceCard header p { color: #667085; margin-top: 0; }
+.tripDayWorkspace { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 1rem; align-items: start; }
+.tripDayRail { position: sticky; top: 1rem; min-width: 0; }
+.tripDayRail > .eyebrow { margin: .35rem .65rem .65rem; }
+.tripDayRail nav { display: grid; gap: .55rem; min-width: 0; }
+.tripDayRail button { display: grid; gap: .2rem; width: 100%; border: 1px solid rgb(22 51 45 / 12%); border-radius: .85rem; padding: .7rem .65rem; color: #35554c; background: rgb(255 255 255 / 55%); text-align: left; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.tripDayRail button:hover { border-color: rgb(29 97 81 / 42%); transform: translateY(-1px); }
+.tripDayRail button[aria-pressed="true"] { border-color: #1d6151; color: #fff; background: #1d6151; box-shadow: 0 8px 18px rgb(29 97 81 / 18%); }
+.tripDayRail button span { font-size: .92rem; font-weight: 750; }
+.tripDayRail button time, .tripDayRail button small { color: #71847c; font-size: .72rem; line-height: 1.25; }
+.tripDayRail button[aria-pressed="true"] time, .tripDayRail button[aria-pressed="true"] small { color: rgb(255 255 255 / 78%); }
+.tripDayAll { order: -1; }
+.tripDayAll span { letter-spacing: .14em; }
+.tripWorkspaceMain { display: grid; gap: 1rem; min-width: 0; }
+.routeWorkspaceCompact { position: static; padding: 1.1rem; }
+.routeWorkspaceCompact .realRouteMap { height: min(56vh, 36rem); min-height: 24rem; }
+.workspaceItinerary { padding: 1.25rem; }
+.workspaceItineraryHeader { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.workspaceItineraryHeader .eyebrow { margin: 0 0 .4rem; color: #b25935; }
+.workspaceItineraryHeader h2 { margin: 0; }
+.workspaceItineraryHeader > div:first-child > p:last-child { margin: .35rem 0 0; }
+.workspaceItineraryActions { display: flex; align-items: center; justify-content: flex-end; gap: .55rem; flex-wrap: wrap; }
+.workspaceHint, .workspaceEmptyState { color: #667085; font-size: .9rem; }
+.iconAddButton { display: inline-grid; width: 2.5rem; height: 2.5rem; place-items: center; border: 1px solid #1d6151; border-radius: 50%; color: #fff; background: #1d6151; font-size: 1.4rem; line-height: 1; box-shadow: 0 8px 18px rgb(29 97 81 / 18%); }
+.iconAddButton:hover { background: #174d41; }
 .tripSettings { margin-top: 2rem; text-align: left; }
 .tripSettings > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .tripSettingsForms { display: grid; gap: 1rem; }
@@ -228,6 +256,7 @@ select {
 .itineraryProduct button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; }
 .productTimeline { display: grid; gap: .65rem; padding: 0; list-style: none; }
 .productTimelineItem { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .65rem; border: 1px solid #e4e7ec; border-radius: .75rem; padding: .65rem; background: #fff; }
+.productTimelineItem:not([data-reorderable="true"]) { grid-template-columns: minmax(0, 1fr); }
 .productTimelineItem[data-dragging="true"] { z-index: 1; box-shadow: 0 10px 24px rgb(16 24 40 / 18%); }
 .dragHandle { cursor: grab; touch-action: none; }
 .timelineItemContent { display: flex; min-width: 0; align-items: center; gap: .65rem; }
@@ -250,6 +279,25 @@ select {
 .locationProductPicker input:not([type="radio"]), .locationCoordinateEditor input { width: 100%; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .5rem .7rem; background: #fff; }
 .itemNotesField { align-items: start; }
 .itemNotesField textarea { box-sizing: border-box; width: 100%; min-height: 10rem; resize: vertical; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .7rem; font: inherit; }
+.workspaceItemCard { display: flex; min-height: 0; width: 100%; align-items: center; justify-content: space-between; gap: 1rem; margin: 0; border: 0; border-radius: 0; padding: .1rem 0; background: transparent; box-shadow: none; }
+.workspaceItemMeta { display: grid; min-width: 0; gap: .25rem; }
+.workspaceItemMeta h3 { overflow-wrap: anywhere; margin: 0; font-size: 1rem; }
+.workspaceItemMeta p { margin: 0; overflow-wrap: anywhere; color: #667085; line-height: 1.5; }
+.workspaceItemDay, .workspaceItemTime, .workspaceItemExpense { color: #7a8b85; font-size: .78rem; }
+.workspaceItemDay { font-weight: 700; color: #b25935; }
+.workspaceItemExpense { color: #34715f; font-weight: 650; }
+.workspaceItemAction { flex: 0 0 auto; border: 1px solid #c4cfdd; border-radius: 999px; padding: .45rem .8rem; color: #35554c; background: #fff; white-space: nowrap; }
+.workspaceItemAction:hover { border-color: #1d6151; color: #1d6151; }
+.workspaceDialogBackdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgb(18 36 32 / 38%); }
+.workspaceDialog { width: min(760px, 100%); max-height: min(900px, calc(100vh - 2rem)); overflow: auto; border: 1px solid rgb(22 51 45 / 14%); border-radius: 1.25rem; padding: 1rem; background: #fbf8ef; box-shadow: 0 24px 70px rgb(15 23 42 / 28%); }
+.workspaceDialog > .itemEditorForm { margin: 0; border: 0; padding: 0; background: transparent; }
+.workspaceDialogHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.workspaceDialogHeader .eyebrow { margin: 0 0 .35rem; color: #b25935; }
+.workspaceDialogHeader h2 { margin: 0; overflow-wrap: anywhere; }
+.workspaceItemDetails { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin: 0; }
+.workspaceItemDetails > div { min-width: 0; border: 1px solid #e4e7ec; border-radius: .75rem; padding: .75rem; background: #fff; }
+.workspaceItemDetails dt { color: #667085; font-size: .78rem; }
+.workspaceItemDetails dd { margin: .3rem 0 0; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.45; }
 .routeLayout { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1rem; align-items: start; }
 .routeMap { width: 100%; min-height: 16rem; border-radius: .75rem; background: #f3f7fb; }
 .realRouteMap { position: relative; width: 100%; height: 20rem; min-height: 0; border: 1px solid #d0d5dd; border-radius: .75rem; background: #f8fafc; overflow: hidden; }
@@ -353,6 +401,16 @@ article p {
   .costDimensions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dailyExpenseReport { grid-template-columns: 1fr; }
   .tripWorkspace { margin-top: 1rem; }
+  main.tripPageMain { width: calc(100% - 20px); }
+  .tripDayWorkspace { grid-template-columns: 1fr; }
+  .tripDayRail { position: static; }
+  .tripDayRail > .eyebrow { margin-left: 0; }
+  .tripDayRail nav { grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); }
+  .tripDayRail button { min-height: 4.25rem; }
+  .workspaceItineraryHeader { align-items: flex-start; flex-direction: column; }
+  .workspaceItineraryActions { justify-content: flex-start; }
+  .routeWorkspaceCompact .realRouteMap { height: 20rem; min-height: 18rem; }
+  .workspaceItemDetails { grid-template-columns: 1fr; }
   .dayRouteWorkspace, .settingsSummary { grid-template-columns: 1fr; }
   .routeWorkspace { position: static; }
 }

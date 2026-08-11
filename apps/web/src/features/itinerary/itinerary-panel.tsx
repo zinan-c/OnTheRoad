@@ -127,7 +127,7 @@ function itemDraft(item: ProductItem): ItemDraft {
     : {};
   return {
     ...emptyDraft(item.itemType === "hotel" ? "accommodation" : item.itemType),
-    target: item.target ?? "",
+    target: item.target ?? item.dining?.name ?? item.accommodation?.name ?? "",
     description: item.description ?? "",
     timeKind: item.timeKind,
     timePeriod: item.timePeriod ?? "",
@@ -202,6 +202,37 @@ function draftFingerprint(draft: ItemDraft) {
   });
 }
 
+function itemLabel(item: ProductItem): string {
+  return item.target || item.dining?.name || item.accommodation?.name || "Untitled item";
+}
+
+function itemTimeLabel(item: ProductItem): string {
+  if (item.timeKind === "period") return item.timePeriod || "Unscheduled";
+  if (item.timeKind === "range" && item.startTime && item.endTime) {
+    return `${item.startTime}–${item.endTime}${item.endDayOffset === 1 ? " · next day" : ""}`;
+  }
+  return item.startTime || "Unscheduled";
+}
+
+function displayDate(value?: string): string {
+  if (!value) return "Date not set";
+  const date = new Date(`${value}T00:00:00+08:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  const monthDay = new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(date);
+  const weekday = new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(date);
+  return `${monthDay} · ${weekday}`;
+}
+
+function displayValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function ItineraryPanel({
   tripId,
   selectedDayId: controlledSelectedDayId,
@@ -210,6 +241,7 @@ export function ItineraryPanel({
   onTransportModesChange,
   onItemsChange,
   onRoutesInvalidated,
+  variant = "legacy",
 }: {
   readonly tripId: string;
   readonly selectedDayId?: string | null;
@@ -218,13 +250,19 @@ export function ItineraryPanel({
   readonly onTransportModesChange?: (modes: TransportModeView[]) => void;
   readonly onItemsChange?: (dayId: string, items: ProductItem[]) => void;
   readonly onRoutesInvalidated?: () => void;
+  readonly variant?: "legacy" | "workspace";
 }) {
+  const workspaceMode = variant === "workspace";
   const [days, setDays] = useState<ProductDay[]>([]);
   const [localSelectedDayId, setLocalSelectedDayId] = useState("");
   const [items, setItems] = useState<ProductItem[]>([]);
+  const [itemExpenses, setItemExpenses] = useState<Record<string, ProductExpense>>({});
   const [draft, setDraft] = useState<ItemDraft>(() => emptyDraft());
   const [editing, setEditing] = useState<ProductItem | null>(null);
+  const [viewing, setViewing] = useState<ProductItem | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<ProductExpense | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [workspaceEditing, setWorkspaceEditing] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "dirty" | "saving" | "saved" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [expenseLoading, setExpenseLoading] = useState(false);
@@ -241,7 +279,10 @@ export function ItineraryPanel({
   const confirmedPayload = useRef("");
   const saveSequence = useRef(0);
   const expenseRef = useRef<ProductExpense | null>(null);
-  const selectedDayId = controlledSelectedDayId ?? localSelectedDayId;
+  const workspaceOriginalOrder = useRef<string[]>([]);
+  const selectedDayId = controlledSelectedDayId !== undefined
+    ? controlledSelectedDayId
+    : localSelectedDayId;
 
   const loadItems = useCallback(async (dayId: string) => {
     setStatus("loading");
@@ -257,6 +298,40 @@ export function ItineraryPanel({
     }
   }, [onItemsChange, tripId]);
 
+  const loadWorkspaceItems = useCallback(async (
+    dayId: string | null,
+    availableDays: readonly ProductDay[],
+  ) => {
+    setStatus("loading");
+    try {
+      const selectedDays = dayId
+        ? availableDays.filter((day) => day.id === dayId)
+        : availableDays;
+      const itemGroups = await Promise.all(selectedDays.map(async (day) => ({
+        day,
+        items: await itineraryApi<ProductItem[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`),
+      })));
+      const loadedItems = itemGroups.flatMap(({ items: dayItems }) => dayItems);
+      const expenseGroups = await Promise.all(loadedItems.map(async (item) => ({
+        itemId: item.id,
+        expenses: await itineraryApi<ProductExpense[]>(`/trips/${tripId}/itinerary-items/${item.id}/expenses`),
+      })));
+      const nextExpenses: Record<string, ProductExpense> = {};
+      for (const { itemId, expenses } of expenseGroups) {
+        const expense = expenses.find((candidate) => candidate.itineraryItemId === itemId);
+        if (expense) nextExpenses[itemId] = expense;
+      }
+      setItems(loadedItems);
+      setItemExpenses(nextExpenses);
+      for (const { day, items: dayItems } of itemGroups) onItemsChange?.(day.id, dayItems);
+      setError(null);
+      setStatus("idle");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to load this itinerary");
+      setStatus("error");
+    }
+  }, [onItemsChange, tripId]);
+
   const selectDay = useCallback((dayId: string) => {
     setLocalSelectedDayId(dayId);
     onSelectedDayChange?.(dayId);
@@ -266,6 +341,7 @@ export function ItineraryPanel({
   }, [loadItems, onDaySelect, onSelectedDayChange]);
 
   useEffect(() => {
+    if (workspaceMode) return;
     void itineraryApi<ProductDay[]>(`/trips/${tripId}/days`).then((loaded) => {
       setDays(loaded);
       const first = loaded[0]?.id ?? "";
@@ -278,7 +354,28 @@ export function ItineraryPanel({
       setError(caught instanceof Error ? caught.message : "Unable to load trip days");
       setStatus("error");
     });
-  }, [loadItems, onSelectedDayChange, tripId]);
+  }, [loadItems, onSelectedDayChange, tripId, workspaceMode]);
+
+  useEffect(() => {
+    if (!workspaceMode) return;
+    let cancelled = false;
+    setWorkspaceEditing(false);
+    workspaceOriginalOrder.current = [];
+    setEditorOpen(false);
+    setEditing(null);
+    setViewing(null);
+    setViewingExpense(null);
+    void itineraryApi<ProductDay[]>(`/trips/${tripId}/days`).then(async (loaded) => {
+      if (cancelled) return;
+      setDays(loaded);
+      await loadWorkspaceItems(controlledSelectedDayId ?? null, loaded);
+    }).catch((caught) => {
+      if (cancelled) return;
+      setError(caught instanceof Error ? caught.message : "Unable to load trip days");
+      setStatus("error");
+    });
+    return () => { cancelled = true; };
+  }, [controlledSelectedDayId, loadWorkspaceItems, tripId, workspaceMode]);
 
   const selectedDay = useMemo(
     () => days.find(({ id }) => id === selectedDayId),
@@ -344,11 +441,81 @@ export function ItineraryPanel({
     if (item.itemType === "transport") void loadTransportModes();
   }
 
+  async function openDetails(item: ProductItem) {
+    setViewing(item);
+    setViewingExpense(itemExpenses[item.id] ?? null);
+    try {
+      const loaded = await itineraryApi<ProductExpense[]>(`/trips/${tripId}/itinerary-items/${item.id}/expenses`);
+      setViewingExpense(loaded.find((expense) => expense.itineraryItemId === item.id) ?? null);
+    } catch {
+      setViewingExpense(itemExpenses[item.id] ?? null);
+    }
+  }
+
+  function enterWorkspaceEdit() {
+    if (!selectedDayId) return;
+    workspaceOriginalOrder.current = items.map(({ id }) => id);
+    setWorkspaceEditing(true);
+    setError(null);
+    setStatus("idle");
+  }
+
+  function cancelWorkspaceEdit() {
+    const order = workspaceOriginalOrder.current;
+    if (order.length > 0) {
+      const byId = new Map(items.map((item) => [item.id, item]));
+      setItems(order.map((id) => byId.get(id)).filter((item): item is ProductItem => Boolean(item)));
+    }
+    setWorkspaceEditing(false);
+    setError(null);
+    setStatus("idle");
+  }
+
+  async function saveWorkspaceEdit() {
+    if (!selectedDayId || !selectedDay || selectedDay.version === undefined) {
+      setError("This day has no version information, so its order cannot be saved safely.");
+      setStatus("error");
+      return;
+    }
+    const orderedIds = items.map(({ id }) => id);
+    if (JSON.stringify(orderedIds) === JSON.stringify(workspaceOriginalOrder.current)) {
+      setWorkspaceEditing(false);
+      setStatus("saved");
+      return;
+    }
+    setStatus("saving");
+    setError(null);
+    onRoutesInvalidated?.();
+    try {
+      const saved = await itineraryApi<{ tripDayId: string; version: number; orderedIds: string[] }>(
+        `/trips/${tripId}/days/${selectedDay.id}/itinerary-items/reorder`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ baseVersion: selectedDay.version, orderedIds }),
+        },
+      );
+      const byId = new Map(items.map((item) => [item.id, item]));
+      const reordered = saved.orderedIds.map((id) => byId.get(id)).filter((item): item is ProductItem => Boolean(item));
+      setItems(reordered);
+      onItemsChange?.(saved.tripDayId, reordered);
+      setDays((current) => current.map((day) => day.id === saved.tripDayId
+        ? { ...day, version: saved.version }
+        : day));
+      workspaceOriginalOrder.current = saved.orderedIds;
+      setWorkspaceEditing(false);
+      setStatus("saved");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to save the itinerary order");
+      setStatus("error");
+    }
+  }
+
   const persistEdit = useCallback(async (
     item: ProductItem,
     snapshot: ItemDraft,
     sequence: number,
-  ) => {
+  ): Promise<boolean> => {
     setStatus("saving");
     setError(null);
     onRoutesInvalidated?.();
@@ -372,19 +539,24 @@ export function ItineraryPanel({
               body: JSON.stringify({ itineraryItemId: item.id, amount: snapshot.costAmount, currency: snapshot.costCurrency, remark: snapshot.costRemark.trim() || null }),
             });
       }
-      if (sequence !== saveSequence.current) return;
+      if (sequence !== saveSequence.current) return false;
       confirmedPayload.current = draftFingerprint(snapshot);
       setEditing(saved);
+      if (expenseRef.current) {
+        setItemExpenses((current) => ({ ...current, [saved.id]: expenseRef.current! }));
+      }
       setItems((current) => {
         const next = current.map((entry) => entry.id === saved.id ? saved : entry);
         onItemsChange?.(saved.tripDayId, next);
         return next;
       });
       setStatus("saved");
+      return true;
     } catch (caught) {
-      if (sequence !== saveSequence.current) return;
+      if (sequence !== saveSequence.current) return false;
       setError(caught instanceof Error ? caught.message : "Save failed");
       setStatus("error");
+      return false;
     }
   }, [onItemsChange, onRoutesInvalidated, tripId]);
 
@@ -418,7 +590,11 @@ export function ItineraryPanel({
     try {
       if (editing) {
         const sequence = ++saveSequence.current;
-        await persistEdit(editing, structuredClone(draft), sequence);
+        const persisted = await persistEdit(editing, structuredClone(draft), sequence);
+        if (workspaceMode && persisted) {
+          setEditorOpen(false);
+          setEditing(null);
+        }
         return;
       }
       onRoutesInvalidated?.();
@@ -439,8 +615,14 @@ export function ItineraryPanel({
           }),
         });
       }
-      await loadItems(selectedDayId);
-      setEditing(saved);
+      if (workspaceMode) {
+        await loadWorkspaceItems(selectedDayId, days);
+        setEditorOpen(false);
+        setEditing(null);
+      } else {
+        await loadItems(selectedDayId);
+        setEditing(saved);
+      }
       confirmedPayload.current = draftFingerprint(draft);
       setStatus("saved");
     } catch (caught) {
@@ -481,6 +663,12 @@ export function ItineraryPanel({
         onItemsChange?.(item.tripDayId, next);
         return next;
       });
+      setItemExpenses((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+      workspaceOriginalOrder.current = workspaceOriginalOrder.current.filter((id) => id !== item.id);
       if (editing?.id === item.id) {
         setEditorOpen(false);
         setEditing(null);
@@ -493,6 +681,12 @@ export function ItineraryPanel({
   }
 
   async function reorderItems(orderedIds: string[], input: ProductReorderInput) {
+    if (workspaceMode && workspaceEditing) {
+      const byId = new Map(items.map((item) => [item.id, item]));
+      setItems(orderedIds.map((id) => byId.get(id)).filter((item): item is ProductItem => Boolean(item)));
+      setStatus("dirty");
+      return;
+    }
     if (!selectedDay || selectedDay.version === undefined) {
       setError("This day has no version information, so it cannot be reordered safely.");
       return;
@@ -525,6 +719,121 @@ export function ItineraryPanel({
       setError(caught instanceof Error ? `${input} reorder failed: ${caught.message}` : "Reorder failed; the previous order was restored.");
       setStatus("error");
     }
+  }
+
+  function closeEditor() {
+    if (["dirty", "saving", "error"].includes(status) && !window.confirm("Discard unsaved changes?")) return;
+    setEditorOpen(false);
+    if (workspaceMode) setEditing(null);
+  }
+
+  const editorForm = editorOpen ? <form className="itemEditorForm" aria-label={editing ? "Edit item" : "Add item"} onSubmit={(event) => { event.preventDefault(); void save(); }}>
+    <header><h3>{editing ? "Edit item" : `Add ${draft.kind}`}</h3><button type="button" onClick={closeEditor}>Cancel</button></header>
+    <label>Item type<select aria-label="Item type" value={draft.kind} onChange={(event) => {
+      const kind = event.target.value as ItemKind;
+      update("kind", kind);
+      if (kind === "transport") void loadTransportModes();
+    }}>
+      <option value="activity">Activity</option><option value="attraction">Attraction</option><option value="dining">Dining</option><option value="accommodation">Hotel</option><option value="transport">Transport</option><option value="other">Other</option>
+    </select></label>
+    <label>Item name<input value={draft.target} onChange={(event) => update("target", event.target.value)} /></label>
+    <label>Description<textarea value={draft.description} onChange={(event) => update("description", event.target.value)} /></label>
+    <div className="formRow">
+      <label>Time type<select value={draft.timeKind} onChange={(event) => update("timeKind", event.target.value as ItemDraft["timeKind"])}><option value="unscheduled">Unscheduled</option><option value="clock">Time</option><option value="range">Range</option><option value="period">Period</option></select></label>
+      {draft.timeKind === "period" ? <label>Period<select value={draft.timePeriod} onChange={(event) => update("timePeriod", event.target.value)}><option value="">Select</option><option value="morning">Morning</option><option value="noon">Noon</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="night">Night</option></select></label> : null}
+      {draft.timeKind === "clock" || draft.timeKind === "range" ? <label>Start time<input type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} /></label> : null}
+      {draft.timeKind === "range" ? <label>End time<input type="time" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} /></label> : null}
+    </div>
+    {draft.timeKind === "range" ? <label><input type="checkbox" checked={draft.crossesMidnight} onChange={(event) => update("crossesMidnight", event.target.checked)} />Crosses midnight</label> : null}
+    <label>Duration (minutes)<input type="number" min="0" value={draft.durationMinutes ?? ""} onChange={(event) => update("durationMinutes", event.target.value ? Number(event.target.value) : undefined)} /></label>
+    {draft.kind !== "transport" ? <LocationProductPicker
+      tripId={tripId}
+      locationId={draft.locationId}
+      initialText={draft.locationText}
+      onLocationChange={(locationId, inputText) => {
+        update("locationId", locationId);
+        update("locationText", inputText);
+      }}
+    /> : null}
+    {draft.kind !== "transport" ? <label>Inbound transport mode<select aria-label="Inbound transport mode" value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Unspecified (OTHER)</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label> : null}
+    {draft.kind === "dining" ? <fieldset><legend>Dining details</legend><label>Restaurant<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>Meal<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">Unspecified</option><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></label></fieldset> : null}
+    {draft.kind === "accommodation" ? <fieldset><legend>Accommodation details</legend><label>Property name<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><label>Details<input value={draft.accommodationType} onChange={(event) => update("accommodationType", event.target.value)} /></label><div className="formRow"><label>Check-in date<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>Check-out date<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
+    {draft.kind === "transport" ? <>
+      <LocationProductPicker tripId={tripId} locationId={draft.transportOrigin} legend="Transport origin" inputLabel="Origin location" onLocationChange={(locationId) => update("transportOrigin", locationId)} />
+      <LocationProductPicker tripId={tripId} locationId={draft.transportDestination} legend="Transport destination" inputLabel="Destination location" onLocationChange={(locationId) => update("transportDestination", locationId)} />
+      <label>Transport mode<select aria-label="Transport mode" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Select</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label>
+    </> : null}
+    <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
+    <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input id="item-expense-amount" inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<select id="item-expense-currency" value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value)}>{currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select></label></div><label>Expense remark<input id="item-expense-remark" value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
+    <label className="itemNotesField"><span>Notes</span><textarea rows={6} value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
+    <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" disabled={status === "saving"} onClick={closeEditor}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
+  </form> : null;
+
+  if (workspaceMode) {
+    const dayById = new Map(days.map((day) => [day.id, day]));
+    return <section className="workspaceCard itineraryWorkspace" aria-label="Daily itinerary">
+      <header className="workspaceItineraryHeader">
+        <div>
+          <p className="eyebrow">Itinerary</p>
+          <h2>{selectedDay ? `Day ${selectedDay.dayNumber}` : "All days"}</h2>
+          <p>{selectedDay ? displayDate(selectedDay.date) : "Global itinerary overview"}</p>
+        </div>
+        <div className="workspaceItineraryActions">
+          {selectedDayId ? workspaceEditing ? <>
+            <button className="secondary" type="button" onClick={cancelWorkspaceEdit}>Cancel</button>
+            <button className="primary" type="button" onClick={() => void saveWorkspaceEdit()} disabled={status === "saving"}>Save</button>
+          </> : <>
+            <button className="secondary" type="button" onClick={enterWorkspaceEdit}>Edit</button>
+            <button className="iconAddButton" type="button" aria-label="Add item" title="Add item" onClick={() => beginCreate("activity")}>+</button>
+          </> : <span className="workspaceHint">Choose a Day to edit</span>}
+        </div>
+      </header>
+      {error ? <p role="alert" className="formError">{error}</p> : null}
+      {status === "loading" ? <p role="status">Loading itinerary…</p> : null}
+      {items.length > 0 ? <ProductSortableTimeline
+        entries={items.map((item) => ({ id: item.id, label: itemLabel(item) }))}
+        disabled={!workspaceEditing || status === "saving"}
+        showOrderControls={workspaceEditing}
+        label={selectedDayId ? `Day ${selectedDay?.dayNumber ?? ""} itinerary` : "All days itinerary"}
+        onReorder={(orderedIds, input) => void reorderItems(orderedIds, input)}
+      >{(id) => {
+        const item = items.find((entry) => entry.id === id);
+        if (!item) return null;
+        const day = dayById.get(item.tripDayId);
+        const expense = itemExpenses[item.id];
+        return <article className="workspaceItemCard" data-item-id={item.id}>
+          <div className="workspaceItemMeta">
+            {selectedDayId === null ? <span className="workspaceItemDay">Day {day?.dayNumber ?? "?"}</span> : null}
+            <h3>{itemLabel(item)}</h3>
+            <p>{item.description || "No description yet."}</p>
+            {expense ? <span className="workspaceItemExpense">Expense · {displayAmount(expense.originalAmount)} {expense.currency}</span> : null}
+          </div>
+          <button className="workspaceItemAction" type="button" aria-label={`${workspaceEditing ? "Item edit" : "Expand"} ${itemLabel(item)}`} onClick={() => workspaceEditing ? beginEdit(item) : void openDetails(item)}>
+            {workspaceEditing ? "Item edit" : "Expand"}
+          </button>
+        </article>;
+      }}</ProductSortableTimeline> : status !== "loading" ? <p className="workspaceEmptyState">No itinerary items for this view yet.</p> : null}
+      {editorForm ? <div className="workspaceDialogBackdrop" role="presentation"><div className="workspaceDialog" role="dialog" aria-modal="true" aria-label={editing ? "Edit item" : "Add item"}>{editorForm}</div></div> : null}
+      {viewing ? <div className="workspaceDialogBackdrop" role="presentation"><section className="workspaceDialog" role="dialog" aria-modal="true" aria-label="Item details">
+        <header className="workspaceDialogHeader"><div><p className="eyebrow">Item details</p><h2>{itemLabel(viewing)}</h2></div><button className="secondary" type="button" onClick={() => { setViewing(null); setViewingExpense(null); }}>Close</button></header>
+        <dl className="workspaceItemDetails">
+          <div><dt>Item type</dt><dd>{viewing.itemType}</dd></div>
+          <div><dt>Description</dt><dd>{displayValue(viewing.description)}</dd></div>
+          <div><dt>Time</dt><dd>{itemTimeLabel(viewing)}</dd></div>
+          <div><dt>Duration</dt><dd>{viewing.durationMinutes === null ? "—" : `${viewing.durationMinutes} minutes`}</dd></div>
+          <div><dt>Location</dt><dd>{displayValue(viewing.locationId)}</dd></div>
+          <div><dt>Start location</dt><dd>{displayValue(viewing.startLocationId)}</dd></div>
+          <div><dt>End location</dt><dd>{displayValue(viewing.endLocationId)}</dd></div>
+          <div><dt>Transport mode</dt><dd>{displayValue(viewing.transportModeCode)}</dd></div>
+          <div><dt>Booking</dt><dd>{displayValue(viewing.bookingInfo)}</dd></div>
+          <div><dt>Contact</dt><dd>{displayValue(viewing.contactInfo)}</dd></div>
+          <div><dt>Dining</dt><dd>{displayValue(viewing.dining)}</dd></div>
+          <div><dt>Accommodation</dt><dd>{displayValue(viewing.accommodation)}</dd></div>
+          <div><dt>Remark</dt><dd>{displayValue(viewing.remark)}</dd></div>
+          <div><dt>Expense</dt><dd>{viewingExpense ? `${displayAmount(viewingExpense.originalAmount)} ${viewingExpense.currency}${viewingExpense.remark ? ` · ${viewingExpense.remark}` : ""}` : "—"}</dd></div>
+        </dl>
+      </section></div> : null}
+    </section>;
   }
 
   return <section className="workspaceCard itineraryProduct" aria-label="Daily itinerary">
@@ -564,49 +873,6 @@ export function ItineraryPanel({
     {!editorOpen && status !== "idle" && status !== "loading" ? <p role="status">
       {status === "saving" ? "Saving order…" : status === "saved" ? "Saved" : status === "error" ? "Unable to save order" : ""}
     </p> : null}
-    {editorOpen ? <form className="itemEditorForm" aria-label={editing ? "Edit item" : "Add item"} onSubmit={(event) => { event.preventDefault(); void save(); }}>
-      <header><h3>{editing ? "Edit item" : `Add ${draft.kind}`}</h3><button type="button" onClick={() => {
-        if (["dirty", "saving", "error"].includes(status) && !window.confirm("Discard unsaved changes?")) return;
-        setEditorOpen(false);
-      }}>Cancel</button></header>
-      <label>Item type<select aria-label="Item type" value={draft.kind} onChange={(event) => {
-        const kind = event.target.value as ItemKind;
-        update("kind", kind);
-        if (kind === "transport") void loadTransportModes();
-      }}>
-        <option value="activity">Activity</option><option value="attraction">Attraction</option><option value="dining">Dining</option><option value="accommodation">Hotel</option><option value="transport">Transport</option><option value="other">Other</option>
-      </select></label>
-      <label>Item name<input value={draft.target} onChange={(event) => update("target", event.target.value)} /></label>
-      <label>Description<textarea value={draft.description} onChange={(event) => update("description", event.target.value)} /></label>
-      <div className="formRow">
-        <label>Time type<select value={draft.timeKind} onChange={(event) => update("timeKind", event.target.value as ItemDraft["timeKind"])}><option value="unscheduled">Unscheduled</option><option value="clock">Time</option><option value="range">Range</option><option value="period">Period</option></select></label>
-        {draft.timeKind === "period" ? <label>Period<select value={draft.timePeriod} onChange={(event) => update("timePeriod", event.target.value)}><option value="">Select</option><option value="morning">Morning</option><option value="noon">Noon</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="night">Night</option></select></label> : null}
-        {draft.timeKind === "clock" || draft.timeKind === "range" ? <label>Start time<input type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} /></label> : null}
-        {draft.timeKind === "range" ? <label>End time<input type="time" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} /></label> : null}
-      </div>
-      {draft.timeKind === "range" ? <label><input type="checkbox" checked={draft.crossesMidnight} onChange={(event) => update("crossesMidnight", event.target.checked)} />Crosses midnight</label> : null}
-      <label>Duration (minutes)<input type="number" min="0" value={draft.durationMinutes ?? ""} onChange={(event) => update("durationMinutes", event.target.value ? Number(event.target.value) : undefined)} /></label>
-      {draft.kind !== "transport" ? <LocationProductPicker
-        tripId={tripId}
-        locationId={draft.locationId}
-        initialText={draft.locationText}
-        onLocationChange={(locationId, inputText) => {
-          update("locationId", locationId);
-          update("locationText", inputText);
-        }}
-      /> : null}
-      {draft.kind !== "transport" ? <label>Inbound transport mode<select aria-label="Inbound transport mode" value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Unspecified (OTHER)</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label> : null}
-      {draft.kind === "dining" ? <fieldset><legend>Dining details</legend><label>Restaurant<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>Meal<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">Unspecified</option><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></label></fieldset> : null}
-      {draft.kind === "accommodation" ? <fieldset><legend>Accommodation details</legend><label>Property name<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><label>Details<input value={draft.accommodationType} onChange={(event) => update("accommodationType", event.target.value)} /></label><div className="formRow"><label>Check-in date<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>Check-out date<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
-      {draft.kind === "transport" ? <>
-        <LocationProductPicker tripId={tripId} locationId={draft.transportOrigin} legend="Transport origin" inputLabel="Origin location" onLocationChange={(locationId) => update("transportOrigin", locationId)} />
-        <LocationProductPicker tripId={tripId} locationId={draft.transportDestination} legend="Transport destination" inputLabel="Destination location" onLocationChange={(locationId) => update("transportDestination", locationId)} />
-        <label>Transport mode<select aria-label="Transport mode" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Select</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label>
-      </> : null}
-      <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
-      <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input id="item-expense-amount" inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<select id="item-expense-currency" value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value)}>{currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select></label></div><label>Expense remark<input id="item-expense-remark" value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
-      <label className="itemNotesField"><span>Notes</span><textarea rows={6} value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
-      <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" disabled={status === "saving"} onClick={() => setEditorOpen(false)}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
-    </form> : null}
+    {editorForm}
   </section>;
 }

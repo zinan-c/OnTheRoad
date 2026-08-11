@@ -7,7 +7,7 @@ export default async function TripPage({
 }) {
   const { tripId } = await params;
   return (
-    <main>
+    <main className="tripPageMain">
       <nav aria-label="Main navigation">
         <a className="brand" href="/">On The Road</a>
         <div className="actions">

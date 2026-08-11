@@ -74,12 +74,13 @@ export function currentRouteSegments(routes: readonly RouteSegment[], dayId: str
   return dayId ? routes.filter((route) => route.tripDayId === dayId) : [...routes];
 }
 
-export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, selectedDayId, onSelectGlobalMap }: {
+export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, selectedDayId, onSelectGlobalMap, compact = false }: {
   readonly tripId: string;
   readonly transportModes: readonly TransportModeView[];
   readonly refreshVersion?: number;
   readonly selectedDayId: string | null;
   readonly onSelectGlobalMap: () => void;
+  readonly compact?: boolean;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [items, setItems] = useState<ProductItem[]>([]);
@@ -162,12 +163,12 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
 
   const selectedDay = days.find(({ id }) => id === selectedDayId);
 
-  return <section aria-label="Route map" className="workspaceCard routeWorkspace">
-    <header><h2>{selectedDay ? `Day ${selectedDay.dayNumber} route` : "Route map"}</h2><p>The map uses persisted WGS84 geometry returned by the Route API.</p></header>
-    <nav className="mapScopeActions" aria-label="Map scope">
+  return <section aria-label="Route map" className={`workspaceCard routeWorkspace${compact ? " routeWorkspaceCompact" : ""}`}>
+    <header><h2>{compact ? (selectedDay ? `Day ${selectedDay.dayNumber} map` : "Global map") : (selectedDay ? `Day ${selectedDay.dayNumber} route` : "Route map")}</h2>{compact ? null : <p>The map uses persisted WGS84 geometry returned by the Route API.</p>}</header>
+    {!compact ? <nav className="mapScopeActions" aria-label="Map scope">
       <button id="map-scope-global" type="button" aria-pressed={selectedDayId === null} onClick={onSelectGlobalMap}>Global map</button>
       {selectedDay ? <span role="status">Showing Day {selectedDay.dayNumber}</span> : <span role="status">Showing all days</span>}
-    </nav>
+    </nav> : null}
     {isGenerating ? <p role="status">Generating routes…</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
     {visibleItems.some(({ point }) => point) ? <RealRouteMap
@@ -180,34 +181,36 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
       onRouteSelect={selectRoute}
     /> : <p role="status">No valid coordinates. Confirm a location to show it on the map.</p>}
     <small className="otr-map-attribution">Map data © On The Road fixture</small>
-    {modeLegend.length > 0 ? <ul aria-label="Route mode legend">{modeLegend.map(({ code, style }) => <li key={code} data-line-style={style.dasharray.join(" ")}><span aria-hidden="true">{style.icon}</span> {style.label}{code === "OTHER" ? " (transport mode not specified)" : ""}</li>)}</ul> : null}
-    {gaps.length > 0 ? <aside aria-label="Route gaps"><h3>Route gaps</h3><ul>{gaps.map((route) => {
-      const blockers = Array.isArray(route.sourceContext.blockers)
-        ? route.sourceContext.blockers.map((blocker) => ROUTE_BLOCKER_LABELS[String(blocker)] ?? String(blocker)).join(", ")
-        : "Location not confirmed";
-      return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}: {blockers}</li>;
-    })}</ul></aside> : null}
-    <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
-      type="button"
-      aria-pressed={selectedItemId === item.id}
-      data-selected={selectedItemId === item.id}
-      onClick={() => { selectionStore.selectFromTimeline(item.id, item.tripDayId); setSelectedRouteId(null); }}
-    >{item.target ?? "Untitled item"}</button></li>)}</ol>
-    {selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
-    {visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
-      const customMode = transportModes.find(({ code }) => code === route.transportModeCode);
-      const style = routeStyle({ modeCode: route.transportModeCode, quality: route.quality ?? "unknown", ...(customMode ? { customMode } : {}) });
-      return <li key={route.id}><button type="button" onClick={() => setSelectedRouteId(route.id)}>{route.kind === "item_transport" ? "Transport route" : "Connection route"}: {itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)} · {style.label} · {style.qualityLabel}</button></li>;
-    })}</ol> : null}
-    {selectedRoute ? <aside aria-label="Route details">
-      <h3>{itemLabel(selectedRoute.fromItineraryItemId)} → {itemLabel(selectedRoute.toItineraryItemId)}</h3>
-      <dl>
-        <div><dt>Transport mode</dt><dd>{routeStyle({ modeCode: selectedRoute.transportModeCode, quality: selectedRoute.quality ?? "unknown", ...(transportModes.find(({ code }) => code === selectedRoute.transportModeCode) ? { customMode: transportModes.find(({ code }) => code === selectedRoute.transportModeCode)! } : {}) }).label}</dd></div>
-        <div><dt>Provider</dt><dd>{selectedRoute.provider ?? "Not generated"}</dd></div>
-        <div><dt>Quality</dt><dd>{routeStyle({ quality: (selectedRoute.quality ?? "unknown") as RouteQuality }).qualityLabel}</dd></div>
-        <div><dt>Endpoints</dt><dd>{selectedRoute.fromLocationId ?? "Unresolved"} → {selectedRoute.toLocationId ?? "Unresolved"}</dd></div>
-      </dl>
-    </aside> : null}
+    {!compact ? <>
+      {modeLegend.length > 0 ? <ul aria-label="Route mode legend">{modeLegend.map(({ code, style }) => <li key={code} data-line-style={style.dasharray.join(" ")}><span aria-hidden="true">{style.icon}</span> {style.label}{code === "OTHER" ? " (transport mode not specified)" : ""}</li>)}</ul> : null}
+      {gaps.length > 0 ? <aside aria-label="Route gaps"><h3>Route gaps</h3><ul>{gaps.map((route) => {
+        const blockers = Array.isArray(route.sourceContext.blockers)
+          ? route.sourceContext.blockers.map((blocker) => ROUTE_BLOCKER_LABELS[String(blocker)] ?? String(blocker)).join(", ")
+          : "Location not confirmed";
+        return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}: {blockers}</li>;
+      })}</ul></aside> : null}
+      <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
+        type="button"
+        aria-pressed={selectedItemId === item.id}
+        data-selected={selectedItemId === item.id}
+        onClick={() => { selectionStore.selectFromTimeline(item.id, item.tripDayId); setSelectedRouteId(null); }}
+      >{item.target ?? "Untitled item"}</button></li>)}</ol>
+      {selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
+      {visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
+        const customMode = transportModes.find(({ code }) => code === route.transportModeCode);
+        const style = routeStyle({ modeCode: route.transportModeCode, quality: route.quality ?? "unknown", ...(customMode ? { customMode } : {}) });
+        return <li key={route.id}><button type="button" onClick={() => setSelectedRouteId(route.id)}>{route.kind === "item_transport" ? "Transport route" : "Connection route"}: {itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)} · {style.label} · {style.qualityLabel}</button></li>;
+      })}</ol> : null}
+      {selectedRoute ? <aside aria-label="Route details">
+        <h3>{itemLabel(selectedRoute.fromItineraryItemId)} → {itemLabel(selectedRoute.toItineraryItemId)}</h3>
+        <dl>
+          <div><dt>Transport mode</dt><dd>{routeStyle({ modeCode: selectedRoute.transportModeCode, quality: selectedRoute.quality ?? "unknown", ...(transportModes.find(({ code }) => code === selectedRoute.transportModeCode) ? { customMode: transportModes.find(({ code }) => code === selectedRoute.transportModeCode)! } : {}) }).label}</dd></div>
+          <div><dt>Provider</dt><dd>{selectedRoute.provider ?? "Not generated"}</dd></div>
+          <div><dt>Quality</dt><dd>{routeStyle({ quality: (selectedRoute.quality ?? "unknown") as RouteQuality }).qualityLabel}</dd></div>
+          <div><dt>Endpoints</dt><dd>{selectedRoute.fromLocationId ?? "Unresolved"} → {selectedRoute.toLocationId ?? "Unresolved"}</dd></div>
+        </dl>
+      </aside> : null}
+    </> : null}
   </section>;
 }
 
