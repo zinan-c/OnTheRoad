@@ -8,7 +8,6 @@ import {
   ProductSortableTimeline,
   type ProductReorderInput,
 } from "./product-sortable-timeline";
-import { TransportModeManager } from "../trips/settings/transport-mode-manager";
 import type { TransportModeView } from "../trips/settings/transport-modes";
 import { LocationProductPicker } from "../locations/location-product-picker";
 
@@ -225,7 +224,6 @@ export function ItineraryPanel({
   const [editorOpen, setEditorOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "dirty" | "saving" | "saved" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
-  const [modeManagerOpen, setModeManagerOpen] = useState(false);
   const [expenseLoading, setExpenseLoading] = useState(false);
   const [modeCatalog, setModeCatalog] = useState<TransportModeView[]>(() => transportModes.map((mode) => ({
     ...mode,
@@ -538,11 +536,6 @@ export function ItineraryPanel({
     <div className="itemCreateActions" aria-label="Item actions">
       <button type="button" onClick={() => beginCreate("activity")}>Add item</button>
     </div>
-    <button type="button" aria-expanded={modeManagerOpen} onClick={() => setModeManagerOpen((open) => !open)}>Transport modes</button>
-    {modeManagerOpen ? <TransportModeManager tripId={tripId} onCatalogChange={(modes) => {
-      setModeCatalog(modes);
-      onTransportModesChange?.(modes);
-    }} /> : null}
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {status === "loading" ? <p role="status">Loading itinerary…</p> : null}
     <ProductSortableTimeline

@@ -62,15 +62,6 @@ test("E2E-017 — cross-day and transport-internal route matrix", async ({ page 
     startDate: "2026-10-01",
     endDate: "2026-10-02",
   });
-  await page.getByRole("button", { name: "Transport modes" }).click();
-  const manager = page.getByRole("region", { name: "Transport mode management" });
-  await manager.getByLabel("Transport mode code").fill("CABLE_SHUTTLE_CUSTOM");
-  await manager.getByLabel("Transport mode name").fill("缆车接驳");
-  await manager.getByLabel("Transport mode color").fill("#123456");
-  await manager.getByLabel("Transport mode line style").selectOption("dotted");
-  await manager.getByLabel("Transport mode icon").fill("cable-car");
-  await manager.getByRole("button", { name: "Add transport mode" }).click();
-
   await createLocatedSequence(page, [
     { target: "A", query: "外滩", day: 1, mode: "WALK" },
     { target: "B", query: "豫园", day: 1, mode: "FLIGHT" },
@@ -80,7 +71,7 @@ test("E2E-017 — cross-day and transport-internal route matrix", async ({ page 
   await editor.getByLabel("Item name").fill("D");
   await resolveLocation(editor, "外滩", { legend: "Transport origin", inputLabel: "Origin location" });
   await resolveLocation(editor, "豫园", { legend: "Transport destination", inputLabel: "Destination location" });
-  await editor.getByLabel("Transport mode").selectOption("CABLE_SHUTTLE_CUSTOM");
+  await editor.getByLabel("Transport mode").selectOption("CABLE_CAR");
   await saveNewItem(editor, "D");
   await createLocatedSequence(page, [{ target: "E", query: "外滩", day: 2, mode: "PUBLIC_BUS" }]);
   editor = await openNewItem(page, "attraction");

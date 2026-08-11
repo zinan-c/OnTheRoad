@@ -175,36 +175,22 @@ test("E2E-012 — same-day reorder across mouse, keyboard and touch", async ({ p
   await mobileContext.close();
 });
 
-test("E2E-013 — custom transport mode lifecycle", async ({ page }) => {
-  await createTrip(page, { name: caseName("E2E-013", "custom-mode") });
-  await page.getByRole("button", { name: "Transport modes" }).click();
-  const manager = page.getByRole("region", { name: "Transport mode management" });
-  await manager.getByLabel("Transport mode code").fill("CABLE_SHUTTLE_CUSTOM");
-  await manager.getByLabel("Transport mode name").fill("缆车接驳");
-  await manager.getByLabel("Transport mode color").fill("#123456");
-  await manager.getByLabel("Transport mode line style").selectOption("dotted");
-  await manager.getByLabel("Transport mode icon").fill("cable-car");
-  await manager.getByRole("button", { name: "Add transport mode" }).click();
-  await expect(manager.getByText("CABLE_SHUTTLE_CUSTOM")).toBeVisible();
-
+test("E2E-013 — built-in transport modes stay available without settings UI", async ({ page }) => {
+  await createTrip(page, { name: caseName("E2E-013", "built-in-mode") });
+  await expect(page.getByRole("button", { name: "Transport modes" })).toHaveCount(0);
   const editor = await openNewItem(page, "transport");
-  await editor.getByLabel("Item name").fill("缆车段");
+  const modes = editor.getByLabel("Transport mode");
+  await expect(modes.locator('option[value="WALK"]')).toHaveCount(1);
+  await expect(modes.locator('option[value="CABLE_CAR"]')).toHaveCount(1);
+  await expect(modes.locator('option[value="FLIGHT"]')).toHaveCount(1);
+  await editor.getByLabel("Item name").fill("Cable car segment");
   await resolveLocation(editor, "外滩", { legend: "Transport origin", inputLabel: "Origin location" });
   await resolveLocation(editor, "豫园", { legend: "Transport destination", inputLabel: "Destination location" });
-  await editor.getByLabel("Transport mode").selectOption("CABLE_SHUTTLE_CUSTOM");
-  await saveNewItem(editor, "缆车段");
-  await expect(page.getByRole("list", { name: "Route mode legend" })).toContainText("缆车接驳");
+  await modes.selectOption("CABLE_CAR");
+  await saveNewItem(editor, "Cable car segment");
   await page.reload();
-  const existing = await openItem(page, "缆车段");
-  await expect(existing.getByLabel("Transport mode")).toHaveValue("CABLE_SHUTTLE_CUSTOM");
-  await existing.getByRole("button", { name: "Cancel" }).first().click();
-  await page.getByRole("button", { name: "Transport modes" }).click();
-  await page.getByRole("button", { name: "Deactivate 缆车接驳" }).click();
-  const retained = await openItem(page, "缆车段");
-  await expect(retained.getByLabel("Transport mode").locator("option:checked")).toContainText("disabled");
-  await retained.getByRole("button", { name: "Cancel" }).first().click();
-  const fresh = await openNewItem(page, "transport");
-  await expect(fresh.getByLabel("Transport mode").locator('option[value="CABLE_SHUTTLE_CUSTOM"]')).toHaveCount(0);
+  const existing = await openItem(page, "Cable car segment");
+  await expect(existing.getByLabel("Transport mode")).toHaveValue("CABLE_CAR");
 });
 
 test("E2E-014 — explicit location search, candidate confirmation and persistence", async ({ page }) => {

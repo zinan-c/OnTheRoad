@@ -240,38 +240,28 @@ test("E2E-012 persists the complete Day order with its current version", async (
   expect(screen.getByRole("button", { name: "Move 外滩 up" })).toBeTruthy();
 });
 
-test("E2E-013 makes a newly persisted custom Mode immediately selectable", async () => {
-  let created = false;
-  const custom = {
-    id: "mode-1", tripId: "trip-1", ownerId: "owner-1",
-    code: "CABLE_SHUTTLE_CUSTOM", label: "缆车接驳", icon: "cable-car",
-    color: "#123456", lineStyle: "dotted", isSystem: false, enabled: true,
+test("E2E-013 exposes built-in Modes without a settings surface", async () => {
+  const builtIn = {
+    id: "system:CABLE_CAR", tripId: null, ownerId: null,
+    code: "CABLE_CAR", label: "Cable car", icon: "cable-car",
+    color: "#123456", lineStyle: "dotted", isSystem: true, enabled: true,
     referenced: false, version: 1,
   };
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/transport-modes") && init?.method === "POST") created = true;
     const body = url.endsWith("/days")
       ? [{ id: "day-1", dayNumber: 1, version: 1 }]
       : url.endsWith("/transport-modes")
-        ? init?.method === "POST" ? custom : created ? [custom] : []
+        ? [builtIn]
         : [];
     return new Response(JSON.stringify(body), {
-      status: init?.method === "POST" ? 201 : 200,
+      status: 200,
       headers: { "content-type": "application/json" },
     });
   }));
 
   render(<ItineraryPanel tripId="trip-1" />);
-  await screen.findByRole("button", { name: "Add item" });
-  fireEvent.click(screen.getByRole("button", { name: "Transport modes" }));
-  fireEvent.change(await screen.findByLabelText("Transport mode code"), { target: { value: custom.code } });
-  fireEvent.change(screen.getByLabelText("Transport mode name"), { target: { value: custom.label } });
-  fireEvent.change(screen.getByLabelText("Transport mode icon"), { target: { value: custom.icon } });
-  fireEvent.change(screen.getByLabelText("Transport mode color"), { target: { value: custom.color } });
-  fireEvent.change(screen.getByLabelText("Transport mode line style"), { target: { value: custom.lineStyle } });
-  fireEvent.click(screen.getByRole("button", { name: "Add transport mode" }));
-  await screen.findByText(custom.code);
-  fireEvent.click(screen.getByRole("button", { name: "Add item" }));
+  expect(screen.queryByRole("button", { name: "Transport modes" })).toBeNull();
+  fireEvent.click(await screen.findByRole("button", { name: "Add item" }));
   fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "transport" } });
-  expect(await screen.findByRole("option", { name: custom.code })).toBeTruthy();
+  expect(await screen.findByRole("option", { name: builtIn.code })).toBeTruthy();
 });
