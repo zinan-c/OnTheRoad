@@ -84,9 +84,7 @@ export class ExpenseService {
 
   /** @param {string} ownerId @param {string} tripId @param {Record<string, any>} input */
   async create(ownerId, tripId, input) {
-    const trip = /** @type {Record<string, any>} */ (
-      await this.repository.getTrip(ownerId, tripId)
-    );
+    await this.repository.getTrip(ownerId, tripId);
     const originalCurrency = currency(input.currency);
     const originalAmount = normalizeMoney(input.amount);
     const categoryCode = category(input.categoryCode ?? "OTHER");
@@ -156,9 +154,7 @@ export class ExpenseService {
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
       throw new ExpenseDomainError("EXPENSE_VERSION_INVALID", "Expense version is invalid.");
     }
-    const trip = /** @type {Record<string, any>} */ (
-      await this.repository.getTrip(ownerId, tripId)
-    );
+    await this.repository.getTrip(ownerId, tripId);
     const current = await this.repository.getExpense(ownerId, tripId, expenseId);
     if (!current) {
       throw new ExpenseDomainError("EXPENSE_NOT_FOUND", "Expense was not found.", 404);
@@ -184,9 +180,7 @@ export class ExpenseService {
 
   /** @param {string} ownerId @param {string} tripId */
   async summary(ownerId, tripId) {
-    const trip = /** @type {Record<string, any>} */ (
-      await this.repository.getTrip(ownerId, tripId)
-    );
+    await this.repository.getTrip(ownerId, tripId);
     const expenses = /** @type {Record<string, any>[]} */ (
       await this.repository.list(tripId)
     ).filter(({ source }) => source === "actual");

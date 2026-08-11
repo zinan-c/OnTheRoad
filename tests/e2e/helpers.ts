@@ -102,6 +102,7 @@ export async function createSimpleItem(
     day?: number;
     location?: string;
     mode?: string;
+    expense?: { amount: string; currency: string; remark?: string };
   } = {},
 ): Promise<string> {
   if (options.day) await selectDay(page, options.day);
@@ -112,6 +113,11 @@ export async function createSimpleItem(
   if (kind === "accommodation") await editor.getByLabel("Property name").fill(target);
   if (options.location && kind !== "transport") await resolveLocation(editor, options.location);
   if (options.mode && kind !== "transport") await editor.getByLabel("Inbound transport mode").selectOption(options.mode);
+  if (options.expense) {
+    await editor.locator("#item-expense-amount").fill(options.expense.amount);
+    await editor.locator("#item-expense-currency").selectOption(options.expense.currency);
+    if (options.expense.remark) await editor.locator("#item-expense-remark").fill(options.expense.remark);
+  }
   return saveNewItem(editor);
 }
 

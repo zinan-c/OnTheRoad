@@ -792,7 +792,7 @@ All three formats complete real storage and processing, every gallery operation 
 
 ## E2E-019 — Multi-currency expense and summary reconciliation
 
-- **Status**: `Passed` — Item ownership, complete currency/category inputs, rate management, and five-dimensional reconciliation pass.
+- **Status**: `Passed` — Item-owned expense entry, Trip-scoped rate management, daily CNY totals, and click-through details pass.
 - **Coverage**: M2/M3; D04–D05; Decimal, rates, and five-dimensional summaries
 - **Goal**: reconcile multi-currency Expenses, manual rates, and summaries from original facts.
 
@@ -808,24 +808,24 @@ All three formats complete real storage and processing, every gallery operation 
 ### Manual steps
 
 1. Create four Items belonging to different Days, Destinations, and Modes.
-2. Add the four Expenses in Expense Workspace.
+2. Enter each Expense while creating its owning Item in the daily itinerary editor.
 3. Open rate management and enter manual USD, JPY, and VND to CNY rates.
-4. Save and inspect the overview and all five dimensions.
-5. Refresh and reopen each Expense detail.
+4. Inspect the read-only daily CNY tree; click each Day and reconcile its details.
+5. Refresh and reopen each Day detail.
 
 ### Detailed checks
 
 - Original amounts are Decimal strings without binary floating-point error.
 - A rate is positive and from/to currencies differ.
 - Each converted amount uses a save-time snapshot traceable to original amount and rate.
-- Original and converted totals reconcile by Day, Destination, Category, Mode, and Currency.
+- Original and converted totals reconcile by Day; each clicked Day shows its Item-level original amount, rate snapshot, notes, and CNY amount.
 - Known actual CNY total matches manual calculation.
 - Removing a rate moves the amount into unconverted and shows “known actual / provisional remainder,” never a misleading green balance.
 - Amounts, rates, and summary remain consistent after refresh.
 
 ### Acceptance baseline
 
-Four representative currencies and all five dimensions reconcile; E2E-021 covers selection of all 15 currencies.
+Four representative currencies reconcile through the daily read-only report; E2E-021 covers selection of all 15 currencies.
 
 ---
 
@@ -912,8 +912,8 @@ All formats pass real upload and staging with exact state/counts and zero produc
 2. Check all 15 codes and display names against the matrix.
 3. Select each currency and create a minimum single-day Trip; automation may parameterize 15 runs.
 4. Refresh and read detail/API for each Trip to confirm defaultCurrency.
-5. Open a Trip containing an Item and expand the new-Expense currency selector.
-6. Check the same 15 currencies and create a minimum valid Expense for each; automation may use separate Items or clean up each time.
+5. Open a new Item in the daily itinerary and expand its Expense currency selector.
+6. Check the same 15 currencies and create a minimum valid Item-owned Expense for each; automation may use separate Items or clean up each time.
 7. Open rate management and check that from/to selectors use the same currency set.
 8. Upload an import containing all 15 codes and the `RMB` alias, then enter Preview.
 9. Confirm `RMB` normalizes to `CNY` and other codes remain unchanged.

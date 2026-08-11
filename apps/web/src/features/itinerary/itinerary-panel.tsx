@@ -1,6 +1,6 @@
 "use client";
 
-import { transportModes } from "@on-the-road/config/reference-data";
+import { currencies, transportModes } from "@on-the-road/config/reference-data";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { EditorDraft, ItemKind } from "./item-editor";
@@ -604,7 +604,7 @@ export function ItineraryPanel({
         <label>Transport mode<select aria-label="Transport mode" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Select</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label>
       </> : null}
       <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
-      <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<input value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value.toUpperCase())} /></label></div><label>Expense remark<input value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
+      <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input id="item-expense-amount" inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<select id="item-expense-currency" value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value)}>{currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select></label></div><label>Expense remark<input id="item-expense-remark" value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
       <label className="itemNotesField"><span>Notes</span><textarea rows={6} value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
       <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" disabled={status === "saving"} onClick={() => setEditorOpen(false)}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
     </form> : null}
