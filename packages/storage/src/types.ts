@@ -42,6 +42,7 @@ export interface MediaObjectStorage {
     value: Buffer,
     contentType: string,
   ): Promise<ImmutableStoredObject>;
+  deleteImmutable?(objectKey: string, objectVersion: string): Promise<void>;
   putQuarantine?(
     ownerId: string,
     value: Buffer,

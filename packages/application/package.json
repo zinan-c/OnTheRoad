@@ -26,6 +26,10 @@
     "./export/snapshot": {
       "types": "./src/export/snapshot.ts",
       "default": "./dist/export/snapshot.js"
+    },
+    "./export/print": {
+      "types": "./src/export/print.ts",
+      "default": "./dist/export/print.js"
     }
   },
   "scripts": {

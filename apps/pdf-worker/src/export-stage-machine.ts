@@ -1,7 +1,9 @@
 import {
   assertExportJobTransition,
+  type ExportOptions,
   type ExportJobStage,
   type ExportJobStatus,
+  type ExportSection,
 } from "@on-the-road/application/export";
 
 export type PdfExportJob = Readonly<{
@@ -11,6 +13,9 @@ export type PdfExportJob = Readonly<{
   version: number;
   snapshotHash: string;
   templateVersion: string;
+  options?: Readonly<Pick<ExportOptions, "orientation" | "sections">>;
+  workerId?: string;
+  leaseToken?: string;
 }>;
 
 export type ClaimedPdfExportJob = PdfExportJob & Readonly<{ leaseToken: string }>;
@@ -20,6 +25,8 @@ export type ExportStageRepository = Readonly<{
   advance(jobId: string, workerId: string, leaseToken: string, expectedVersion: number, from: ExportJobStatus, to: ExportJobStatus, stage: ExportJobStage): Promise<PdfExportJob | null>;
   cancel(jobId: string, workerId: string, leaseToken: string, expectedVersion: number): Promise<boolean>;
   fail(jobId: string, workerId: string, leaseToken: string, expectedVersion: number, code: string): Promise<boolean>;
+  recordArtifact?(jobId: string, workerId: string, leaseToken: string, expectedVersion: number, artifact: Readonly<{ key: string; version: string; checksumSha256: string }>): Promise<boolean>;
+  recordMapAsset?(job: PdfExportJob, asset: Readonly<{ assetId: string; checksumSha256: string; objectVersion: string; width: number; height: number }>): Promise<boolean>;
 }>;
 
 export class PdfExportStageError extends Error {

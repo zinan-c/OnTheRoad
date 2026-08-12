@@ -379,6 +379,26 @@ export class S3ObjectStorage implements ObjectStorage, MediaObjectStorage {
     };
   }
 
+  async deleteImmutable(objectKey: string, objectVersion: string): Promise<void> {
+    if (!/^derived\/[0-9a-f-]{36}\/[A-Za-z0-9:._-]+$/u.test(objectKey)) {
+      throw new StorageError("DERIVATIVE_KEY_INVALID", "Derivative object key is invalid.");
+    }
+    if (!objectVersion.trim()) {
+      throw new StorageError("OBJECT_VERSION_REQUIRED", "Derivative object version is required.");
+    }
+    const response = await this.#fetch(
+      this.#presign("DELETE", objectKey, {}, 60, this.#clock(), { versionId: objectVersion }),
+      { method: "DELETE" },
+    );
+    if (!response.ok && response.status !== 404) {
+      throw new StorageError(
+        "DERIVATIVE_DELETE_FAILED",
+        `Derivative delete failed with status ${response.status}.`,
+        502,
+      );
+    }
+  }
+
   async putQuarantine(
     ownerId: string,
     value: Buffer,
@@ -426,7 +446,7 @@ export class S3ObjectStorage implements ObjectStorage, MediaObjectStorage {
   }
 
   #presign(
-    method: "PUT" | "HEAD" | "GET",
+    method: "PUT" | "HEAD" | "GET" | "DELETE",
     objectKey: string,
     headers: Readonly<Record<string, string>>,
     expiresInSeconds: number,

@@ -10,6 +10,8 @@ export interface PdfPrintRenderer {
     snapshot: ExportSnapshot;
     signal: AbortSignal;
   }>): Promise<Uint8Array>;
+  cleanup?(jobId: string): Promise<void>;
+  finalize?(jobId: string): Promise<void>;
 }
 
 export interface PdfArtifactStore {
@@ -74,7 +76,7 @@ export class PdfExportProcessor {
     if (!claimed) return "fenced";
     const leaseToken = claimed.leaseToken;
     let current: PdfExportJob = claimed;
-    let artifact: { key: string; version: string } | undefined;
+    let artifact: { key: string; version: string; checksumSha256: string } | undefined;
     const controller = new AbortController();
     const abort = () => controller.abort();
     externalSignal?.addEventListener("abort", abort, { once: true });
@@ -95,17 +97,42 @@ export class PdfExportProcessor {
       }
       const pdf = await this.#renderer.render({ job: current, snapshot: source.snapshot, signal: controller.signal });
       assertPdf(pdf);
-      current = await this.#mustAdvance(current, leaseToken, "validating", "validate");
+      if (current.status !== "validating") {
+        current = await this.#mustAdvance(current, leaseToken, "validating", "validate");
+      }
       artifact = await this.#artifacts.put(current, pdf);
+      if (this.#stages.recordArtifact
+        && !await this.#stages.recordArtifact(
+          jobId,
+          this.#workerId,
+          leaseToken,
+          current.version,
+          artifact,
+        )) {
+        throw new PdfProcessorError("PDF_ARTIFACT_FENCED", "The export artifact was superseded before completion.");
+      }
       current = await this.#mustAdvance(current, leaseToken, "completed", "complete");
+      await this.#renderer.finalize?.(jobId);
       void current;
       return "completed";
     } catch (error) {
-      if (error instanceof PdfProcessorError && error.code === "PDF_RENDER_CANCELLED") {
+      const errorCode = error instanceof PdfProcessorError
+        ? error.code
+        : error && typeof error === "object" && "code" in error && typeof error.code === "string"
+          ? error.code
+          : error instanceof Error && error.message === "PDF_RENDER_CANCELLED"
+            ? "PDF_RENDER_CANCELLED"
+            : null;
+      if (errorCode === "PDF_RENDER_CANCELLED") {
+        await this.#renderer.cleanup?.(jobId).catch(() => undefined);
         return await this.#stages.cancel(jobId, this.#workerId, leaseToken, current.version) ? "cancelled" : "fenced";
       }
+      await this.#renderer.cleanup?.(jobId).catch(() => undefined);
       if (artifact && this.#artifacts.delete) await this.#artifacts.delete(artifact);
-      const failed = await this.#stages.fail(jobId, this.#workerId, leaseToken, current.version, error instanceof PdfProcessorError ? error.code : "PDF_RENDER_FAILED");
+      if (await this.#stages.cancel(jobId, this.#workerId, leaseToken, current.version)) {
+        return "cancelled";
+      }
+      const failed = await this.#stages.fail(jobId, this.#workerId, leaseToken, current.version, errorCode ?? "PDF_RENDER_FAILED");
       if (!failed) return "fenced";
       throw error;
     } finally {

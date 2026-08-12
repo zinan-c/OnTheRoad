@@ -80,6 +80,9 @@ importers:
       '@on-the-road/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      bullmq:
+        specifier: 6.0.2
+        version: 6.0.2(ioredis@5.11.1)(pg@8.16.3)
       fastify:
         specifier: 5.11.0
         version: 5.11.0
@@ -101,9 +104,21 @@ importers:
       '@on-the-road/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@on-the-road/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@on-the-road/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@on-the-road/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@on-the-road/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
+      '@playwright/test':
+        specifier: 1.62.0
+        version: 1.62.0
       bullmq:
         specifier: 6.0.2
         version: 6.0.2(ioredis@5.11.1)(pg@8.16.3)
