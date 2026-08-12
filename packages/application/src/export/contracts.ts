@@ -13,6 +13,9 @@ export const EXPORT_JOB_STATUSES = [
   "cancelled",
 ] as const;
 
+export const EXPORT_QUEUE_NAME = "otr.pdf";
+export const EXPORT_QUEUE_JOB_NAME = "export.render";
+
 export type ExportJobStatus = (typeof EXPORT_JOB_STATUSES)[number];
 
 export const EXPORT_JOB_STAGES = [

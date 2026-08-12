@@ -101,6 +101,9 @@ importers:
       '@on-the-road/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@on-the-road/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       bullmq:
         specifier: 6.0.2
         version: 6.0.2(ioredis@5.11.1)(pg@8.16.3)

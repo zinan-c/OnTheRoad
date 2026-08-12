@@ -1,5 +1,6 @@
 import { connect } from "node:net";
 
+import { Queue } from "bullmq";
 import { Redis } from "ioredis";
 
 import { loadProcessConfig } from "@on-the-road/config/env";
@@ -40,6 +41,7 @@ import { PostgresImportGeocodeService } from "./modules/imports/geocode.mjs";
 import { PostgresImportUnresolvedLocationService } from "./modules/imports/unresolved.mjs";
 import { PostgresRouteRepository } from "./modules/routing/postgres-route-repository.mjs";
 import { PostgresExportService } from "./modules/exports/service.mjs";
+import { EXPORT_QUEUE_NAME } from "@on-the-road/application/export";
 
 export interface ImportTransport {
   createUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
@@ -228,7 +230,8 @@ export function createProductionRuntime(
     }),
   });
   const routes = new PostgresRouteRepository({ executor: database });
-  const exports = new PostgresExportService({ database, queue: redis });
+  const exportQueue = new Queue(EXPORT_QUEUE_NAME, { connection: redis });
+  const exports = new PostgresExportService({ database, queue: exportQueue });
 
   return {
     appOrigin: config.urls.app.origin,
@@ -291,6 +294,7 @@ export function createProductionRuntime(
       return checks;
     },
     async close() {
+      await exportQueue.close();
       if (redis.status !== "end") {
         try {
           await redis.quit();

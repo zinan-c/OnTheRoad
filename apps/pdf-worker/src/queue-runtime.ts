@@ -1,7 +1,8 @@
 import { Worker, type Job, type Processor } from "bullmq";
 import { Redis } from "ioredis";
+import { EXPORT_QUEUE_NAME } from "@on-the-road/application/export";
 
-export const PDF_QUEUE = "otr.pdf";
+export const PDF_QUEUE = EXPORT_QUEUE_NAME;
 
 export interface QueueConsumer {
   pause(doNotWaitActive?: boolean): Promise<void>;

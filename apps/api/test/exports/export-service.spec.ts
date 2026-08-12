@@ -93,4 +93,31 @@ describe("F01 export job service", () => {
     })).rejects.toMatchObject({ code: "EXPORT_ASSETS_NOT_READY", status: 409 });
     expect(db.queries.some((query) => query.includes("INSERT INTO export_job"))).toBe(false);
   });
+
+  test("queues a BullMQ render job after the snapshot transaction commits", async () => {
+    const db = database();
+    const calls: unknown[][] = [];
+    const queue = { add: async (...args: unknown[]) => { calls.push(args); return {}; } };
+    const service = new PostgresExportService({ database: db, queue });
+    await service.create("owner-1", trip.id, {
+      idempotencyKey: "export-1",
+      sections: [],
+      mediaPolicy: "require_all",
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual([
+      "export.render",
+      { exportJobId: expect.any(String) },
+      expect.objectContaining({ jobId: expect.stringMatching(/^export:/u) }),
+    ]);
+  });
+
+  test("returns the owner-scoped identity fields when reading an export job", async () => {
+    const service = new PostgresExportService({ database: database() });
+    await expect(service.get("owner-1", "job-1")).resolves.toMatchObject({
+      id: "00000000-0000-4000-8000-000000000009",
+      tripId: trip.id,
+      ownerId: "owner-1",
+    });
+  });
 });
