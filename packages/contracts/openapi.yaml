@@ -1887,6 +1887,37 @@
         }
       }
     },
+    "/imports/{jobId}/geocode": {
+      "get": {
+        "operationId": "getImportGeocode",
+        "summary": "Get batch geocoding progress",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "200": { "description": "Geocoding batch", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GeocodingBatch" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "post": {
+        "operationId": "startImportGeocode",
+        "summary": "Start or resume batch geocoding for unresolved import rows",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "202": { "description": "Geocoding batch queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GeocodingBatch" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/geocode/cancel": {
+      "post": {
+        "operationId": "cancelImportGeocode",
+        "summary": "Cancel batch geocoding at a safe checkpoint",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "202": { "description": "Geocoding cancellation requested", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GeocodingBatch" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/imports/{jobId}/commit": {
       "get": {
         "operationId": "getImportCommit",
@@ -4382,6 +4413,31 @@
           "importedRows": { "type": "integer", "minimum": 0 },
           "resumedFromJobId": { "type": ["string", "null"], "format": "uuid" },
           "cancelRequestedAt": { "type": ["string", "null"], "format": "date-time" },
+          "updatedAt": { "$ref": "#/components/schemas/UtcDateTime" },
+          "completedAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "GeocodingBatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "tripId", "importJobId", "provider", "mapProfile", "generation", "status", "totalUnits", "queuedUnits", "resolvingUnits", "resolvedUnits", "ambiguousUnits", "failedUnits", "cancelledUnits", "createdAt", "updatedAt"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/ResourceId" },
+          "tripId": { "$ref": "#/components/schemas/ResourceId" },
+          "importJobId": { "$ref": "#/components/schemas/ResourceId" },
+          "provider": { "type": "string" },
+          "mapProfile": { "type": "string", "enum": ["cn_primary", "international_primary", "hybrid"] },
+          "generation": { "type": "integer", "minimum": 1 },
+          "status": { "type": "string", "enum": ["queued", "running", "waiting_rate_limit", "cancelling", "completed", "completed_with_warnings", "failed", "cancelled"] },
+          "totalUnits": { "type": "integer", "minimum": 0 },
+          "queuedUnits": { "type": "integer", "minimum": 0 },
+          "resolvingUnits": { "type": "integer", "minimum": 0 },
+          "resolvedUnits": { "type": "integer", "minimum": 0 },
+          "ambiguousUnits": { "type": "integer", "minimum": 0 },
+          "failedUnits": { "type": "integer", "minimum": 0 },
+          "cancelledUnits": { "type": "integer", "minimum": 0 },
+          "cancelRequestedAt": { "type": ["string", "null"], "format": "date-time" },
+          "createdAt": { "$ref": "#/components/schemas/UtcDateTime" },
           "updatedAt": { "$ref": "#/components/schemas/UtcDateTime" },
           "completedAt": { "type": ["string", "null"], "format": "date-time" }
         }
