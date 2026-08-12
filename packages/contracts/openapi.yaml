@@ -1918,6 +1918,35 @@
         }
       }
     },
+    "/imports/{jobId}/unresolved-locations": {
+      "get": {
+        "operationId": "listImportUnresolvedLocations",
+        "summary": "List unresolved import locations and provider candidates",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "200": { "description": "Unresolved locations", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/UnresolvedImportLocation" } } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/unresolved-locations/{stagingId}/decision": {
+      "post": {
+        "operationId": "decideImportUnresolvedLocation",
+        "summary": "Stage a candidate, map point, manual coordinate or text-only decision",
+        "parameters": [
+          { "$ref": "#/components/parameters/JobId" },
+          { "$ref": "#/components/parameters/StagingId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnresolvedLocationDecisionInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Staged location decision", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StagedLocationDecisionResult" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/imports/{jobId}/commit": {
       "get": {
         "operationId": "getImportCommit",
@@ -2183,6 +2212,12 @@
       },
       "ImportRowId": {
         "name": "rowId",
+        "in": "path",
+        "required": true,
+        "schema": { "$ref": "#/components/schemas/ResourceId" }
+      },
+      "StagingId": {
+        "name": "stagingId",
         "in": "path",
         "required": true,
         "schema": { "$ref": "#/components/schemas/ResourceId" }
@@ -4440,6 +4475,91 @@
           "createdAt": { "$ref": "#/components/schemas/UtcDateTime" },
           "updatedAt": { "$ref": "#/components/schemas/UtcDateTime" },
           "completedAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "Wgs84Point": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["longitude", "latitude", "crs"],
+        "properties": {
+          "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+          "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+          "crs": { "type": "string", "const": "WGS84" }
+        }
+      },
+      "UnresolvedImportLocation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "tripId", "importJobId", "importRowId", "sourceRowKey", "status", "version", "inputText", "candidates", "selectedPoint", "selectedType", "errors"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/ResourceId" },
+          "tripId": { "$ref": "#/components/schemas/ResourceId" },
+          "importJobId": { "$ref": "#/components/schemas/ResourceId" },
+          "importRowId": { "$ref": "#/components/schemas/ResourceId" },
+          "sourceRowKey": { "type": "string" },
+          "status": { "type": "string", "enum": ["staged", "ready"] },
+          "version": { "type": "integer", "minimum": 1 },
+          "inputText": { "type": "string", "minLength": 1 },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "formattedAddress", "point", "provider", "attribution", "candidateToken"],
+              "properties": {
+                "label": { "type": "string" },
+                "formattedAddress": { "type": "string" },
+                "point": { "$ref": "#/components/schemas/Wgs84Point" },
+                "countryCode": { "type": ["string", "null"] },
+                "city": { "type": ["string", "null"] },
+                "district": { "type": ["string", "null"] },
+                "confidence": { "type": ["number", "null"] },
+                "provider": { "type": "string" },
+                "attribution": { "type": "string" },
+                "candidateToken": { "type": "string" }
+              }
+            }
+          },
+          "selectedPoint": { "anyOf": [{ "$ref": "#/components/schemas/Wgs84Point" }, { "type": "null" }] },
+          "selectedType": { "type": ["string", "null"], "enum": ["candidate", "map_point", "manual_coordinate", "accept_text", null] },
+          "errors": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+        }
+      },
+      "UnresolvedLocationDecisionInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "candidateToken"],
+            "properties": { "type": { "const": "candidate" }, "candidateToken": { "type": "string", "minLength": 1 } }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "point"],
+            "properties": { "type": { "enum": ["map_point", "manual_coordinate"] }, "point": { "$ref": "#/components/schemas/Wgs84Point" }, "name": { "type": "string", "maxLength": 500 } }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": { "type": { "const": "accept_text" }, "name": { "type": "string", "maxLength": 500 } }
+          }
+        ]
+      },
+      "StagedLocationDecisionResult": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "importJobId", "importRowId", "stagingId", "decisionType", "status", "version", "stagedLocation"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/ResourceId" },
+          "importJobId": { "$ref": "#/components/schemas/ResourceId" },
+          "importRowId": { "$ref": "#/components/schemas/ResourceId" },
+          "stagingId": { "$ref": "#/components/schemas/ResourceId" },
+          "decisionType": { "type": "string", "enum": ["candidate", "map_point", "manual_coordinate", "accept_text"] },
+          "status": { "const": "ready" },
+          "version": { "type": "integer", "minimum": 1 },
+          "stagedLocation": { "type": "object", "additionalProperties": true }
         }
       },
       "ImportOverrideInput": {

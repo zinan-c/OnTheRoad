@@ -1025,6 +1025,27 @@ class ApiController {
     return this.runtime.importGeocode.cancel(await owner(this.runtime, request), jobId);
   }
 
+  @Get("imports/:jobId/unresolved-locations")
+  async listImportUnresolvedLocations(@Req() request: FastifyRequest, @Param("jobId") jobId: string) {
+    if (!this.runtime.importUnresolved) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_UNRESOLVED_UNAVAILABLE", title: "Unresolved location review is unavailable" });
+    }
+    return this.runtime.importUnresolved.list(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/unresolved-locations/:stagingId/decision")
+  async decideImportUnresolvedLocation(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+    @Param("stagingId") stagingId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    if (!this.runtime.importUnresolved) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_UNRESOLVED_UNAVAILABLE", title: "Unresolved location review is unavailable" });
+    }
+    return this.runtime.importUnresolved.decide(await owner(this.runtime, request), jobId, stagingId, body);
+  }
+
   @Post("trips/:tripId/imports/:attachmentId/inspection")
   async queueImportInspection(
     @Req() request: FastifyRequest,

@@ -26,6 +26,7 @@ type ImportRowRecord = {
   decision_scope: string;
   override_decision_id: string | null;
   override_reason: string | null;
+  staged_location: Record<string, unknown> | null;
 };
 
 export type ImportCommitChunkResult = Readonly<{
@@ -55,6 +56,25 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function mergeStagedLocation(
+  normalized: Record<string, unknown>,
+  staged: Record<string, unknown> | null,
+): Record<string, unknown> {
+  if (!staged) return normalized;
+  const point = staged.point && typeof staged.point === "object" && !Array.isArray(staged.point)
+    ? staged.point as { latitude?: unknown; longitude?: unknown }
+    : null;
+  return {
+    ...normalized,
+    ...(typeof staged.inputText === "string" ? { address: staged.inputText } : {}),
+    ...(typeof staged.name === "string" ? { place: staged.name } : {}),
+    ...(staged.decisionType === "accept_text" ? { latitude: null, longitude: null } : {}),
+    ...(point && typeof point.latitude === "number" && typeof point.longitude === "number"
+      ? { latitude: point.latitude, longitude: point.longitude }
+      : {}),
+  };
 }
 
 function itemType(row: Record<string, unknown>): string {
@@ -168,7 +188,8 @@ export class PostgresImportCommitProcessor {
 
       const rows = (await client.query<ImportRowRecord>(
         `SELECT id, source_row_key, normalized_data, fingerprint, status,
-                decision_scope, override_decision_id, override_reason
+                decision_scope, override_decision_id, override_reason,
+                staged_location
          FROM import_row
          WHERE import_job_id = $1::uuid
            AND status = ANY($2::text[])
@@ -289,7 +310,7 @@ export class PostgresImportCommitProcessor {
       return { action: "skip", replayed: false, mediaTaskIds: await this.#cancelMediaTasks(client, job.id, row.id) };
     }
 
-    const normalized = row.normalized_data;
+    const normalized = mergeStagedLocation(row.normalized_data, row.staged_location);
     const claimScope = importFingerprintClaimScope(row.decision_scope);
     let action: "insert" | "update" | "skip" = "insert";
     let itemId: string | null = null;

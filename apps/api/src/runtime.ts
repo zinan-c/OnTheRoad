@@ -37,6 +37,7 @@ import { PostgresImportTransport } from "./modules/imports/postgres-upload.mjs";
 import { PostgresImportCommitTransport } from "./modules/imports/commit.mjs";
 import { PostgresImportMediaTaskService } from "./modules/imports/media-tasks.mjs";
 import { PostgresImportGeocodeService } from "./modules/imports/geocode.mjs";
+import { PostgresImportUnresolvedLocationService } from "./modules/imports/unresolved.mjs";
 import { PostgresRouteRepository } from "./modules/routing/postgres-route-repository.mjs";
 
 export interface ImportTransport {
@@ -79,6 +80,7 @@ export interface ApiRuntime {
   readonly importCommit?: PostgresImportCommitTransport;
   readonly importMediaTasks?: PostgresImportMediaTaskService;
   readonly importGeocode?: PostgresImportGeocodeService;
+  readonly importUnresolved?: PostgresImportUnresolvedLocationService;
   readonly importMapping?: ImportMappingService;
   readonly importPreview: ImportPreviewService;
   readonly routes: PostgresRouteRepository;
@@ -217,6 +219,12 @@ export function createProductionRuntime(
     queue: redis,
     provider: locationSearch.capabilities().provider,
   });
+  const importUnresolved = new PostgresImportUnresolvedLocationService({
+    database,
+    candidateSigner: new CandidateTokenSigner({
+      secret: environment.OTR_CANDIDATE_SIGNING_KEY?.trim() || server.sessionSecret,
+    }),
+  });
   const routes = new PostgresRouteRepository({ executor: database });
 
   return {
@@ -238,6 +246,7 @@ export function createProductionRuntime(
     importCommit,
     importMediaTasks,
     importGeocode,
+    importUnresolved,
     importMapping,
     importPreview,
     routes,
