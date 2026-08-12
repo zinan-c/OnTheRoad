@@ -26,7 +26,7 @@ export class PostgresImportGeocodeService {
   async start(ownerId, jobId) {
     const batch = await this.database.transaction(async (client) => {
       const job = (await client.query(
-        `SELECT j.id, j.trip_id, j.owner_id, t.map_profile
+        `SELECT j.id, j.trip_id, j.owner_id, j.status, t.map_profile
          FROM import_job j
          JOIN trip t ON t.id = j.trip_id AND t.owner_id = j.owner_id
          WHERE j.id = $2::uuid AND j.owner_id = $1
