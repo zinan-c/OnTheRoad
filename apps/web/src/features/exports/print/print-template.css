@@ -1,0 +1,33 @@
+.otrPrintDocument {
+  color: #1f2937;
+  background: #fff;
+  font-family: "Noto Sans CJK SC", system-ui, sans-serif;
+}
+
+.otrPrintChapter {
+  break-after: page;
+  page-break-after: always;
+  padding: 24mm 18mm;
+}
+
+.otrPrintChapter:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.otrPrintChapter h1,
+.otrPrintChapter h2,
+.otrPrintChapter h3 {
+  break-after: avoid;
+}
+
+.otrPrintChapter li,
+.otrPrintChapter p {
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  .otrPrintChapter {
+    padding: 0;
+  }
+}
