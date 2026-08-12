@@ -22,6 +22,10 @@
     "./export": {
       "types": "./src/export/contracts.ts",
       "default": "./dist/export/contracts.js"
+    },
+    "./export/snapshot": {
+      "types": "./src/export/snapshot.ts",
+      "default": "./dist/export/snapshot.js"
     }
   },
   "scripts": {

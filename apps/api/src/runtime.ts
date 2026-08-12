@@ -39,6 +39,7 @@ import { PostgresImportMediaTaskService } from "./modules/imports/media-tasks.mj
 import { PostgresImportGeocodeService } from "./modules/imports/geocode.mjs";
 import { PostgresImportUnresolvedLocationService } from "./modules/imports/unresolved.mjs";
 import { PostgresRouteRepository } from "./modules/routing/postgres-route-repository.mjs";
+import { PostgresExportService } from "./modules/exports/service.mjs";
 
 export interface ImportTransport {
   createUpload(input: Record<string, unknown>): Promise<unknown> | unknown;
@@ -84,6 +85,7 @@ export interface ApiRuntime {
   readonly importMapping?: ImportMappingService;
   readonly importPreview: ImportPreviewService;
   readonly routes: PostgresRouteRepository;
+  readonly exports: PostgresExportService;
   referenceData(): unknown;
   checkReadiness(): Promise<Record<string, boolean>>;
   close(): Promise<void>;
@@ -226,6 +228,7 @@ export function createProductionRuntime(
     }),
   });
   const routes = new PostgresRouteRepository({ executor: database });
+  const exports = new PostgresExportService({ database, queue: redis });
 
   return {
     appOrigin: config.urls.app.origin,
@@ -250,6 +253,7 @@ export function createProductionRuntime(
     importMapping,
     importPreview,
     routes,
+    exports,
     referenceData: createReferenceDataResponse,
     async checkReadiness() {
       const checks: Record<string, boolean> = {

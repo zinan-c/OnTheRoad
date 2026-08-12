@@ -226,7 +226,7 @@ class ApiController {
       directions: map.provider === "fixture",
       staticMaps: map.provider === "fixture",
       imports: true,
-      exports: false,
+      exports: true,
     };
   }
 
@@ -905,6 +905,57 @@ class ApiController {
     return this.runtime.expenses.listRates(
       await owner(this.runtime, request),
       tripId,
+    );
+  }
+
+  @Post("trips/:tripId/exports/preview")
+  async previewExport(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.runtime.exports.preview(
+      await owner(this.runtime, request),
+      tripId,
+      body,
+    );
+  }
+
+  @Post("trips/:tripId/exports")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async createExport(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.runtime.exports.create(
+      await owner(this.runtime, request),
+      tripId,
+      { ...body, idempotencyKey },
+    );
+  }
+
+  @Get("exports/:exportJobId")
+  async getExport(
+    @Req() request: FastifyRequest,
+    @Param("exportJobId") exportJobId: string,
+  ) {
+    return this.runtime.exports.get(
+      await owner(this.runtime, request),
+      exportJobId,
+    );
+  }
+
+  @Post("exports/:exportJobId/cancel")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async cancelExport(
+    @Req() request: FastifyRequest,
+    @Param("exportJobId") exportJobId: string,
+  ) {
+    return this.runtime.exports.cancel(
+      await owner(this.runtime, request),
+      exportJobId,
     );
   }
 

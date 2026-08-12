@@ -1,0 +1,464 @@
+import { randomUUID } from "node:crypto";
+
+import { assertExportSnapshot } from "@on-the-road/application/export";
+import {
+  exportSnapshotHash,
+  hashExportOptions,
+  hashExportTemplate,
+  normalizeExportOptions,
+} from "@on-the-road/application/export/snapshot";
+
+const TEMPLATE_VERSION = "m4-print-v1";
+const SNAPSHOT_SCHEMA_VERSION = 1;
+
+export class ExportServiceError extends Error {
+  /** @param {string} code @param {string} message @param {number} [status] @param {Record<string, unknown>} [details] */
+  constructor(code, message, status = 409, details = {}) {
+    super(message);
+    this.name = "ExportServiceError";
+    this.code = code;
+    this.status = status;
+    this.details = details;
+  }
+}
+
+export class PostgresExportService {
+  /** @param {{database: import("@on-the-road/database/postgres").PostgresExecutor, queue?: any, templateVersion?: string}} options */
+  constructor({ database, queue, templateVersion = TEMPLATE_VERSION }) {
+    this.database = database;
+    this.queue = queue;
+    this.templateVersion = templateVersion;
+  }
+
+  /** @param {string} ownerId @param {string} tripId @param {Record<string, unknown>} input */
+  async preview(ownerId, tripId, input = {}) {
+    const result = await this.#snapshot(ownerId, tripId, input);
+    if (result.error) throw new ExportServiceError(result.error.code, result.error.message, result.error.status, result.error.details);
+    return this.#preview(result);
+  }
+
+  /** @param {string} ownerId @param {string} tripId @param {Record<string, unknown>} input */
+  async create(ownerId, tripId, input = {}) {
+    const idempotencyKey = String(input.idempotencyKey ?? "").trim();
+    if (!idempotencyKey || idempotencyKey.length > 255) {
+      throw new ExportServiceError("EXPORT_IDEMPOTENCY_KEY_REQUIRED", "An export idempotency key is required.", 422);
+    }
+    const options = normalizeExportOptions(input.options ?? input);
+    const optionsHash = hashExportOptions(options);
+    const templateHash = hashExportTemplate(this.templateVersion);
+    const result = await this.database.transaction(async (client) => {
+      await client.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+      const existing = (await client.query(
+        `SELECT id, status, options_hash, snapshot_hash, template_version,
+                trip_version, created_at, updated_at, completed_at
+         FROM export_job
+         WHERE trip_id = $1::uuid AND owner_id = $2 AND idempotency_key = $3
+         FOR UPDATE`,
+        [tripId, ownerId, idempotencyKey],
+      )).rows[0];
+      if (existing) {
+        if (existing.options_hash !== optionsHash || existing.template_version !== this.templateVersion) {
+          return { error: { code: "EXPORT_IDEMPOTENCY_KEY_REUSED", message: "The export idempotency key was reused with different options.", status: 409 } };
+        }
+      return { jobId: existing.id, reused: true };
+      }
+
+      const snapshotResult = await this.#snapshotOnClient(client, ownerId, tripId, options);
+      if (snapshotResult.error) return snapshotResult;
+      const blocking = snapshotResult.assets.filter((asset) =>
+        asset.kind !== "map" && asset.required && asset.status !== "ready",
+      );
+      if (options.mediaPolicy === "require_all" && blocking.length > 0) {
+        return {
+          error: {
+            code: "EXPORT_ASSETS_NOT_READY",
+            message: "Required export assets are not ready.",
+            status: 409,
+            details: { assets: blocking },
+          },
+          preview: this.#preview(snapshotResult),
+        };
+      }
+
+      const snapshot = snapshotResult.snapshot;
+      const snapshotHash = exportSnapshotHash(snapshot);
+      const reusable = (await client.query(
+        `SELECT id
+         FROM export_job
+         WHERE trip_id = $1::uuid
+           AND owner_id = $2
+           AND status IN ('completed', 'completed_with_warnings')
+           AND snapshot_hash = $3
+           AND template_version = $4
+           AND template_hash = $5
+           AND options_hash = $6
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1`,
+        [tripId, ownerId, snapshotHash, this.templateVersion, templateHash, optionsHash],
+      )).rows[0];
+      if (reusable) return { jobId: reusable.id, reused: true };
+
+      const jobId = randomUUID();
+      const status = blocking.length > 0 ? "waiting_assets" : "queued";
+      await client.query(
+        `INSERT INTO export_job (
+           id, trip_id, owner_id, created_by, idempotency_key, trip_version,
+           status, stage, options, options_hash, template_version, template_hash,
+           snapshot_schema_version, snapshot, snapshot_hash, omission_count, warnings
+         ) VALUES ($1::uuid, $2::uuid, $3, $3, $4, $5, $6, $7, $8::jsonb, $9,
+           $10, $11, $12, $13::jsonb, $14, $15, $16::jsonb)`,
+        [jobId, tripId, ownerId, idempotencyKey, snapshot.tripVersion, status,
+          status === "queued" ? "assets" : "assets", JSON.stringify(options), optionsHash,
+          this.templateVersion, templateHash, SNAPSHOT_SCHEMA_VERSION,
+          JSON.stringify(snapshot), snapshotHash, snapshotResult.omissionCount,
+          JSON.stringify(snapshotResult.warnings)],
+      );
+      for (const asset of snapshot.assets) {
+        await client.query(
+          `INSERT INTO export_job_asset (
+             export_job_id, asset_id, kind, content_type, checksum_sha256,
+             object_version, width, height, required, status, omission_reason
+           ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [jobId, asset.id, asset.kind, asset.contentType, asset.checksumSha256,
+            asset.objectVersion, asset.width, asset.height, asset.required,
+            asset.status, asset.omissionReason],
+        );
+      }
+      return { jobId, reused: false };
+    });
+    if (result.error) throw new ExportServiceError(result.error.code, result.error.message, result.error.status, result.error.details);
+    if (/** @type {any} */ (result).preview) {
+      throw new ExportServiceError("EXPORT_ASSETS_NOT_READY", "Required export assets are not ready.", 409, /** @type {any} */ (result).preview);
+    }
+    if (!result.jobId) throw new ExportServiceError("EXPORT_CREATE_FAILED", "The export job was not created.", 500);
+    if (!result.reused) await this.queue?.lpush("otr:pdf", JSON.stringify({ exportJobId: result.jobId }));
+    return this.get(ownerId, result.jobId);
+  }
+
+  /** @param {string} ownerId @param {string} jobId */
+  async get(ownerId, jobId) {
+    const job = await this.database.json(
+      `SELECT COALESCE((
+        SELECT jsonb_build_object(
+          'createdBy', j.created_by, 'idempotencyKey', j.idempotency_key,
+          'tripVersion', j.trip_version, 'status', j.status, 'stage', j.stage,
+          'options', j.options, 'optionsHash', j.options_hash,
+          'templateVersion', j.template_version, 'templateHash', j.template_hash,
+          'snapshotSchemaVersion', j.snapshot_schema_version, 'snapshot', j.snapshot,
+          'snapshotHash', j.snapshot_hash, 'omissionCount', j.omission_count,
+          'warnings', j.warnings, 'errorCode', j.error_code,
+          'errorMessage', j.error_message, 'cancelRequestedAt', j.cancel_requested_at,
+          'assetManifest', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+            'id', a.asset_id, 'kind', a.kind, 'contentType', a.content_type,
+            'checksumSha256', a.checksum_sha256, 'objectVersion', a.object_version,
+            'width', a.width, 'height', a.height, 'required', a.required,
+            'status', a.status, 'omissionReason', a.omission_reason
+          ) ORDER BY a.asset_id) FROM export_job_asset a WHERE a.export_job_id = j.id), '[]'::jsonb),
+          'createdAt', j.created_at, 'updatedAt', j.updated_at, 'completedAt', j.completed_at
+        )
+        FROM export_job j
+        WHERE j.id = $2::uuid AND j.owner_id = $1
+      ), 'null'::jsonb)::text`,
+      [ownerId, jobId],
+    );
+    if (!job) throw new ExportServiceError("EXPORT_JOB_NOT_FOUND", "Export job was not found.", 404);
+    return job;
+  }
+
+  /** @param {string} ownerId @param {string} jobId */
+  async cancel(ownerId, jobId) {
+    const result = await this.database.json(
+      `UPDATE export_job
+       SET status = CASE WHEN status IN ('snapshotting', 'queued', 'waiting_assets') THEN 'cancelled' ELSE 'cancelling' END,
+           cancel_requested_at = COALESCE(cancel_requested_at, now()),
+           updated_at = now(),
+           completed_at = CASE WHEN status IN ('snapshotting', 'queued', 'waiting_assets') THEN now() ELSE completed_at END
+       WHERE id = $2::uuid AND owner_id = $1
+         AND status IN ('snapshotting', 'queued', 'waiting_assets', 'rendering', 'validating')
+       RETURNING id`,
+      [ownerId, jobId],
+    );
+    if (!result) throw new ExportServiceError("EXPORT_JOB_NOT_CANCELLABLE", "The export job cannot be cancelled.");
+    await this.queue?.lpush("otr:pdf", JSON.stringify({ exportJobId: jobId }));
+    return this.get(ownerId, jobId);
+  }
+
+  /** @param {string} ownerId @param {string} tripId @param {any} input */
+  async #snapshot(ownerId, tripId, input) {
+    const options = normalizeExportOptions(input.options ?? input);
+    return this.database.transaction(async (/** @type {any} */ client) => {
+      await client.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+      return this.#snapshotOnClient(client, ownerId, tripId, options);
+    });
+  }
+
+  /** @param {any} client @param {string} ownerId @param {string} tripId @param {any} options */
+  async #snapshotOnClient(client, ownerId, tripId, options) {
+    const trip = (await client.query(
+      `SELECT id, owner_id, name, start_date, end_date, total_days, travelers,
+              default_currency, budget, timezone, map_profile, description,
+              status, version, created_at, updated_at
+       FROM trip
+       WHERE id = $1::uuid AND owner_id = $2 AND status <> 'deleted'
+       FOR SHARE`,
+      [tripId, ownerId],
+    )).rows[0];
+    if (!trip) return { error: { code: "TRIP_NOT_FOUND", message: "Trip was not found.", status: 404, details: {} } };
+    const days = (await client.query(
+      `SELECT id, day_number, date, day_of_week, is_workday, workday_override,
+              version, route_generation
+       FROM trip_day WHERE trip_id = $1::uuid ORDER BY day_number, id`,
+      [tripId],
+    )).rows;
+    const items = (await client.query(
+      `SELECT i.id, i.trip_day_id, i.item_type, i.time_kind, i.start_time,
+              i.end_time, i.end_day_offset, i.time_zone, i.time_period,
+              i.target, i.description, i.duration_minutes, i.destination_id,
+              i.location_id, i.start_location_id, i.end_location_id,
+              i.transport_mode_code, i.remark, i.external_source, i.external_id,
+              i.sort_order, i.version, i.created_at, i.updated_at,
+              l.name AS location_name, l.formatted_address AS location_address,
+              CASE WHEN l.geom IS NULL THEN NULL ELSE jsonb_build_object(
+                'longitude', ST_X(l.geom), 'latitude', ST_Y(l.geom), 'crs', 'WGS84'
+              ) END AS location_point
+       FROM itinerary_item i
+       LEFT JOIN location l ON l.id = i.location_id AND l.trip_id = i.trip_id
+       WHERE i.trip_id = $1::uuid AND i.deleted_at IS NULL
+       ORDER BY i.trip_day_id, i.sort_order, i.id`,
+      [tripId],
+    )).rows;
+    const expenses = (await client.query(
+      `SELECT id, trip_day_id, itinerary_item_id, destination_id, category_code,
+              transport_mode_code, original_amount, original_currency,
+              settlement_amount, settlement_currency, exchange_rate_snapshot,
+              source, remark, version, incurred_at, created_at, updated_at
+       FROM expense WHERE trip_id = $1::uuid ORDER BY incurred_at NULLS LAST, created_at, id`,
+      [tripId],
+    )).rows;
+    const routes = (await client.query(
+      `SELECT id, trip_day_id, segment_kind, from_itinerary_item_id,
+              to_itinerary_item_id, from_location_id, to_location_id,
+              transport_mode_code, departure_time, duration_minutes,
+              distance_meters, cost, currency, route_provider,
+              route_quality, status, source_version, source_context,
+              remark, CASE WHEN route_geometry IS NULL THEN NULL
+                ELSE ST_AsGeoJSON(route_geometry)::jsonb END AS geometry
+       FROM route_segment WHERE trip_id = $1::uuid AND status <> 'obsolete'
+       ORDER BY trip_day_id, created_at, id`,
+      [tripId],
+    )).rows;
+    const attachments = (await client.query(
+      `SELECT id, itinerary_item_id, object_key, status, object_version,
+              checksum_sha256, content_type, content_length, width, height,
+              caption, sort_order, is_cover, version
+       FROM attachment
+       WHERE trip_id = $1::uuid AND deleted_at IS NULL
+       ORDER BY itinerary_item_id NULLS FIRST, sort_order, id`,
+      [tripId],
+    )).rows;
+    const destinations = (await client.query(
+      `SELECT id, name, country_code, city, region, sort_order
+       FROM destination WHERE trip_id = $1::uuid ORDER BY sort_order, id`,
+      [tripId],
+    )).rows;
+    const facts = {
+      trip: serializeTrip(trip, destinations),
+      overview: {
+        description: trip.description,
+        travelers: trip.travelers,
+        budget: decimal(trip.budget),
+        defaultCurrency: trip.default_currency,
+        destinations,
+      },
+      globalMap: { assetId: "map:overview" },
+      days: days.map(/** @param {any} day */ (day) => ({
+        id: day.id,
+        dayNumber: day.day_number,
+        date: isoDate(day.date),
+        dayOfWeek: day.day_of_week,
+        isWorkday: day.is_workday,
+        version: day.version,
+        routeGeneration: day.route_generation,
+        mapAssetId: "map:day:" + day.id,
+        items: items.filter(/** @param {any} item */ (item) => item.trip_day_id === day.id).map(serializeItem),
+      })),
+      expenses: expenses.map(serializeExpense),
+      routes: routes.map(serializeRoute),
+      gallery: attachments.filter(/** @param {any} attachment */ (attachment) => attachment.itinerary_item_id).map(/** @param {any} attachment */ (attachment) => ({
+        assetId: `attachment:${attachment.id}`,
+        itemId: attachment.itinerary_item_id,
+        caption: attachment.caption,
+      })),
+      notes: trip.description ? [{ text: trip.description }] : [],
+      accommodation: items.filter(/** @param {any} item */ (item) => item.item_type === "hotel").map(serializeItem),
+      transport: items.filter(/** @param {any} item */ (item) => item.item_type === "transport").map(serializeItem),
+    };
+    const assets = buildAssets(options, attachments, days, trip, items);
+    const snapshot = {
+      schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+      tripId,
+      tripVersion: trip.version,
+      facts,
+      assets,
+      capturedAt: new Date().toISOString(),
+    };
+    assertExportSnapshot(snapshot);
+    const nonReady = assets.filter((asset) => asset.kind !== "map" && asset.status !== "ready");
+    return {
+      options,
+      snapshot,
+      assets,
+      omissionCount: nonReady.length,
+      warnings: nonReady.map((asset) => ({ assetId: asset.id, reason: asset.omissionReason ?? "asset not ready" })),
+    };
+  }
+
+  /** @param {any} result */
+  #preview(result) {
+    const options = normalizeExportOptions(result.options ?? {});
+    const snapshot = result.snapshot;
+    const optionsHash = hashExportOptions(options);
+    const templateHash = hashExportTemplate(this.templateVersion);
+    const blockingAssets = result.assets?.filter(/** @param {any} asset */ (asset) =>
+      asset.kind !== "map" && asset.required && asset.status !== "ready",
+    ) ?? [];
+    return {
+      options,
+      optionsHash,
+      templateVersion: this.templateVersion,
+      templateHash,
+      snapshot,
+      snapshotHash: snapshot ? exportSnapshotHash(snapshot) : null,
+      assets: result.assets ?? [],
+      omissionCount: result.omissionCount ?? 0,
+      warnings: result.warnings ?? [],
+      blockingAssets,
+      canCreate: blockingAssets.length === 0 || options.mediaPolicy !== "require_all",
+    };
+  }
+}
+
+/** @param {any} value */
+function isoDate(value) { return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10); }
+/** @param {any} value */
+function decimal(value) { return value === null || value === undefined ? null : String(value); }
+/** @param {any} value */
+function nullableString(value) { return typeof value === "string" && value ? value : null; }
+
+/** @param {any} trip @param {any} destinations */
+function serializeTrip(trip, destinations) {
+  return {
+    id: trip.id, ownerId: trip.owner_id, name: trip.name,
+    startDate: isoDate(trip.start_date), endDate: isoDate(trip.end_date),
+    totalDays: trip.total_days, travelers: trip.travelers,
+    defaultCurrency: trip.default_currency, budget: decimal(trip.budget),
+    timezone: trip.timezone, mapProfile: trip.map_profile,
+    description: trip.description, status: trip.status, version: trip.version,
+    destinations,
+  };
+}
+
+/** @param {any} item */
+function serializeItem(item) {
+  return {
+    id: item.id, tripDayId: item.trip_day_id, itemType: item.item_type,
+    timeKind: item.time_kind, startTime: nullableString(item.start_time),
+    endTime: nullableString(item.end_time), endDayOffset: item.end_day_offset,
+    timeZone: item.time_zone, timePeriod: item.time_period, target: item.target,
+    name: item.target ?? item.location_name ?? "未命名行程",
+    description: item.description, durationMinutes: item.duration_minutes,
+    destinationId: item.destination_id, locationId: item.location_id,
+    location: item.location_name ?? item.location_address,
+    point: item.location_point, transportModeCode: item.transport_mode_code,
+    remark: item.remark, externalSource: item.external_source,
+    externalId: item.external_id, sortOrder: item.sort_order, version: item.version,
+    createdAt: item.created_at, updatedAt: item.updated_at,
+  };
+}
+
+/** @param {any} expense */
+function serializeExpense(expense) {
+  return {
+    id: expense.id, tripDayId: expense.trip_day_id,
+    itineraryItemId: expense.itinerary_item_id, destinationId: expense.destination_id,
+    categoryCode: expense.category_code, transportModeCode: expense.transport_mode_code,
+    originalAmount: decimal(expense.original_amount), originalCurrency: expense.original_currency,
+    settlementAmount: decimal(expense.settlement_amount), settlementCurrency: expense.settlement_currency,
+    exchangeRateSnapshot: decimal(expense.exchange_rate_snapshot), source: expense.source,
+    remark: expense.remark, version: expense.version, incurredAt: expense.incurred_at,
+    createdAt: expense.created_at, updatedAt: expense.updated_at,
+  };
+}
+
+/** @param {any} route */
+function serializeRoute(route) {
+  return {
+    id: route.id, tripDayId: route.trip_day_id, kind: route.segment_kind,
+    fromItineraryItemId: route.from_itinerary_item_id, toItineraryItemId: route.to_itinerary_item_id,
+    fromLocationId: route.from_location_id, toLocationId: route.to_location_id,
+    transportModeCode: route.transport_mode_code, departureTime: route.departure_time,
+    durationMinutes: route.duration_minutes, distanceMeters: route.distance_meters,
+    cost: decimal(route.cost), currency: route.currency, provider: route.route_provider,
+    quality: route.route_quality, status: route.status, sourceVersion: route.source_version,
+    sourceContext: route.source_context, geometry: route.geometry, remark: route.remark,
+  };
+}
+
+/** @param {any} value */
+function checksumHex(value) {
+  if (typeof value !== "string") return null;
+  if (/^[a-f0-9]{64}$/u.test(value)) return value;
+  try {
+    const decoded = Buffer.from(value, "base64");
+    return decoded.length === 32 ? decoded.toString("hex") : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @param {any} input */
+function baseAsset(input) {
+  const { id, kind, contentType, checksum, objectVersion, width, height, required, status, reason } = input;
+  return {
+    id, kind, contentType: contentType || "application/octet-stream",
+    checksumSha256: status === "ready" ? checksumHex(checksum) : null,
+    objectVersion: status === "ready" ? objectVersion : null,
+    width: status === "ready" ? width : null, height: status === "ready" ? height : null,
+    required, status, omissionReason: status === "ready" ? null : reason,
+  };
+}
+
+/** @param {any} options @param {any} attachments @param {any} days @param {any} trip @param {any} items */
+function buildAssets(options, attachments, days, trip, items) {
+  const assets = [];
+  const gallerySelected = options.sections.includes("gallery");
+  for (const attachment of attachments) {
+    const ready = attachment.status === "ready" && checksumHex(attachment.checksum_sha256) && attachment.object_version;
+    const status = ready ? "ready" : options.mediaPolicy === "exclude" ? "excluded" : attachment.status === "failed" ? "failed" : "missing";
+    assets.push(baseAsset({
+      id: `attachment:${attachment.id}`,
+      kind: "image",
+      contentType: attachment.content_type ?? "image/png",
+      checksum: attachment.checksum_sha256,
+      objectVersion: attachment.object_version,
+      width: attachment.width,
+      height: attachment.height,
+      required: gallerySelected,
+      status,
+      reason: status === "excluded" ? "excluded by export option" : `attachment status: ${attachment.status}`,
+    }));
+  }
+  const points = items.filter(/** @param {any} item */ (item) => item.location_point).length;
+  const mapSections = options.sections.includes("global_map") || options.sections.includes("daily_map");
+  if (mapSections) {
+    const maps = options.sections.includes("global_map") ? [{ id: "map:overview", required: true }] : [];
+    if (options.sections.includes("daily_map")) maps.push(...days.map(/** @param {any} day */ (day) => ({ id: `map:day:${day.id}`, required: true })));
+    for (const map of maps) assets.push(baseAsset({
+      id: map.id, kind: "map", contentType: "image/png", checksum: null,
+      objectVersion: null, width: null, height: null, required: map.required,
+      status: points > 0 ? "processing" : "missing",
+      reason: points > 0 ? "static map is queued" : "no resolved location points",
+    }));
+  }
+  return assets;
+}

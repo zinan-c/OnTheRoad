@@ -1521,6 +1521,61 @@
         }
       }
     },
+    "/trips/{tripId}/exports/preview": {
+      "post": {
+        "operationId": "previewTripExport",
+        "summary": "Preview a frozen trip export and its asset readiness",
+        "parameters": [{ "$ref": "#/components/parameters/TripId" }],
+        "requestBody": {
+          "required": false,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExportOptionsInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Export preview", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExportPreview" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/trips/{tripId}/exports": {
+      "post": {
+        "operationId": "createTripExport",
+        "summary": "Create an idempotent frozen trip export job",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExportOptionsInput" } } }
+        },
+        "responses": {
+          "202": { "description": "Export job queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExportJob" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/exports/{exportJobId}": {
+      "get": {
+        "operationId": "getExportJob",
+        "summary": "Get an owner-scoped export job and immutable asset manifest",
+        "parameters": [{ "$ref": "#/components/parameters/ExportJobId" }],
+        "responses": {
+          "200": { "description": "Export job", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExportJob" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/exports/{exportJobId}/cancel": {
+      "post": {
+        "operationId": "cancelExportJob",
+        "summary": "Cancel an export job at a safe stage boundary",
+        "parameters": [{ "$ref": "#/components/parameters/ExportJobId" }],
+        "responses": {
+          "202": { "description": "Export cancellation requested", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExportJob" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/trips/{tripId}/routes/status": {
       "get": {
         "operationId": "getRouteGenerationStatus",
@@ -2209,6 +2264,12 @@
         "schema": {
           "$ref": "#/components/schemas/ResourceId"
         }
+      },
+      "ExportJobId": {
+        "name": "exportJobId",
+        "in": "path",
+        "required": true,
+        "schema": { "$ref": "#/components/schemas/ResourceId" }
       },
       "ImportRowId": {
         "name": "rowId",
@@ -3954,6 +4015,102 @@
             "type": "integer",
             "minimum": 1
           }
+        }
+      },
+      "ExportOptionsInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paper": { "type": "string", "const": "A4" },
+          "orientation": { "type": "string", "enum": ["portrait", "landscape"] },
+          "sections": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": ["cover", "overview", "global_map", "daily_itinerary", "daily_map", "gallery", "accommodation", "transport", "expenses", "notes", "omissions"]
+            }
+          },
+          "mediaPolicy": { "type": "string", "enum": ["require_all", "ready_only", "exclude"] }
+        }
+      },
+      "ExportAsset": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "kind", "contentType", "required", "status", "omissionReason"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["image", "map", "font"] },
+          "contentType": { "type": "string" },
+          "checksumSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+          "objectVersion": { "type": ["string", "null"] },
+          "width": { "type": ["integer", "null"], "minimum": 1 },
+          "height": { "type": ["integer", "null"], "minimum": 1 },
+          "required": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["ready", "processing", "missing", "failed", "excluded"] },
+          "omissionReason": { "type": ["string", "null"] }
+        }
+      },
+      "ExportSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "tripId", "tripVersion", "facts", "assets", "capturedAt"],
+        "properties": {
+          "schemaVersion": { "type": "integer", "minimum": 1 },
+          "tripId": { "$ref": "#/components/schemas/ResourceId" },
+          "tripVersion": { "type": "integer", "minimum": 1 },
+          "facts": { "type": "object", "additionalProperties": true },
+          "assets": { "type": "array", "items": { "$ref": "#/components/schemas/ExportAsset" } },
+          "capturedAt": { "$ref": "#/components/schemas/UtcDateTime" }
+        }
+      },
+      "ExportPreview": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["options", "optionsHash", "templateVersion", "templateHash", "assets", "omissionCount", "blockingAssets", "canCreate"],
+        "properties": {
+          "options": { "$ref": "#/components/schemas/ExportOptionsInput" },
+          "optionsHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "templateVersion": { "type": "string" },
+          "templateHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "snapshot": { "oneOf": [{ "$ref": "#/components/schemas/ExportSnapshot" }, { "type": "null" }] },
+          "snapshotHash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+          "assets": { "type": "array", "items": { "$ref": "#/components/schemas/ExportAsset" } },
+          "omissionCount": { "type": "integer", "minimum": 0 },
+          "warnings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "blockingAssets": { "type": "array", "items": { "$ref": "#/components/schemas/ExportAsset" } },
+          "canCreate": { "type": "boolean" }
+        }
+      },
+      "ExportJob": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "tripId", "ownerId", "createdBy", "idempotencyKey", "tripVersion", "status", "stage", "options", "optionsHash", "templateVersion", "templateHash", "snapshotSchemaVersion", "snapshot", "snapshotHash", "omissionCount", "warnings", "assetManifest"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/ResourceId" },
+          "tripId": { "$ref": "#/components/schemas/ResourceId" },
+          "ownerId": { "type": "string" },
+          "createdBy": { "type": "string" },
+          "idempotencyKey": { "type": "string" },
+          "tripVersion": { "type": "integer", "minimum": 1 },
+          "status": { "type": "string", "enum": ["snapshotting", "queued", "waiting_assets", "rendering", "validating", "completed", "completed_with_warnings", "failed", "cancelling", "cancelled"] },
+          "stage": { "type": "string", "enum": ["snapshot", "assets", "render", "validate", "complete"] },
+          "options": { "$ref": "#/components/schemas/ExportOptionsInput" },
+          "optionsHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "templateVersion": { "type": "string" },
+          "templateHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "snapshotSchemaVersion": { "type": ["integer", "null"], "minimum": 1 },
+          "snapshot": { "oneOf": [{ "$ref": "#/components/schemas/ExportSnapshot" }, { "type": "null" }] },
+          "snapshotHash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+          "omissionCount": { "type": "integer", "minimum": 0 },
+          "warnings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "assetManifest": { "type": "array", "items": { "$ref": "#/components/schemas/ExportAsset" } },
+          "errorCode": { "type": ["string", "null"] },
+          "errorMessage": { "type": ["string", "null"] },
+          "cancelRequestedAt": { "type": ["string", "null"], "format": "date-time" },
+          "createdAt": { "$ref": "#/components/schemas/UtcDateTime" },
+          "updatedAt": { "$ref": "#/components/schemas/UtcDateTime" },
+          "completedAt": { "type": ["string", "null"], "format": "date-time" }
         }
       },
       "Job": {
