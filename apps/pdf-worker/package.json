@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@on-the-road/application": "workspace:*",
     "@on-the-road/config": "workspace:*",
     "bullmq": "6.0.2",
     "ioredis": "5.11.1"
