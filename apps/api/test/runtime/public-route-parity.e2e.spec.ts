@@ -96,6 +96,14 @@ function createRuntime(): ApiRuntime {
     },
     routes: {
       list: async () => [],
+      status: async () => ({
+        status: "done",
+        generations: [],
+        pendingDays: 0,
+        blockedSegments: 0,
+        failedSegments: 0,
+        pollAfterMs: 1500,
+      }),
     },
     attachments: {
       createSession: async () => ({ attachmentId: "attachment-1" }),
@@ -211,6 +219,11 @@ describe("REVIEW-P1-03 public transport parity", () => {
     await expect(client.request("getJob", {
       path: { jobId: "job-1" },
     })).resolves.toMatchObject({ data: { status: "queued" } });
+    await expect(client.request("getRouteGenerationStatus", {
+      path: { tripId: "trip-1" },
+    })).resolves.toMatchObject({
+      data: { status: "done", pendingDays: 0 },
+    });
     await expect(client.request("changeTripDates", {
       path: { tripId: "trip-1" },
       headers: { "if-match": "3", "idempotency-key": "date-change-1" },
