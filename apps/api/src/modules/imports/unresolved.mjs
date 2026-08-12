@@ -99,6 +99,22 @@ export class PostgresImportUnresolvedLocationService {
          WHERE id = $1::uuid`,
         [row.import_row_id, JSON.stringify(decision.stagedLocation)],
       );
+      await client.query(
+        `UPDATE import_job j
+         SET status = 'ready_to_import',
+             stage = 'ready_to_import',
+             updated_at = now()
+         WHERE j.id = $1::uuid
+           AND j.owner_id = $2
+           AND j.status = 'confirmation_required'
+           AND NOT EXISTS (
+             SELECT 1
+             FROM import_row r
+             WHERE r.import_job_id = j.id
+               AND r.status = 'unresolved'
+           )`,
+        [jobId, ownerId],
+      );
       return {
         id: decisionId,
         importJobId: jobId,
