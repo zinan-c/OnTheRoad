@@ -15,6 +15,10 @@
       "types": "./src/import/contracts.ts",
       "default": "./dist/import/contracts.js"
     },
+    "./import/commit": {
+      "types": "./src/import/commit.ts",
+      "default": "./dist/import/commit.js"
+    },
     "./export": {
       "types": "./src/export/contracts.ts",
       "default": "./dist/export/contracts.js"

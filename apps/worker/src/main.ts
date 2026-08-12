@@ -13,9 +13,14 @@ import { ImportInspectProcessor } from "./processors/import/inspect.js";
 import { WorkbookSourceScanProcessor } from "./processors/import/source-scan.js";
 import { PostgresImportInspectRepository } from "./processors/import/postgres-repository.js";
 import { PostgresImportStagingProcessor } from "./processors/import/postgres-staging-processor.js";
+import { PostgresImportCommitProcessor } from "./processors/import/postgres-commit-processor.js";
 import { ImageMagickProcessor } from "./processors/media/imagemagick-processor.js";
 import { MediaPipeline } from "./processors/media/media-pipeline.js";
 import { PostgresMediaRepository } from "./processors/media/postgres-media-repository.mjs";
+import {
+  ImportMediaTaskProcessor,
+  PostgresImportMediaTaskRepository,
+} from "./processors/media/import-media-task.js";
 import { OutboxReconciler } from "./processors/maintenance/outbox-reconciler.js";
 import { PostgresRecoverableOutbox } from "./processors/maintenance/postgres-outbox-repository.js";
 import { recordWorkerPipeline, workerTelemetry } from "./telemetry.js";
@@ -43,7 +48,15 @@ export async function startWorker(
   });
   const controlRedis = new Redis(config.server.redisUrl.href);
   const importRepository = new PostgresImportInspectRepository(config.server.databaseUrl.href);
-  const staging = new PostgresImportStagingProcessor(config.server.databaseUrl.href);
+  const staging = new PostgresImportStagingProcessor(config.server.databaseUrl.href, {
+    mediaSecret: environment.OTR_IMPORT_MEDIA_SECRET?.trim() || config.server.sessionSecret,
+    mediaKeyVersion: environment.OTR_IMPORT_MEDIA_KEY_VERSION?.trim() || "runtime-v1",
+  });
+  const importCommit = new PostgresImportCommitProcessor({
+    databaseUrl: config.server.databaseUrl.href,
+    mediaSecret: environment.OTR_IMPORT_MEDIA_SECRET?.trim() || config.server.sessionSecret,
+    mediaKeyVersion: environment.OTR_IMPORT_MEDIA_KEY_VERSION?.trim() || "runtime-v1",
+  });
   const importStorage = new S3ObjectStorage({
     endpoint: config.server.storage.endpoint.href,
     region: environment.OBJECT_STORAGE_REGION?.trim() || "us-east-1",
@@ -72,12 +85,32 @@ export async function startWorker(
     scanner,
     imageProcessor: new ImageMagickProcessor(),
   });
+  const importMediaRepository = new PostgresImportMediaTaskRepository({
+    databaseUrl: config.server.databaseUrl.href,
+  });
+  const importMedia = new ImportMediaTaskProcessor({
+    repository: importMediaRepository,
+    storage: {
+      putQuarantine: async (ownerId, value, contentType) => {
+        const stored = await mediaStorage.putQuarantine?.(ownerId, value, contentType);
+        if (!stored) throw new Error("MEDIA_QUARANTINE_STORAGE_UNAVAILABLE");
+        return stored;
+      },
+    },
+      attachments: {
+        create: (input) => importMediaRepository.createAttachment(input),
+      },
+      mediaSecret: environment.OTR_IMPORT_MEDIA_SECRET?.trim() || config.server.sessionSecret,
+      mediaKeyVersion: environment.OTR_IMPORT_MEDIA_KEY_VERSION?.trim() || "runtime-v1",
+      processAttachment: (attachmentId) => media.process(attachmentId),
+  });
   let importing = true;
   const importLoop = (async () => {
     while (importing) {
       const result = await workRedis.brpop(
         "otr:import-inspect",
         "otr:import-stage",
+        "otr:import-commit",
         "otr:media",
         1,
       );
@@ -89,6 +122,7 @@ export async function startWorker(
         const payload = JSON.parse(result[1]) as {
           jobId?: string;
           attachmentId?: string;
+          mediaTaskId?: string;
         };
         if (result[0] === "otr:import-inspect" && payload.jobId) {
           const job = await importRepository.getJob(payload.jobId);
@@ -97,6 +131,18 @@ export async function startWorker(
           await inspect.process(payload.jobId);
         } else if (result[0] === "otr:import-stage" && payload.jobId) {
           await staging.process(payload.jobId);
+        } else if (result[0] === "otr:import-commit" && payload.jobId) {
+          const commitResult = await importCommit.process(payload.jobId);
+          for (const mediaTaskId of commitResult.mediaTaskIds) {
+            await controlRedis.lpush("otr:media", JSON.stringify({ mediaTaskId, jobId: payload.jobId }));
+          }
+        } else if (result[0] === "otr:media" && payload.mediaTaskId) {
+          const mediaOutcome = await importMedia.process(payload.mediaTaskId);
+          const mediaJobId = await importMediaRepository.getImportJobId(payload.mediaTaskId);
+          if (mediaJobId) await importMediaRepository.reconcileParentJob(mediaJobId);
+          if (mediaOutcome === "retry_scheduled") {
+            await controlRedis.lpush("otr:media", JSON.stringify({ mediaTaskId: payload.mediaTaskId }));
+          }
         } else if (result[0] === "otr:media" && payload.attachmentId) {
           await media.process(payload.attachmentId);
         }
@@ -143,9 +189,19 @@ export async function startWorker(
           await controlRedis.lpush("otr:import-stage", JSON.stringify({ jobId }));
         }
       }
+      for (const jobId of await importCommit.listRecoverableJobIds()) {
+        if (await controlRedis.set(`otr:recovery:import-commit:${jobId}`, "1", "EX", 60, "NX")) {
+          await controlRedis.lpush("otr:import-commit", JSON.stringify({ jobId }));
+        }
+      }
       for (const attachmentId of await mediaRepository.listRecoverableAttachmentIds()) {
         if (await controlRedis.set(`otr:recovery:media:${attachmentId}`, "1", "EX", 60, "NX")) {
           await controlRedis.lpush("otr:media", JSON.stringify({ attachmentId }));
+        }
+      }
+      for (const mediaTaskId of await importMediaRepository.listRecoverable()) {
+        if (await controlRedis.set(`otr:recovery:import-media:${mediaTaskId}`, "1", "EX", 60, "NX")) {
+          await controlRedis.lpush("otr:media", JSON.stringify({ mediaTaskId }));
         }
       }
     } finally {
@@ -171,7 +227,9 @@ export async function startWorker(
     await importLoop.catch(() => undefined);
     await importRepository.close();
     await staging.close();
+    await importCommit.close();
     await mediaRepository.close();
+    await importMediaRepository.close();
     await applicationQueue.close();
     queueConnection.disconnect();
     await outbox.close();

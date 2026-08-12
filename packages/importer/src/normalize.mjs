@@ -63,6 +63,8 @@ export function normalizeImportRow(raw, mapping = {}) {
     place: text(mappedValue(raw, mapping, "Place")),
     time: text(mappedValue(raw, mapping, "Time")),
     target: text(mappedValue(raw, mapping, "Target")),
+    externalSource: text(mappedValue(raw, mapping, "ExternalSource")),
+    externalId: text(mappedValue(raw, mapping, "ExternalId")),
     description: text(mappedValue(raw, mapping, "Desc")),
     hotel: text(mappedValue(raw, mapping, "Hotel")),
     dining: text(mappedValue(raw, mapping, "Dining")),

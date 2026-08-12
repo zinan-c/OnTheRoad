@@ -34,6 +34,8 @@ import { TripService } from "./modules/trips/service.mjs";
 import { ImportMappingService, PostgresImportMappingRepository } from "./modules/imports/mapping.mjs";
 import { ImportPreviewService, PostgresImportPreviewRepository } from "./modules/imports/preview.mjs";
 import { PostgresImportTransport } from "./modules/imports/postgres-upload.mjs";
+import { PostgresImportCommitTransport } from "./modules/imports/commit.mjs";
+import { PostgresImportMediaTaskService } from "./modules/imports/media-tasks.mjs";
 import { PostgresRouteRepository } from "./modules/routing/postgres-route-repository.mjs";
 
 export interface ImportTransport {
@@ -73,6 +75,8 @@ export interface ApiRuntime {
   readonly attachments: AttachmentUploadService;
   readonly gallery: AttachmentGalleryService;
   readonly imports?: ImportTransport;
+  readonly importCommit?: PostgresImportCommitTransport;
+  readonly importMediaTasks?: PostgresImportMediaTaskService;
   readonly importMapping?: ImportMappingService;
   readonly importPreview: ImportPreviewService;
   readonly routes: PostgresRouteRepository;
@@ -204,6 +208,8 @@ export function createProductionRuntime(
   const importMapping = new ImportMappingService(new PostgresImportMappingRepository({ executor: database, queue: redis }));
   const importPreview = new ImportPreviewService(new PostgresImportPreviewRepository({ executor: database }));
   const imports = new PostgresImportTransport({ database, storage: importStorage, queue: redis });
+  const importCommit = new PostgresImportCommitTransport({ database, queue: redis });
+  const importMediaTasks = new PostgresImportMediaTaskService({ database, queue: redis });
   const routes = new PostgresRouteRepository({ executor: database });
 
   return {
@@ -222,6 +228,8 @@ export function createProductionRuntime(
     attachments,
     gallery,
     imports,
+    importCommit,
+    importMediaTasks,
     importMapping,
     importPreview,
     routes,

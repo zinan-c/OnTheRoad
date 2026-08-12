@@ -95,6 +95,9 @@ importers:
 
   apps/pdf-worker:
     dependencies:
+      '@on-the-road/application':
+        specifier: workspace:*
+        version: link:../../packages/application
       '@on-the-road/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -171,6 +174,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@on-the-road/application':
+        specifier: workspace:*
+        version: link:../../packages/application
       '@on-the-road/config':
         specifier: workspace:*
         version: link:../../packages/config

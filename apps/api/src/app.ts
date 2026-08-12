@@ -1022,6 +1022,109 @@ class ApiController {
     return job;
   }
 
+  @Get("imports/:jobId/commit")
+  async getImportCommit(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+  ) {
+    if (!this.runtime.importCommit) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_COMMIT_UNAVAILABLE", title: "Import commit is unavailable" });
+    }
+    return this.runtime.importCommit.getCommitJob(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/commit")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async commitImport(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    if (!this.runtime.importCommit) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_COMMIT_UNAVAILABLE", title: "Import commit is unavailable" });
+    }
+    return this.runtime.importCommit.startCommit(
+      await owner(this.runtime, request),
+      jobId,
+      ...(idempotencyKey ? [{ idempotencyKey }] : []),
+    );
+  }
+
+  @Post("imports/:jobId/cancel")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async cancelImport(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+  ) {
+    if (!this.runtime.importCommit) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_COMMIT_UNAVAILABLE", title: "Import commit is unavailable" });
+    }
+    return this.runtime.importCommit.cancelCommit(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/resume")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async resumeImport(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+  ) {
+    if (!this.runtime.importCommit) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_COMMIT_UNAVAILABLE", title: "Import commit is unavailable" });
+    }
+    return this.runtime.importCommit.resumeCommit(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/rows/:rowId/override")
+  @HttpCode(HttpStatus.OK)
+  async overrideImportRow(
+    @Req() request: FastifyRequest,
+    @Param("jobId") jobId: string,
+    @Param("rowId") rowId: string,
+    @Body() body: { reason?: string },
+  ) {
+    if (!this.runtime.importCommit) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_COMMIT_UNAVAILABLE", title: "Import commit is unavailable" });
+    }
+    return this.runtime.importCommit.createOverrideDecision(await owner(this.runtime, request), jobId, {
+      rowId,
+      reason: body.reason ?? "",
+    });
+  }
+
+  @Get("imports/:jobId/media-tasks")
+  async listImportMediaTasks(@Req() request: FastifyRequest, @Param("jobId") jobId: string) {
+    if (!this.runtime.importMediaTasks) throw new ProblemDetailsError({ status: 503, code: "IMPORT_MEDIA_UNAVAILABLE", title: "Import media tasks are unavailable" });
+    return this.runtime.importMediaTasks.list(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/media-tasks/:taskId/approve")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async approveImportMediaTask(@Req() request: FastifyRequest, @Param("jobId") jobId: string, @Param("taskId") taskId: string) {
+    if (!this.runtime.importMediaTasks) throw new ProblemDetailsError({ status: 503, code: "IMPORT_MEDIA_UNAVAILABLE", title: "Import media tasks are unavailable" });
+    return this.runtime.importMediaTasks.approve(await owner(this.runtime, request), jobId, taskId);
+  }
+
+  @Post("imports/:jobId/media-tasks/:taskId/reject")
+  @HttpCode(HttpStatus.OK)
+  async rejectImportMediaTask(@Req() request: FastifyRequest, @Param("jobId") jobId: string, @Param("taskId") taskId: string, @Body() body: { reason?: string }) {
+    if (!this.runtime.importMediaTasks) throw new ProblemDetailsError({ status: 503, code: "IMPORT_MEDIA_UNAVAILABLE", title: "Import media tasks are unavailable" });
+    return this.runtime.importMediaTasks.reject(await owner(this.runtime, request), jobId, taskId, body);
+  }
+
+  @Post("imports/:jobId/media-tasks/:taskId/retry")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async retryImportMediaTask(@Req() request: FastifyRequest, @Param("jobId") jobId: string, @Param("taskId") taskId: string) {
+    if (!this.runtime.importMediaTasks) throw new ProblemDetailsError({ status: 503, code: "IMPORT_MEDIA_UNAVAILABLE", title: "Import media tasks are unavailable" });
+    return this.runtime.importMediaTasks.retry(await owner(this.runtime, request), jobId, taskId);
+  }
+
+  @Post("imports/:jobId/media-tasks/:taskId/cancel")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async cancelImportMediaTask(@Req() request: FastifyRequest, @Param("jobId") jobId: string, @Param("taskId") taskId: string) {
+    if (!this.runtime.importMediaTasks) throw new ProblemDetailsError({ status: 503, code: "IMPORT_MEDIA_UNAVAILABLE", title: "Import media tasks are unavailable" });
+    return this.runtime.importMediaTasks.cancel(await owner(this.runtime, request), jobId, taskId);
+  }
+
   @Get("jobs/:jobId")
   async getJob(
     @Req() request: FastifyRequest,

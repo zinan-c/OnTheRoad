@@ -40,4 +40,9 @@ describe("TC-E04-01 normalize/validate golden", () => {
     expect(mappingHash({ Target: "事项", Day: "天" })).toBe(mappingHash({ Day: "天", Target: "事项" }));
     expect(stableSourceRowKey("Sheet 1", 7)).toBe("Sheet 1:7");
   });
+
+  test("normalizes stable external identity for update classification", () => {
+    expect(normalizeImportRow({ ExternalSource: "partner", ExternalId: "item-7", Target: "更新" }))
+      .toMatchObject({ externalSource: "partner", externalId: "item-7" });
+  });
 });

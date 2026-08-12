@@ -31,6 +31,69 @@ export const IMPORT_ROW_STATUSES = [
 
 export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
 
+export const IMPORT_COMMIT_ACTIONS = ["insert", "update", "skip"] as const;
+export type ImportCommitAction = (typeof IMPORT_COMMIT_ACTIONS)[number];
+
+export type ImportCommitDecision = Readonly<{
+  id: string;
+  importJobId: string;
+  importRowId: string;
+  actorId: string;
+  reason: string;
+  decisionType: "duplicate_insert";
+  consumedAt: string | null;
+}>;
+
+export type ImportCommitResult = Readonly<{
+  jobId: string;
+  committedRows: number;
+  insertedRows: number;
+  updatedRows: number;
+  skippedRows: number;
+  mediaTaskIds: readonly string[];
+}>;
+
+export const IMPORT_MEDIA_TASK_STATUSES = [
+  "awaiting_approval",
+  "approved",
+  "rejected",
+  "queued",
+  "fetching",
+  "quarantined",
+  "scanning",
+  "processing",
+  "retry_scheduled",
+  "ready",
+  "failed",
+  "cancelling",
+  "cancelled",
+] as const;
+export type ImportMediaTaskStatus = (typeof IMPORT_MEDIA_TASK_STATUSES)[number];
+
+export type ImportMediaTask = Readonly<{
+  id: string;
+  tripId: string;
+  importJobId: string;
+  importRowId: string;
+  sourceRowKey: string;
+  itineraryItemId: string | null;
+  attachmentId: string | null;
+  urlOrdinal: number;
+  sourceUrlSha256: string;
+  status: ImportMediaTaskStatus;
+  decisionBy: string | null;
+  decidedAt: string | null;
+  attemptCount: number;
+  lifetimeAttemptCount: number;
+  retryGeneration: number;
+  nextAttemptAt: string | null;
+  errorCode: string | null;
+  errorDetail: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}>;
+
 export const GEOCODING_BATCH_STATUSES = [
   "queued",
   "running",

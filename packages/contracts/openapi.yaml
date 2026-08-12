@@ -1887,6 +1887,116 @@
         }
       }
     },
+    "/imports/{jobId}/commit": {
+      "get": {
+        "operationId": "getImportCommit",
+        "summary": "Get import commit progress",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "200": { "description": "Import commit progress", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportCommitJob" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "post": {
+        "operationId": "commitImport",
+        "summary": "Commit confirmed import rows",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "responses": {
+          "202": { "description": "Import commit queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportCommitJob" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/cancel": {
+      "post": {
+        "operationId": "cancelImport",
+        "summary": "Cancel import at a safe checkpoint",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "202": { "description": "Import cancellation requested", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportCommitJob" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/resume": {
+      "post": {
+        "operationId": "resumeImport",
+        "summary": "Create a new job to resume a cancelled import",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "202": { "description": "Import resume queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportCommitJob" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/rows/{rowId}/override": {
+      "post": {
+        "operationId": "overrideImportRow",
+        "summary": "Record a one-time duplicate insert override",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }, { "$ref": "#/components/parameters/ImportRowId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportOverrideInput" } } } },
+        "responses": {
+          "200": { "description": "Override recorded", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportOverrideDecision" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/media-tasks": {
+      "get": {
+        "operationId": "listImportMediaTasks",
+        "summary": "List approval and processing state for imported media URLs",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "200": { "description": "Import media tasks", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ImportMediaTask" } } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/media-tasks/{taskId}/approve": {
+      "post": {
+        "operationId": "approveImportMediaTask",
+        "summary": "Approve one imported media URL",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }, { "$ref": "#/components/parameters/ImportMediaTaskId" }],
+        "responses": {
+          "202": { "description": "Media task queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportMediaTask" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/media-tasks/{taskId}/reject": {
+      "post": {
+        "operationId": "rejectImportMediaTask",
+        "summary": "Reject one imported media URL",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }, { "$ref": "#/components/parameters/ImportMediaTaskId" }],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportMediaDecisionInput" } } } },
+        "responses": {
+          "200": { "description": "Media task rejected", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportMediaTask" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/media-tasks/{taskId}/retry": {
+      "post": {
+        "operationId": "retryImportMediaTask",
+        "summary": "Retry a failed imported media URL",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }, { "$ref": "#/components/parameters/ImportMediaTaskId" }],
+        "responses": {
+          "202": { "description": "Media task retry queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportMediaTask" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/imports/{jobId}/media-tasks/{taskId}/cancel": {
+      "post": {
+        "operationId": "cancelImportMediaTask",
+        "summary": "Cancel one imported media URL",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }, { "$ref": "#/components/parameters/ImportMediaTaskId" }],
+        "responses": {
+          "202": { "description": "Media task cancellation requested", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportMediaTask" } } } },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
     "/jobs/{jobId}": {
       "get": {
         "operationId": "getJob",
@@ -2039,6 +2149,18 @@
         "schema": {
           "$ref": "#/components/schemas/ResourceId"
         }
+      },
+      "ImportRowId": {
+        "name": "rowId",
+        "in": "path",
+        "required": true,
+        "schema": { "$ref": "#/components/schemas/ResourceId" }
+      },
+      "ImportMediaTaskId": {
+        "name": "taskId",
+        "in": "path",
+        "required": true,
+        "schema": { "$ref": "#/components/schemas/ResourceId" }
       }
     },
     "headers": {
@@ -4241,6 +4363,80 @@
               "$ref": "#/components/schemas/ResourceId"
             }
           }
+        }
+      },
+      "ImportCommitJob": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "tripId", "ownerId", "status", "stage", "totalRows", "validRows", "errorRows", "committedRows", "importedRows", "updatedAt"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/ResourceId" },
+          "tripId": { "$ref": "#/components/schemas/ResourceId" },
+          "ownerId": { "type": "string" },
+          "status": { "type": "string" },
+          "stage": { "type": "string" },
+          "totalRows": { "type": "integer", "minimum": 0 },
+          "validRows": { "type": "integer", "minimum": 0 },
+          "errorRows": { "type": "integer", "minimum": 0 },
+          "committedRows": { "type": "integer", "minimum": 0 },
+          "importedRows": { "type": "integer", "minimum": 0 },
+          "resumedFromJobId": { "type": ["string", "null"], "format": "uuid" },
+          "cancelRequestedAt": { "type": ["string", "null"], "format": "date-time" },
+          "updatedAt": { "$ref": "#/components/schemas/UtcDateTime" },
+          "completedAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "ImportOverrideInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason"],
+        "properties": { "reason": { "type": "string", "minLength": 1, "maxLength": 2000 } }
+      },
+      "ImportOverrideDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "importJobId", "importRowId", "decisionType", "reason", "actorId"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/ResourceId" },
+          "importJobId": { "$ref": "#/components/schemas/ResourceId" },
+          "importRowId": { "$ref": "#/components/schemas/ResourceId" },
+          "decisionType": { "type": "string", "enum": ["duplicate_insert"] },
+          "reason": { "type": "string" },
+          "actorId": { "type": "string" },
+          "consumedAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "ImportMediaDecisionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": { "reason": { "type": "string", "maxLength": 2000 } }
+      },
+      "ImportMediaTask": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "tripId", "importJobId", "importRowId", "sourceRowKey", "urlOrdinal", "sourceUrlSha256", "status", "attemptCount", "lifetimeAttemptCount", "retryGeneration"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/ResourceId" },
+          "tripId": { "$ref": "#/components/schemas/ResourceId" },
+          "importJobId": { "$ref": "#/components/schemas/ResourceId" },
+          "importRowId": { "$ref": "#/components/schemas/ResourceId" },
+          "sourceRowKey": { "type": "string" },
+          "itineraryItemId": { "type": ["string", "null"], "format": "uuid" },
+          "attachmentId": { "type": ["string", "null"], "format": "uuid" },
+          "urlOrdinal": { "type": "integer", "minimum": 0 },
+          "sourceUrlSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "status": { "type": "string" },
+          "decisionBy": { "type": ["string", "null"] },
+          "decidedAt": { "type": ["string", "null"], "format": "date-time" },
+          "attemptCount": { "type": "integer", "minimum": 0 },
+          "lifetimeAttemptCount": { "type": "integer", "minimum": 0 },
+          "retryGeneration": { "type": "integer", "minimum": 0 },
+          "nextAttemptAt": { "type": ["string", "null"], "format": "date-time" },
+          "errorCode": { "type": ["string", "null"] },
+          "errorDetail": { "type": ["string", "null"] },
+          "createdAt": { "$ref": "#/components/schemas/UtcDateTime" },
+          "updatedAt": { "$ref": "#/components/schemas/UtcDateTime" },
+          "completedAt": { "type": ["string", "null"], "format": "date-time" }
         }
       },
       "CapabilityMatrix": {

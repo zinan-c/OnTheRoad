@@ -15,6 +15,7 @@ describe("TC-E01-01 template columns and aliases", () => {
     expect(ALIAS_DICTIONARY_VERSION).toBe("1.0.0");
     expect(STANDARD_COLUMNS).toEqual([
       "Day", "Date", "DayOfWeek", "IsWorkday", "Place", "Time", "Target",
+      "ExternalSource", "ExternalId",
       "Desc", "Hotel", "Dining", "Duration", "Mode", "StartLocation",
       "EndLocation", "Cost", "Currency", "CostCategory", "Remark", "Address",
       "Latitude", "Longitude", "ImageURLs",

@@ -14,7 +14,7 @@ const INCLUDE = /^\\ir\s+(.+)$/gmu;
 const LOCK_NAME = "on-the-road-schema-migration";
 const DEFAULT_HISTORY_TABLE = "otr_schema_migration";
 
-export const minimumCompatibleSchemaVersion = 24;
+export const minimumCompatibleSchemaVersion = 25;
 
 export interface Migration {
   version: number;

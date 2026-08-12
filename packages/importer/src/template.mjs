@@ -17,6 +17,8 @@ const EXAMPLE_ROW = Object.freeze({
   Place: "Shanghai",
   Time: "09:00",
   Target: "Shanghai Disneyland",
+  ExternalSource: "example",
+  ExternalId: "activity-1",
   Desc: "Select a candidate before import",
   Hotel: "",
   Dining: "",

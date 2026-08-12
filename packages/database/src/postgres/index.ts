@@ -6,6 +6,8 @@ import pg, {
   type QueryResultRow,
 } from "pg";
 
+export type { PoolClient } from "pg";
+
 const { Pool } = pg;
 
 export type DatabaseProcessRole = "api" | "worker" | "migration" | "test";

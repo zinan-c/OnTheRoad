@@ -1,12 +1,16 @@
+import { createHash, randomUUID } from "node:crypto";
+
 import {
   normalizeImportRow,
   stableFingerprint,
   validateNormalizedRow,
 } from "@on-the-road/importer";
 import { PostgresExecutor } from "@on-the-road/database/postgres";
+import { encryptImportMediaUrl } from "./media-url-crypto.js";
 
 type ImportRowRecord = {
   id: string;
+  source_row_key: string;
   raw_data: Record<string, unknown>;
 };
 
@@ -14,6 +18,8 @@ type ImportJobRecord = {
   id: string;
   mapping: Record<string, string>;
   status: string;
+  trip_id: string;
+  owner_id: string;
 };
 
 export type ImportStagingResult = Readonly<{
@@ -28,14 +34,19 @@ export type ImportStagingResult = Readonly<{
 export class PostgresImportStagingProcessor {
   readonly #database: PostgresExecutor;
 
-  constructor(databaseUrl: string) {
+  readonly #mediaSecret: string;
+  readonly #mediaKeyVersion: string;
+
+  constructor(databaseUrl: string, options: { mediaSecret?: string; mediaKeyVersion?: string } = {}) {
     this.#database = new PostgresExecutor({ databaseUrl, role: "worker" });
+    this.#mediaSecret = options.mediaSecret ?? "wave1-test-only-import-media-secret";
+    this.#mediaKeyVersion = options.mediaKeyVersion ?? "runtime-v1";
   }
 
   async process(jobId: string): Promise<ImportStagingResult> {
     return this.#database.transaction(async (client) => {
       const job = (await client.query<ImportJobRecord>(
-        `SELECT id, mapping, status
+        `SELECT id, mapping, status, trip_id, owner_id
          FROM import_job
          WHERE id = $1::uuid
          FOR UPDATE`,
@@ -47,7 +58,7 @@ export class PostgresImportStagingProcessor {
       }
 
       const rows = (await client.query<ImportRowRecord>(
-        `SELECT id, raw_data
+        `SELECT id, source_row_key, raw_data
          FROM import_row
          WHERE import_job_id = $1::uuid
            AND status <> 'imported'
@@ -70,11 +81,34 @@ export class PostgresImportStagingProcessor {
           normalized as Parameters<typeof validateNormalizedRow>[0],
         );
         const fingerprint = stableFingerprint(normalized);
-        let status: "new" | "error" | "duplicate" | "unresolved";
+        const externalSource = typeof normalized.externalSource === "string" ? normalized.externalSource.trim() : "";
+        const externalId = typeof normalized.externalId === "string" ? normalized.externalId.trim() : "";
+        const existingExternal = externalSource && externalId
+          ? (await client.query<{ id: string }>(
+            `SELECT id
+             FROM itinerary_item
+             WHERE trip_id = $1::uuid AND owner_id = $2
+               AND external_source = $3 AND external_id = $4
+               AND deleted_at IS NULL
+             FOR UPDATE`,
+            [job.trip_id, job.owner_id, externalSource, externalId],
+          )).rows[0]
+          : undefined;
+        const existingClaim = (await client.query<{ id: string }>(
+          `SELECT id
+           FROM import_fingerprint_claim
+           WHERE trip_id = $1::uuid AND row_fingerprint = $2 AND claim_scope = 'trip'
+           LIMIT 1`,
+          [job.trip_id, fingerprint],
+        )).rows[0];
+        let status: "new" | "update" | "error" | "duplicate" | "unresolved";
         if (errors.length > 0) {
           status = "error";
           errorRows += 1;
-        } else if (fingerprints.has(fingerprint)) {
+        } else if (existingExternal) {
+          status = "update";
+          validRows += 1;
+        } else if (fingerprints.has(fingerprint) || existingClaim) {
           status = "duplicate";
           duplicateRows += 1;
         } else if (requiresLocationResolution(normalized)) {
@@ -102,6 +136,7 @@ export class PostgresImportStagingProcessor {
             JSON.stringify(errors),
           ],
         );
+        await this.#registerMediaTasks(client, job, row.id, row.source_row_key, normalized);
       }
 
       await client.query(
@@ -139,6 +174,32 @@ export class PostgresImportStagingProcessor {
 
   close(): Promise<void> {
     return this.#database.close();
+  }
+
+  async #registerMediaTasks(
+    client: import("@on-the-road/database/postgres").PoolClient,
+    job: ImportJobRecord,
+    rowId: string,
+    sourceRowKey: string,
+    normalized: Record<string, unknown>,
+  ): Promise<void> {
+    const urls = Array.isArray(normalized.imageUrls)
+      ? normalized.imageUrls.filter((value): value is string => typeof value === "string" && /^https?:\/\//iu.test(value))
+      : [];
+    for (const [ordinal, url] of urls.entries()) {
+      const encrypted = encryptImportMediaUrl(url, this.#mediaSecret, this.#mediaKeyVersion);
+      await client.query(
+        `INSERT INTO import_media_task (
+           id, trip_id, owner_id, import_job_id, import_row_id, source_row_key,
+           url_ordinal, source_url_sha256, source_url_ciphertext,
+           source_url_key_version, source_url_expires_at, status
+         ) VALUES ($1::uuid, $2::uuid, $3, $4::uuid, $5::uuid, $6,
+           $7, $8, $9::bytea, $10, now() + interval '30 days', 'awaiting_approval')
+         ON CONFLICT (import_job_id, source_row_key, url_ordinal) DO NOTHING`,
+        [randomUUID(), job.trip_id, job.owner_id, job.id, rowId, sourceRowKey, ordinal,
+          createHash("sha256").update(url).digest("hex"), encrypted.ciphertext, encrypted.keyVersion],
+      );
+    }
   }
 }
 
