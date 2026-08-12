@@ -273,12 +273,12 @@ export class PostgresGeocodingBatchProcessor {
     await this.#database.transaction(async (client) => {
       const counts = (await client.query<GeocodingBatchCounts & { cancel_requested_at: string | null }>(
         `SELECT count(*)::integer AS total,
-                count(*) FILTER (WHERE status IN ('queued', 'retry_scheduled'))::integer AS queued,
-                count(*) FILTER (WHERE status = 'running')::integer AS resolving,
-                count(*) FILTER (WHERE status = 'resolved')::integer AS resolved,
-                count(*) FILTER (WHERE status = 'ambiguous')::integer AS ambiguous,
-                count(*) FILTER (WHERE status = 'failed')::integer AS failed,
-                count(*) FILTER (WHERE status = 'cancelled')::integer AS cancelled,
+                count(*) FILTER (WHERE j.status IN ('queued', 'retry_scheduled'))::integer AS queued,
+                count(*) FILTER (WHERE j.status = 'running')::integer AS resolving,
+                count(*) FILTER (WHERE j.status = 'resolved')::integer AS resolved,
+                count(*) FILTER (WHERE j.status = 'ambiguous')::integer AS ambiguous,
+                count(*) FILTER (WHERE j.status = 'failed')::integer AS failed,
+                count(*) FILTER (WHERE j.status = 'cancelled')::integer AS cancelled,
                 max(b.cancel_requested_at) AS cancel_requested_at
          FROM geocoding_job j
          JOIN geocoding_batch b ON b.id = j.batch_id
