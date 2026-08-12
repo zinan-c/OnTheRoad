@@ -207,7 +207,7 @@ export class PostgresGeocodingBatchProcessor {
           await client.query(
             `UPDATE import_location_staging
              SET staged_location = staged_location || jsonb_build_object(
-               'provider', $2, 'candidates', $3::jsonb
+               'provider', $2::text, 'candidates', $3::jsonb
              ), updated_at = now(), version = version + 1
              WHERE id = $1::uuid`,
             [job.import_staging_id, job.provider, JSON.stringify(candidates)],
