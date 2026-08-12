@@ -315,7 +315,7 @@ export class PostgresGeocodingBatchProcessor {
           `UPDATE import_job j
            SET status = $2,
                stage = $2,
-               completed_at = CASE WHEN $2 = 'cancelled' THEN now() ELSE completed_at END,
+               completed_at = CASE WHEN $2 = 'cancelled' THEN now() ELSE j.completed_at END,
                updated_at = now()
            FROM geocoding_batch b
            WHERE b.id = $1::uuid AND j.id = b.import_job_id
