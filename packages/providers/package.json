@@ -14,6 +14,10 @@
     "./static-map": {
       "types": "./src/static-map/manifest.ts",
       "default": "./dist/static-map/manifest.js"
+    },
+    "./static-map/renderer": {
+      "types": "./src/static-map/renderer.ts",
+      "default": "./dist/static-map/renderer.js"
     }
   },
   "scripts": {

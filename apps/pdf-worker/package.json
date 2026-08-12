@@ -5,6 +5,7 @@
   "dependencies": {
     "@on-the-road/application": "workspace:*",
     "@on-the-road/config": "workspace:*",
+    "@on-the-road/providers": "workspace:*",
     "bullmq": "6.0.2",
     "ioredis": "5.11.1"
   },
