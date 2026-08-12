@@ -99,8 +99,22 @@ export class PostgresImportGeocodeService {
       }
       await client.query(
         `UPDATE import_job
-         SET status = CASE WHEN $2::integer = 0 THEN 'confirmation_required' ELSE 'geocoding' END,
-             stage = CASE WHEN $2::integer = 0 THEN 'confirmation_required' ELSE 'geocoding' END,
+         SET status = CASE
+               WHEN $2::integer = 0 AND NOT EXISTS (
+                 SELECT 1 FROM import_row r
+                 WHERE r.import_job_id = import_job.id AND r.status = 'unresolved'
+               ) THEN 'ready_to_import'
+               WHEN $2::integer = 0 THEN 'confirmation_required'
+               ELSE 'geocoding'
+             END,
+             stage = CASE
+               WHEN $2::integer = 0 AND NOT EXISTS (
+                 SELECT 1 FROM import_row r
+                 WHERE r.import_job_id = import_job.id AND r.status = 'unresolved'
+               ) THEN 'ready_to_import'
+               WHEN $2::integer = 0 THEN 'confirmation_required'
+               ELSE 'geocoding'
+             END,
              updated_at = now()
          WHERE id = $1::uuid`,
          [jobId, geocodableUnits.length],

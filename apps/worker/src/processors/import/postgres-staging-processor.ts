@@ -144,14 +144,14 @@ export class PostgresImportStagingProcessor {
 
       await client.query(
         `UPDATE import_job
-         SET status = 'confirmation_required',
-             stage = 'confirmation_required',
+         SET status = CASE WHEN $5::integer = 0 THEN 'ready_to_import' ELSE 'confirmation_required' END,
+             stage = CASE WHEN $5::integer = 0 THEN 'ready_to_import' ELSE 'confirmation_required' END,
              total_rows = $2,
              valid_rows = $3,
              error_rows = $4,
              updated_at = now()
          WHERE id = $1::uuid`,
-        [jobId, rows.length, validRows, errorRows],
+        [jobId, rows.length, validRows, errorRows, unresolvedRows],
       );
       return {
         jobId,

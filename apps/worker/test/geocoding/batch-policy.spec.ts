@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   deriveGeocodingBatchStatus,
+  deriveImportJobReadiness,
   geocodingRetryDelay,
   type GeocodingBatchCounts,
 } from "../../src/processors/geocoding/postgres-batch-processor.js";
@@ -28,6 +29,12 @@ describe("geocoding batch policy", () => {
   test("turns a cancellation request into a terminal cancellation only at a checkpoint", () => {
     expect(deriveGeocodingBatchStatus(counts({ resolving: 1, resolved: 3 }), true)).toBe("running");
     expect(deriveGeocodingBatchStatus(counts({ cancelled: 1, resolved: 3 }), true)).toBe("cancelled");
+  });
+
+  test("only waits for confirmation while unresolved import rows remain", () => {
+    expect(deriveImportJobReadiness(2, false)).toBe("confirmation_required");
+    expect(deriveImportJobReadiness(0, false)).toBe("ready_to_import");
+    expect(deriveImportJobReadiness(0, true)).toBe("cancelled");
   });
 
   test("backs off provider 429/5xx retries and respects Retry-After", () => {

@@ -21,6 +21,14 @@ export function deriveGeocodingBatchStatus(
   return "completed";
 }
 
+export function deriveImportJobReadiness(
+  unresolvedRows: number,
+  cancelRequested: boolean,
+): "ready_to_import" | "confirmation_required" | "cancelled" {
+  if (cancelRequested) return "cancelled";
+  return unresolvedRows > 0 ? "confirmation_required" : "ready_to_import";
+}
+
 export function geocodingRetryDelay(
   attempt: number,
   options: { readonly baseBackoffMs: number; readonly maxBackoffMs: number; readonly retryAfterSeconds?: number },
@@ -292,16 +300,27 @@ export class PostgresGeocodingBatchProcessor {
           counts.resolved, counts.ambiguous, counts.failed, counts.cancelled, terminal],
       );
       if (terminal) {
+        const unresolvedRows = (await client.query<{ count: number }>(
+          `SELECT count(*)::integer AS count
+           FROM import_row r
+           JOIN geocoding_batch b ON b.import_job_id = r.import_job_id
+           WHERE b.id = $1::uuid AND r.status = 'unresolved'`,
+          [batchId],
+        )).rows[0]?.count ?? 0;
+        const importStatus = deriveImportJobReadiness(
+          unresolvedRows,
+          status === "cancelled",
+        );
         await client.query(
           `UPDATE import_job j
-           SET status = CASE WHEN $2 = 'cancelled' THEN 'cancelled' ELSE 'confirmation_required' END,
-               stage = CASE WHEN $2 = 'cancelled' THEN 'cancelled' ELSE 'confirmation_required' END,
+           SET status = $2,
+               stage = $2,
                completed_at = CASE WHEN $2 = 'cancelled' THEN now() ELSE completed_at END,
                updated_at = now()
            FROM geocoding_batch b
            WHERE b.id = $1::uuid AND j.id = b.import_job_id
              AND j.status IN ('geocoding', 'confirmation_required')`,
-          [batchId, status],
+          [batchId, importStatus],
         );
       }
     });
