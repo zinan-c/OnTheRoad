@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -7,11 +7,12 @@ import { test } from "vitest";
 
 const root = new URL("../../", import.meta.url);
 
-test("clean-checkout dev profile uses authenticated local-stack values", async () => {
+test("dev profile resolves example, profile, local-stack, then user overrides", async () => {
   const fixtureRoot = await mkdtemp(resolve(tmpdir(), "otr-profile-loader-"));
   try {
     await mkdir(resolve(fixtureRoot, "scripts"), { recursive: true });
     await mkdir(resolve(fixtureRoot, "infra"), { recursive: true });
+    await mkdir(resolve(fixtureRoot, "config/profiles"), { recursive: true });
     await writeFile(
       resolve(fixtureRoot, "scripts/run-profile.sh"),
       await readFile(new URL("../../scripts/run-profile.sh", import.meta.url), "utf8"),
@@ -29,6 +30,19 @@ test("clean-checkout dev profile uses authenticated local-stack values", async (
       "OTR_ENV_SESSION_SECRET=example-session-secret",
       "",
     ].join("\n"));
+    await writeFile(resolve(fixtureRoot, "config/profiles/dev.env"), [
+      "OTR_ENV_DATABASE_URL=postgresql://profile-user:profile-password@127.0.0.1:25432/profile-db",
+      "OTR_ENV_REDIS_URL=redis://default:profile-password@127.0.0.1:26379/0",
+      "OTR_ENV_OBJECT_STORAGE_ENDPOINT=http://127.0.0.1:29000",
+      "OTR_ENV_OBJECT_STORAGE_ACCESS_KEY=profile-access",
+      "OTR_ENV_OBJECT_STORAGE_SECRET_KEY=profile-secret",
+      "OTR_ENV_OBJECT_STORAGE_BUCKET=profile-bucket",
+      "OTR_ENV_OBJECT_STORAGE_REGION=profile-region",
+      "OTR_ENV_CLAMAV_HOST=127.0.0.2",
+      "OTR_ENV_CLAMAV_PORT=23310",
+      "OTR_ENV_SESSION_SECRET=profile-session-secret",
+      "",
+    ].join("\n"));
     await writeFile(resolve(fixtureRoot, "infra/local-stack.env"), [
       "DATABASE_URL=postgresql://stack-user:stack-password@127.0.0.1:15432/stack-db",
       "REDIS_URL=redis://default:stack-password@127.0.0.1:16379/0",
@@ -39,6 +53,11 @@ test("clean-checkout dev profile uses authenticated local-stack values", async (
       "S3_REGION=stack-region",
       "CLAMAV_HOST=127.0.0.1",
       "CLAMAV_PORT=13310",
+      "",
+    ].join("\n"));
+    await writeFile(resolve(fixtureRoot, ".env"), [
+      "OTR_ENV_OBJECT_STORAGE_REGION=user-region",
+      "OTR_ENV_SESSION_SECRET=user-session-secret",
       "",
     ].join("\n"));
 
@@ -71,11 +90,13 @@ test("clean-checkout dev profile uses authenticated local-stack values", async (
       storageAccessKey: "stack-access",
       storageSecretKey: "stack-secret",
       storageBucket: "stack-bucket",
-      storageRegion: "stack-region",
+      storageRegion: "user-region",
       clamavHost: "127.0.0.1",
       clamavPort: "13310",
-      sessionSecret: "example-session-secret",
+      sessionSecret: "user-session-secret",
     });
+
+    await unlink(resolve(fixtureRoot, ".env"));
 
     const injected = {
       OTR_RUNTIME_PROFILE: "qa",
@@ -193,9 +214,17 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.match(
     testWorkflow,
-    /health\/ready[\s\\]*> test-results\/m3-readiness\.json/,
+    /curl --silent "\$api_origin\/health\/ready"[\s\\]*> test-results\/m3-readiness\.json/,
   );
+  assert.match(testWorkflow, /kill -0 "\$runtime_pid"/);
+  assert.match(testWorkflow, /fail_if_runtime_exited "API" "\$api_pid"/);
+  assert.match(testWorkflow, /fail_if_runtime_exited "Worker" "\$worker_pid"/);
+  assert.match(testWorkflow, /Compose dependencies ready/);
+  assert.match(testWorkflow, /Application runtimes ready/);
   assert.match(testWorkflow, /cat test-results\/m3-readiness\.json/);
+  assert.match(localCi, /"\$\{API_ORIGIN\}\/health\/ready"/);
+  assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);
+  assert.match(localCi, /fail_if_runtime_exited "Worker" "\$\{WORKER_PID\}"/);
   assert.match(
     testWorkflow,
     /Initialize required-case diagnostic artifact[\s\S]*node scripts\/initialize-required-case-report\.mjs[\s\S]*Start real integration dependencies/,

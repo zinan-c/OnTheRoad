@@ -112,12 +112,43 @@ API_PID=$!
 pnpm run profile:dev -- pnpm --filter @on-the-road/worker start \
   > test-results/m3-worker.log 2>&1 &
 WORKER_PID=$!
+API_ORIGIN="$(bash scripts/run-profile.sh dev -- node -e \
+  'process.stdout.write(new URL(process.env.API_BASE_URL).origin)')"
+print_runtime_diagnostics() {
+  echo "Application runtime readiness response:"
+  cat test-results/m3-readiness.json 2>/dev/null || true
+  echo "API runtime log:"
+  cat test-results/m3-api.log 2>/dev/null || true
+  echo "Worker runtime log:"
+  cat test-results/m3-worker.log 2>/dev/null || true
+  echo "Compose dependency health:"
+  bash scripts/dev-up-health.sh --track compose || true
+}
+fail_if_runtime_exited() {
+  local runtime_name="$1"
+  local runtime_pid="$2"
+  local runtime_status=0
+  if ! kill -0 "${runtime_pid}" 2>/dev/null; then
+    wait "${runtime_pid}" || runtime_status=$?
+    echo "${runtime_name} application runtime exited before readiness (status ${runtime_status})." >&2
+    print_runtime_diagnostics
+    exit 1
+  fi
+}
+echo "Compose dependencies ready; waiting for application runtimes..."
 for attempt in $(seq 1 60); do
-  if curl --fail --silent http://127.0.0.1:3001/health/ready > /dev/null; then
+  fail_if_runtime_exited "API" "${API_PID}"
+  fail_if_runtime_exited "Worker" "${WORKER_PID}"
+  if curl --fail --silent "${API_ORIGIN}/health/ready" \
+    > test-results/m3-readiness.json; then
+    fail_if_runtime_exited "API" "${API_PID}"
+    fail_if_runtime_exited "Worker" "${WORKER_PID}"
+    echo "Application runtimes ready: API and Worker are running"
     break
   fi
   if [ "${attempt}" -eq 60 ]; then
-    cat test-results/m3-api.log
+    echo "Application runtime readiness timed out at ${API_ORIGIN}." >&2
+    print_runtime_diagnostics
     exit 1
   fi
   sleep 1

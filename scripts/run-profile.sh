@@ -26,13 +26,26 @@ fi
 
 set -a
 if [[ "${profile}" == "dev" && -f "${REPO_ROOT}/.env.example" ]]; then
-  # Safe development defaults; local-stack.env and explicit .env override these.
+  # Safe development defaults; the selected profile, local stack, and explicit
+  # user .env override these in that order.
   # shellcheck disable=SC1091
   source "${REPO_ROOT}/.env.example"
 fi
+profile_file="${REPO_ROOT}/config/profiles/${profile}.env"
+if [[ -f "${profile_file}" ]]; then
+  # Profile defaults are intentionally loaded before local-stack.env. The
+  # running local stack is the source of truth for dev service connections.
+  # shellcheck disable=SC1090
+  source "${profile_file}"
+elif [[ "${profile}" != "dev" && "${requested_profile_env}" != "${profile}" ]]; then
+  if [[ -z "${OTR_ENV_DATABASE_URL:-}" ]]; then
+    echo "Missing ${profile_file} and no injected OTR_ENV_* release configuration was found." >&2
+    exit 3
+  fi
+fi
 if [[ -f "${REPO_ROOT}/infra/local-stack.env" ]]; then
-  # Native service defaults are useful for dev and qa. Explicit profile files
-  # and .env values loaded below may override them.
+  # Native service values describe the stack that is actually running. A user
+  # .env loaded below may still explicitly override them.
   # shellcheck disable=SC1091
   source "${REPO_ROOT}/infra/local-stack.env"
   # Map the selected stack into the canonical profile namespace here. Without
@@ -70,16 +83,6 @@ fi
 if [[ -f "${REPO_ROOT}/.env" ]]; then
   # shellcheck disable=SC1091
   source "${REPO_ROOT}/.env"
-fi
-profile_file="${REPO_ROOT}/config/profiles/${profile}.env"
-if [[ -f "${profile_file}" ]]; then
-  # shellcheck disable=SC1090
-  source "${profile_file}"
-elif [[ "${profile}" != "dev" && "${requested_profile_env}" != "${profile}" ]]; then
-  if [[ -z "${OTR_ENV_DATABASE_URL:-}" ]]; then
-    echo "Missing ${profile_file} and no injected OTR_ENV_* release configuration was found." >&2
-    exit 3
-  fi
 fi
 set +a
 
