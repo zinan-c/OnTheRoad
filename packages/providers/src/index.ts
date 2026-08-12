@@ -4,6 +4,7 @@ export * from "./contracts/providers.js";
 export * from "./contracts/validation.js";
 export * from "./fixture/fixture-provider.js";
 export * from "./geocoding/index.js";
+export * from "./static-map/manifest.js";
 
 import type { ProviderCapabilityMatrix, ProviderSuite } from "./contracts/providers.js";
 

@@ -10,6 +10,10 @@
     "./geocoding": {
       "types": "./src/geocoding/index.ts",
       "default": "./dist/geocoding/index.js"
+    },
+    "./static-map": {
+      "types": "./src/static-map/manifest.ts",
+      "default": "./dist/static-map/manifest.js"
     }
   },
   "scripts": {

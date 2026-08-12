@@ -10,6 +10,14 @@
     "./location": {
       "types": "./src/location/adjust-coordinates.ts",
       "default": "./dist/location/adjust-coordinates.js"
+    },
+    "./import": {
+      "types": "./src/import/contracts.ts",
+      "default": "./dist/import/contracts.js"
+    },
+    "./export": {
+      "types": "./src/export/contracts.ts",
+      "default": "./dist/export/contracts.js"
     }
   },
   "scripts": {
