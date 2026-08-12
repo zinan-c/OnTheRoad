@@ -379,6 +379,17 @@ class ApiController {
     );
   }
 
+  @Get("trips/:tripId/routes/status")
+  async routeStatus(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+  ) {
+    return this.runtime.routes.status(
+      await owner(this.runtime, request),
+      tripId,
+    );
+  }
+
   @Post("trips/:tripId/days/:tripDayId/itinerary-items")
   async createItem(
     @Req() request: FastifyRequest,

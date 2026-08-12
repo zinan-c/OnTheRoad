@@ -45,4 +45,94 @@ export class PostgresRouteRepository {
       [ownerId, tripId],
     );
   }
+
+  /** @param {string} ownerId @param {string} tripId */
+  status(ownerId, tripId) {
+    return this.database.json(
+      `WITH days AS (
+         SELECT day.id, day.day_number, day.route_generation
+         FROM trip_day day
+         JOIN trip ON trip.id = day.trip_id
+         WHERE day.trip_id = $2::uuid
+           AND trip.owner_id = $1
+           AND trip.status <> 'deleted'
+       ),
+       pending_event_days AS (
+         SELECT DISTINCT day.id
+         FROM days day
+         JOIN job_outbox event ON event.aggregate_id = day.id::text
+         WHERE event.event_type = 'route.rebuild.requested'
+           AND event.handled_at IS NULL
+       ),
+       active_segments AS (
+         SELECT
+           segment.trip_day_id,
+           segment.status,
+           CASE
+             WHEN jsonb_typeof(segment.source_context->'blockers') = 'array'
+               THEN jsonb_array_length(segment.source_context->'blockers')
+             ELSE 0
+           END AS blocker_count,
+           segment.source_context
+         FROM route_segment segment
+         WHERE segment.trip_id = $2::uuid
+           AND segment.owner_id = $1
+           AND segment.status <> 'obsolete'
+       ),
+       stale_days AS (
+         SELECT DISTINCT day.id
+         FROM days day
+         JOIN active_segments segment
+           ON (segment.source_context->'routeGenerations') ? (day.id::text)
+         WHERE ((segment.source_context->'routeGenerations'->> (day.id::text))::integer)
+             IS DISTINCT FROM day.route_generation
+       ),
+       pending_segment_days AS (
+         SELECT DISTINCT segment.trip_day_id AS id
+         FROM active_segments segment
+         WHERE segment.status = 'resolving'
+            OR (segment.status = 'pending' AND segment.blocker_count = 0)
+       ),
+       pending_days AS (
+         SELECT id FROM pending_event_days
+         UNION
+         SELECT id FROM stale_days
+         UNION
+         SELECT id FROM pending_segment_days
+       )
+       SELECT jsonb_build_object(
+         'status', CASE
+           WHEN EXISTS (SELECT 1 FROM pending_days) THEN 'loading'
+           ELSE 'done'
+         END,
+         'generations', COALESCE(
+           (
+             SELECT jsonb_agg(
+               jsonb_build_object(
+                 'dayId', day.id,
+                 'dayNumber', day.day_number,
+                 'routeGeneration', day.route_generation
+               )
+               ORDER BY day.day_number
+             )
+             FROM days day
+           ),
+           '[]'::jsonb
+         ),
+         'pendingDays', (SELECT count(*) FROM pending_days),
+         'blockedSegments', (
+           SELECT count(*)
+           FROM active_segments
+           WHERE status = 'pending' AND blocker_count > 0
+         ),
+         'failedSegments', (
+           SELECT count(*)
+           FROM active_segments
+           WHERE status = 'failed'
+         ),
+         'pollAfterMs', 1500
+       )`,
+      [ownerId, tripId],
+    );
+  }
 }

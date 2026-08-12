@@ -1521,6 +1521,32 @@
         }
       }
     },
+    "/trips/{tripId}/routes/status": {
+      "get": {
+        "operationId": "getRouteGenerationStatus",
+        "summary": "Get the finite route-generation status for a trip",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current route-generation status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteGenerationStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/trips/{tripId}/itinerary-items/{itemId}/gallery": {
       "get": {
         "operationId": "listItemGallery",
@@ -3796,6 +3822,68 @@
           },
           "updatedAt": {
             "$ref": "#/components/schemas/UtcDateTime"
+          }
+        }
+      },
+      "RouteGenerationStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "generations",
+          "pendingDays",
+          "blockedSegments",
+          "failedSegments",
+          "pollAfterMs"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "loading",
+              "done"
+            ]
+          },
+          "generations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "dayId",
+                "dayNumber",
+                "routeGeneration"
+              ],
+              "properties": {
+                "dayId": {
+                  "$ref": "#/components/schemas/ResourceId"
+                },
+                "dayNumber": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "routeGeneration": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "pendingDays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "blockedSegments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failedSegments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pollAfterMs": {
+            "type": "integer",
+            "minimum": 250
           }
         }
       },
