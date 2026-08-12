@@ -138,6 +138,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     new URL("scripts/run-environment.sh", root),
     "utf8",
   );
+  const nativeMinioInstaller = await readFile(
+    new URL("scripts/install-native-minio.sh", root),
+    "utf8",
+  );
   const playwrightConfig = await readFile(
     new URL("apps/web/playwright.config.ts", root),
     "utf8",
@@ -208,6 +212,11 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     2,
     "unit and clean-install paths both require native MinIO",
   );
+  assert.match(nativeMinioInstaller, /--retry-all-errors/);
+  assert.match(nativeMinioInstaller, /--retry-delay 5/);
+  assert.match(nativeMinioInstaller, /github\.com\/minio\/minio\/releases\/download/);
+  assert.match(nativeMinioInstaller, /github\.com\/minio\/mc\/releases\/download/);
+  assert.match(nativeMinioInstaller, /sha256sum --check/);
   assert.equal(
     qualityWorkflow.match(/install --no-install-recommends --yes imagemagick poppler-utils/g)
       ?.length,
