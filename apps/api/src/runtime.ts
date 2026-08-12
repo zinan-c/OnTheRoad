@@ -36,6 +36,7 @@ import { ImportPreviewService, PostgresImportPreviewRepository } from "./modules
 import { PostgresImportTransport } from "./modules/imports/postgres-upload.mjs";
 import { PostgresImportCommitTransport } from "./modules/imports/commit.mjs";
 import { PostgresImportMediaTaskService } from "./modules/imports/media-tasks.mjs";
+import { PostgresImportGeocodeService } from "./modules/imports/geocode.mjs";
 import { PostgresRouteRepository } from "./modules/routing/postgres-route-repository.mjs";
 
 export interface ImportTransport {
@@ -77,6 +78,7 @@ export interface ApiRuntime {
   readonly imports?: ImportTransport;
   readonly importCommit?: PostgresImportCommitTransport;
   readonly importMediaTasks?: PostgresImportMediaTaskService;
+  readonly importGeocode?: PostgresImportGeocodeService;
   readonly importMapping?: ImportMappingService;
   readonly importPreview: ImportPreviewService;
   readonly routes: PostgresRouteRepository;
@@ -210,6 +212,11 @@ export function createProductionRuntime(
   const imports = new PostgresImportTransport({ database, storage: importStorage, queue: redis });
   const importCommit = new PostgresImportCommitTransport({ database, queue: redis });
   const importMediaTasks = new PostgresImportMediaTaskService({ database, queue: redis });
+  const importGeocode = new PostgresImportGeocodeService({
+    database,
+    queue: redis,
+    provider: locationSearch.capabilities().provider,
+  });
   const routes = new PostgresRouteRepository({ executor: database });
 
   return {
@@ -230,6 +237,7 @@ export function createProductionRuntime(
     imports,
     importCommit,
     importMediaTasks,
+    importGeocode,
     importMapping,
     importPreview,
     routes,

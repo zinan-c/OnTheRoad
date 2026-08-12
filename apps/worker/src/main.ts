@@ -25,6 +25,12 @@ import { OutboxReconciler } from "./processors/maintenance/outbox-reconciler.js"
 import { PostgresRecoverableOutbox } from "./processors/maintenance/postgres-outbox-repository.js";
 import { recordWorkerPipeline, workerTelemetry } from "./telemetry.js";
 import { createFixtureProvider } from "@on-the-road/providers";
+import { PostgresGeocodingBatchProcessor } from "./processors/geocoding/postgres-batch-processor.js";
+import {
+  createFixtureGeocoder,
+  PolicyGeocoder,
+  RedisGeocodingStateStore,
+} from "@on-the-road/providers/geocoding";
 
 export async function startWorker(
   environment: Readonly<Record<string, string | undefined>> = process.env,
@@ -46,6 +52,24 @@ export async function startWorker(
   const workRedis = new Redis(config.server.redisUrl.href, {
     maxRetriesPerRequest: null,
   });
+  const geocoder = new PolicyGeocoder(
+    createFixtureGeocoder({ profile: "fixture-global" }),
+    {
+      store: new RedisGeocodingStateStore({
+        get: (key) => workRedis.get(key),
+        set: (key, value, options) => workRedis.set(key, value, "EX", options.EX),
+        eval: (script, options) => workRedis.eval(
+          script,
+          options.keys.length,
+          ...options.keys,
+          ...options.arguments,
+        ),
+      }),
+      cacheTtlSeconds: 86_400,
+      bucket: { capacity: 10, refillPerSecond: 2 },
+      maxRetries: 2,
+    },
+  );
   const controlRedis = new Redis(config.server.redisUrl.href);
   const importRepository = new PostgresImportInspectRepository(config.server.databaseUrl.href);
   const staging = new PostgresImportStagingProcessor(config.server.databaseUrl.href, {
@@ -104,6 +128,16 @@ export async function startWorker(
       mediaKeyVersion: environment.OTR_IMPORT_MEDIA_KEY_VERSION?.trim() || "runtime-v1",
       processAttachment: (attachmentId) => media.process(attachmentId),
   });
+  const geocoding = new PostgresGeocodingBatchProcessor({
+    databaseUrl: config.server.databaseUrl.href,
+    geocoder: {
+      provider: "fixture",
+      profile: "fixture-global",
+      capabilities: () => geocoder.capabilities(),
+      search: (request) => geocoder.search(request),
+      reverse: (point, locale) => geocoder.reverse(point, locale),
+    },
+  });
   let importing = true;
   const importLoop = (async () => {
     while (importing) {
@@ -112,6 +146,7 @@ export async function startWorker(
         "otr:import-stage",
         "otr:import-commit",
         "otr:media",
+        "otr:geocode",
         1,
       );
       if (!result) continue;
@@ -123,6 +158,7 @@ export async function startWorker(
           jobId?: string;
           attachmentId?: string;
           mediaTaskId?: string;
+          batchId?: string;
         };
         if (result[0] === "otr:import-inspect" && payload.jobId) {
           const job = await importRepository.getJob(payload.jobId);
@@ -145,6 +181,8 @@ export async function startWorker(
           }
         } else if (result[0] === "otr:media" && payload.attachmentId) {
           await media.process(payload.attachmentId);
+        } else if (result[0] === "otr:geocode" && payload.batchId) {
+          await geocoding.process(payload.batchId);
         }
       } catch (error) {
         outcome = "failed";
@@ -204,6 +242,11 @@ export async function startWorker(
           await controlRedis.lpush("otr:media", JSON.stringify({ mediaTaskId }));
         }
       }
+      for (const batchId of await geocoding.listRecoverableBatchIds()) {
+        if (await controlRedis.set(`otr:recovery:geocode:${batchId}`, "1", "EX", 60, "NX")) {
+          await controlRedis.lpush("otr:geocode", JSON.stringify({ batchId }));
+        }
+      }
     } finally {
       reconciling = false;
     }
@@ -230,6 +273,7 @@ export async function startWorker(
     await importCommit.close();
     await mediaRepository.close();
     await importMediaRepository.close();
+    await geocoding.close();
     await applicationQueue.close();
     queueConnection.disconnect();
     await outbox.close();

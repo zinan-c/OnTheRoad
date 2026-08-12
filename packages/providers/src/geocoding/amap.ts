@@ -279,10 +279,10 @@ export function createAmapGeocoder(options: AmapGeocoderOptions): Geocoder {
     profile: options.profile,
     capabilities: () => ({ search: true, reverse: true, autocomplete: false, fuzzy: true }),
     async search(searchRequest: GeocodingSearchRequest) {
-      if (searchRequest.trigger === "autocomplete" || searchRequest.trigger === "batch") {
+      if (searchRequest.trigger === "autocomplete") {
         throw new GeocoderError(
           "PROVIDER_TRIGGER_UNSUPPORTED",
-          `AMAP ${searchRequest.trigger} trigger is disabled by policy`,
+          "AMAP autocomplete trigger is disabled by policy",
           { provider: "amap" },
         );
       }

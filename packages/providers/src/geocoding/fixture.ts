@@ -33,10 +33,10 @@ export function createFixtureGeocoder(
     profile: options.profile,
     capabilities: () => ({ search: true, reverse: true, autocomplete: false, fuzzy: true }),
     async search(request) {
-      if (request.trigger === "autocomplete" || request.trigger === "batch") {
+      if (request.trigger === "autocomplete") {
         throw new GeocoderError(
           "PROVIDER_TRIGGER_UNSUPPORTED",
-          `Fixture ${request.trigger} trigger is disabled by policy`,
+          "Fixture autocomplete trigger is disabled by policy",
         );
       }
       const query = request.query.normalize("NFKC").trim().toLocaleLowerCase("und");

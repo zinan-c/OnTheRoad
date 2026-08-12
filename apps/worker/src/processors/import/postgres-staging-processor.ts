@@ -136,6 +136,9 @@ export class PostgresImportStagingProcessor {
             JSON.stringify(errors),
           ],
         );
+        if (status === "unresolved") {
+          await this.#ensureLocationStaging(client, job, row, normalized);
+        }
         await this.#registerMediaTasks(client, job, row.id, row.source_row_key, normalized);
       }
 
@@ -170,6 +173,40 @@ export class PostgresImportStagingProcessor {
        LIMIT $1`,
       [limit],
     )).rows.map(({ id }) => id);
+  }
+
+  async #ensureLocationStaging(
+    client: import("@on-the-road/database/postgres").PoolClient,
+    job: ImportJobRecord,
+    row: ImportRowRecord,
+    normalized: Record<string, unknown>,
+  ): Promise<void> {
+    const inputText = locationInputText(normalized);
+    if (!inputText) return;
+    await client.query(
+      `INSERT INTO import_location_staging (
+         trip_id, owner_id, source_row_key, staged_location, status, version
+       ) VALUES ($1::uuid, $2, $3, $4::jsonb, 'staged', 1)
+       ON CONFLICT (trip_id, source_row_key) DO UPDATE
+         SET staged_location = EXCLUDED.staged_location,
+             status = CASE
+               WHEN import_location_staging.status = 'consumed' THEN import_location_staging.status
+               ELSE 'staged'
+             END,
+             version = import_location_staging.version + 1,
+             updated_at = now()`,
+      [
+        job.trip_id,
+        job.owner_id,
+        `${job.id}:${row.source_row_key}`,
+        JSON.stringify({
+          inputText,
+          sourceRowKey: row.source_row_key,
+          importJobId: job.id,
+          importRowId: row.id,
+        }),
+      ],
+    );
   }
 
   close(): Promise<void> {
@@ -213,4 +250,12 @@ function requiresLocationResolution(normalized: Record<string, unknown>): boolea
     normalized.endLocation,
   ].some((value) => typeof value === "string" && value.trim().length > 0);
   return hasLocationInput && !hasCoordinates;
+}
+
+function locationInputText(normalized: Record<string, unknown>): string | null {
+  for (const key of ["address", "place", "startLocation", "endLocation"]) {
+    const value = normalized[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
 }

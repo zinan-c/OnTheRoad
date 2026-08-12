@@ -138,10 +138,10 @@ export function createHereGeocoder(options: HereGeocoderOptions): Geocoder {
     profile: options.profile,
     capabilities: () => ({ search: true, reverse: true, autocomplete: false, fuzzy: true }),
     async search(searchRequest: GeocodingSearchRequest) {
-      if (searchRequest.trigger === "autocomplete" || searchRequest.trigger === "batch") {
+      if (searchRequest.trigger === "autocomplete") {
         throw new GeocoderError(
           "PROVIDER_TRIGGER_UNSUPPORTED",
-          `HERE ${searchRequest.trigger} trigger is disabled by policy`,
+          "HERE autocomplete trigger is disabled by policy",
         );
       }
       const query = searchRequest.query.normalize("NFKC").trim().replace(/\s+/gu, " ");

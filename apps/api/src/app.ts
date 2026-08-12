@@ -999,6 +999,32 @@ class ApiController {
     return this.runtime.importPreview.skip(await owner(this.runtime, request), jobId, body.ids ?? []);
   }
 
+  @Get("imports/:jobId/geocode")
+  async getImportGeocode(@Req() request: FastifyRequest, @Param("jobId") jobId: string) {
+    if (!this.runtime.importGeocode) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_GEOCODE_UNAVAILABLE", title: "Import geocoding is unavailable" });
+    }
+    return this.runtime.importGeocode.get(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/geocode")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async startImportGeocode(@Req() request: FastifyRequest, @Param("jobId") jobId: string) {
+    if (!this.runtime.importGeocode) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_GEOCODE_UNAVAILABLE", title: "Import geocoding is unavailable" });
+    }
+    return this.runtime.importGeocode.start(await owner(this.runtime, request), jobId);
+  }
+
+  @Post("imports/:jobId/geocode/cancel")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async cancelImportGeocode(@Req() request: FastifyRequest, @Param("jobId") jobId: string) {
+    if (!this.runtime.importGeocode) {
+      throw new ProblemDetailsError({ status: 503, code: "IMPORT_GEOCODE_UNAVAILABLE", title: "Import geocoding is unavailable" });
+    }
+    return this.runtime.importGeocode.cancel(await owner(this.runtime, request), jobId);
+  }
+
   @Post("trips/:tripId/imports/:attachmentId/inspection")
   async queueImportInspection(
     @Req() request: FastifyRequest,
