@@ -485,7 +485,6 @@ export function ItineraryPanel({
     }
     setStatus("saving");
     setError(null);
-    onRoutesInvalidated?.();
     try {
       const saved = await itineraryApi<{ tripDayId: string; version: number; orderedIds: string[] }>(
         `/trips/${tripId}/days/${selectedDay.id}/itinerary-items/reorder`,
@@ -504,6 +503,7 @@ export function ItineraryPanel({
         : day));
       workspaceOriginalOrder.current = saved.orderedIds;
       setWorkspaceEditing(false);
+      onRoutesInvalidated?.();
       setStatus("saved");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to save the itinerary order");
@@ -518,7 +518,6 @@ export function ItineraryPanel({
   ): Promise<boolean> => {
     setStatus("saving");
     setError(null);
-    onRoutesInvalidated?.();
     try {
       const saved = await itineraryApi<ProductItem>(`/trips/${tripId}/itinerary-items/${item.id}`, {
         method: "PATCH",
@@ -550,6 +549,7 @@ export function ItineraryPanel({
         onItemsChange?.(saved.tripDayId, next);
         return next;
       });
+      onRoutesInvalidated?.();
       setStatus("saved");
       return true;
     } catch (caught) {
@@ -597,7 +597,6 @@ export function ItineraryPanel({
         }
         return;
       }
-      onRoutesInvalidated?.();
       const saved = await itineraryApi<ProductItem>(`/trips/${tripId}/days/${selectedDayId}/itinerary-items`, {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -623,6 +622,7 @@ export function ItineraryPanel({
         await loadItems(selectedDayId);
         setEditing(saved);
       }
+      onRoutesInvalidated?.();
       confirmedPayload.current = draftFingerprint(draft);
       setStatus("saved");
     } catch (caught) {
@@ -642,6 +642,7 @@ export function ItineraryPanel({
         body: JSON.stringify({ targetTripDayId: targetDayId }),
       });
       if (targetDayId === selectedDayId) await loadItems(selectedDayId);
+      onRoutesInvalidated?.();
       setStatus("saved");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Copy failed");
@@ -658,6 +659,7 @@ export function ItineraryPanel({
         method: "DELETE",
         headers: { "if-match": String(item.version) },
       });
+      onRoutesInvalidated?.();
       setItems((current) => {
         const next = current.filter(({ id }) => id !== item.id);
         onItemsChange?.(item.tripDayId, next);
@@ -696,7 +698,6 @@ export function ItineraryPanel({
     setItems(orderedIds.map((id) => byId.get(id)!).filter(Boolean));
     setStatus("saving");
     setError(null);
-    onRoutesInvalidated?.();
     try {
       const saved = await itineraryApi<{ tripDayId: string; version: number; orderedIds: string[] }>(
         `/trips/${tripId}/days/${selectedDay.id}/itinerary-items/reorder`,
@@ -713,6 +714,7 @@ export function ItineraryPanel({
       setDays((current) => current.map((day) => day.id === saved.tripDayId
         ? { ...day, version: saved.version }
         : day));
+      onRoutesInvalidated?.();
       setStatus("saved");
     } catch (caught) {
       setItems(previous);

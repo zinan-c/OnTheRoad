@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { itineraryApi, type ProductDay, type ProductItem } from "../itinerary/itinerary-panel";
 import type { TransportModeView } from "../trips/settings/transport-modes";
@@ -29,6 +29,25 @@ export type RouteSegment = PersistedRoute & {
   readonly sourceVersion: string;
   readonly sourceContext: Record<string, unknown>;
 };
+
+export type RouteGenerationStatus = "loading" | "done";
+
+export type RouteStatusSnapshot = {
+  readonly status: RouteGenerationStatus;
+  readonly generations: readonly {
+    readonly dayId: string;
+    readonly dayNumber: number;
+    readonly routeGeneration: number;
+  }[];
+  readonly pendingDays: number;
+  readonly blockedSegments: number;
+  readonly failedSegments: number;
+  readonly pollAfterMs: number;
+};
+
+export const ROUTE_STATUS_POLL_INTERVAL_MS = 1_500;
+export const ROUTE_STATUS_MAX_POLLS = 40;
+export const ROUTE_STATUS_MAX_DURATION_MS = 60_000;
 
 const DAY_COLORS = ["#2563eb", "#d9485f", "#0f766e", "#9333ea", "#c2410c"] as const;
 const ROUTE_BLOCKER_LABELS: Readonly<Record<string, string>> = {
@@ -87,7 +106,11 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
   const [locations, setLocations] = useState<Record<string, LocationView>>({});
   const [routes, setRoutes] = useState<RouteSegment[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [settledRefreshVersion, setSettledRefreshVersion] = useState(refreshVersion);
+  const [routeStatus, setRouteStatus] = useState<RouteStatusSnapshot | null>(null);
+  const [routeStatusError, setRouteStatusError] = useState<string | null>(null);
+  const [routeStatusRetryKey, setRouteStatusRetryKey] = useState(0);
+  const routeStatusStartedAt = useRef(0);
+  const routeStatusPolls = useRef(0);
   const selectionStore = useMemo(() => new MapTimelineSelectionStore(), []);
   const selection = useSyncExternalStore(
     (listener) => selectionStore.subscribe(listener),
@@ -120,25 +143,49 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
     }
   }, [tripId]);
 
-  useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 1500);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
+  const loadRouteStatus = useCallback(async (): Promise<RouteStatusSnapshot> => {
+    const status = await itineraryApi<RouteStatusSnapshot>(`/trips/${tripId}/routes/status`);
+    setRouteStatus(status);
+    setRouteStatusError(null);
+    return status;
+  }, [tripId]);
 
   useEffect(() => {
-    if (refreshVersion <= settledRefreshVersion) return;
     let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void refresh().finally(() => {
-        if (!cancelled) setSettledRefreshVersion(refreshVersion);
-      });
-    }, 750);
+    let timer: number | undefined;
+    routeStatusStartedAt.current = performance.now();
+    routeStatusPolls.current = 0;
+    setRouteStatus(null);
+    setRouteStatusError(null);
+
+    const poll = async () => {
+      try {
+        const status = await loadRouteStatus();
+        if (cancelled) return;
+        if (status.status === "done") {
+          await refresh();
+          return;
+        }
+        routeStatusPolls.current += 1;
+        const timedOut = performance.now() - routeStatusStartedAt.current >= ROUTE_STATUS_MAX_DURATION_MS;
+        const exhausted = routeStatusPolls.current >= ROUTE_STATUS_MAX_POLLS;
+        if (timedOut || exhausted) {
+          setRouteStatusError("Route generation is taking longer than expected. Refresh to check again.");
+          return;
+        }
+        timer = window.setTimeout(() => void poll(), status.pollAfterMs || ROUTE_STATUS_POLL_INTERVAL_MS);
+      } catch (error) {
+        if (cancelled) return;
+        setRouteStatusError(error instanceof Error ? error.message : "Unable to load route status");
+      }
+    };
+
+    void poll();
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [refresh, refreshVersion, settledRefreshVersion]);
+  }, [loadRouteStatus, refresh, refreshVersion, routeStatusRetryKey]);
 
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const mapItems = useMemo(() => buildRouteMapItems(items, days, locations), [days, items, locations]);
@@ -147,7 +194,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
   const visibleTimelineItems = useMemo(() => selectedDayId ? items.filter(({ tripDayId }) => tripDayId === selectedDayId) : items, [items, selectedDayId]);
   const selectedItemId = selection.selected?.itemId ?? null;
   const selectedRoute = routes.find(({ id }) => id === selectedRouteId) ?? null;
-  const isGenerating = settledRefreshVersion < refreshVersion || (items.length >= 2 && (routes.length === 0 || routes.some((route) => route.status === "resolving" || (route.status === "pending" && !Array.isArray(route.sourceContext.blockers)))));
+  const isGenerating = routeStatus?.status === "loading";
 
   function itemLabel(id: string | null): string {
     if (!id) return "Unknown endpoint";
@@ -169,8 +216,10 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
       <button id="map-scope-global" type="button" aria-pressed={selectedDayId === null} onClick={onSelectGlobalMap}>Global map</button>
       {selectedDay ? <span role="status">Showing Day {selectedDay.dayNumber}</span> : <span role="status">Showing all days</span>}
     </nav> : null}
-    {isGenerating ? <p role="status">Generating routes…</p> : null}
+    {routeStatus === null ? <p role="status">Checking route status…</p> : isGenerating ? <p role="status">Generating routes…</p> : null}
+    {routeStatusError ? <p role="alert">{routeStatusError}</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
+    {routeStatusError ? <button type="button" onClick={() => setRouteStatusRetryKey((key) => key + 1)}>Refresh route status</button> : null}
     {visibleItems.some(({ point }) => point) ? <RealRouteMap
       items={visibleItems}
       routes={visibleRoutes}
