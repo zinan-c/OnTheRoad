@@ -379,6 +379,52 @@ export class S3ObjectStorage implements ObjectStorage, MediaObjectStorage {
     };
   }
 
+  async putQuarantine(
+    ownerId: string,
+    value: Buffer,
+    contentType: string,
+  ): Promise<ImmutableStoredObject & Readonly<{ etag: string }>> {
+    if (!ownerId.trim()) throw new StorageError("OWNER_REQUIRED", "An owner is required.");
+    if (!this.#allowedContentTypes.has(contentType)) {
+      throw new StorageError("CONTENT_TYPE_NOT_ALLOWED", "The content type is not allowed.", 415);
+    }
+    if (value.byteLength < 1 || value.byteLength > this.#maximumUploadBytes) {
+      throw new StorageError("CONTENT_LENGTH_NOT_ALLOWED", "Quarantine length is outside the safe limit.", 413);
+    }
+    const ownerSegment = sha256(ownerId).slice(0, 32);
+    // External media is still quarantined under the attachment namespace so
+    // the existing attachment processor can read it, but it is not publicly
+    // readable until the normal scan/process state machine marks it ready.
+    const objectKey = `attachments/${ownerSegment}/${this.#keyFactory()}`;
+    const digest = createHash("sha256").update(value).digest("base64");
+    const headers = {
+      "content-length": String(value.byteLength),
+      "content-type": contentType,
+      "if-none-match": "*",
+      "x-amz-checksum-sha256": digest,
+      "x-amz-meta-sha256": digest,
+    };
+    const response = await this.#fetch(
+      this.#presign("PUT", objectKey, headers, 60, this.#clock()),
+      { method: "PUT", headers, body: Uint8Array.from(value) },
+    );
+    if (response.status === 409 || response.status === 412) {
+      throw new StorageError("IMMUTABLE_OBJECT_EXISTS", "The quarantine object key already exists.", 409);
+    }
+    if (!response.ok) throw new StorageError("QUARANTINE_WRITE_FAILED", `Quarantine write failed with status ${response.status}.`, 502);
+    const version = response.headers.get("x-amz-version-id");
+    const etag = response.headers.get("etag");
+    if (!version || !etag) throw new StorageError("OBJECT_VERSION_REQUIRED", "Quarantine storage did not return immutable metadata.", 502);
+    return {
+      key: objectKey,
+      version,
+      checksumSha256: digest,
+      contentType,
+      contentLength: value.byteLength,
+      etag,
+    };
+  }
+
   #presign(
     method: "PUT" | "HEAD" | "GET",
     objectKey: string,

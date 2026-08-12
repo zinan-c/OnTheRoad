@@ -5,6 +5,7 @@ declare const process: {
 declare const Buffer: {
   alloc(size: number): any;
   from(value: string | Uint8Array, encoding?: string): any;
+  concat(values: readonly any[]): any;
 };
 type Buffer = any;
 
@@ -23,6 +24,10 @@ declare module "node:crypto" {
   export const createHmac: any;
   export const randomUUID: () => string;
   export const timingSafeEqual: any;
+}
+
+declare module "node:dns/promises" {
+  export const lookup: any;
 }
 
 declare module "node:fs/promises" {

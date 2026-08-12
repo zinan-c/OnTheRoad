@@ -42,6 +42,11 @@ export interface MediaObjectStorage {
     value: Buffer,
     contentType: string,
   ): Promise<ImmutableStoredObject>;
+  putQuarantine?(
+    ownerId: string,
+    value: Buffer,
+    contentType: string,
+  ): Promise<ImmutableStoredObject & Readonly<{ etag: string }>>;
   createReadUrl?(
     objectKey: string,
     objectVersion: string,
