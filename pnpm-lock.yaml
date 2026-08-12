@@ -107,9 +107,6 @@ importers:
       '@on-the-road/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@on-the-road/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
       '@on-the-road/providers':
         specifier: workspace:*
         version: link:../../packages/providers
