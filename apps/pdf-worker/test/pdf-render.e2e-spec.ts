@@ -115,7 +115,7 @@ describe("TC-F05-03 resource-ready render contract", () => {
       advance: async (...args: Parameters<InMemoryExportStageRepository["advance"]>) => {
         const next = await stages.advance(...args);
         if (next?.status === "validating") {
-          await stages.cancel(job.id, "pdf-worker-1", stages.leaseToken(job.id)!, next.version);
+          stages.seed({ ...next, status: "cancelling" });
         }
         return next;
       },
@@ -125,7 +125,7 @@ describe("TC-F05-03 resource-ready render contract", () => {
     const processor = new PdfExportProcessor({
       source: { async get() { return { job, snapshot: { schemaVersion: 1, tripId: "trip-1", tripVersion: 1, facts: {}, assets: [], capturedAt: "2026-08-12T00:00:00.000Z" } }; } },
       stages: wrappedStages,
-      probeFactory: () => ({ fontsReady: true, imagesReady: true, mapsReady: true }),
+      probeFactory: () => ({ fontsReady: () => true, imagesReady: () => true, mapsReady: () => true }),
       renderer: { async render() { return new TextEncoder().encode("%PDF-1.7\n01234567890123456789"); } },
       artifacts: { async put() { return { key: "derived/export-cancel-race/pdf", version: "v1", checksumSha256: "e".repeat(64) }; } },
       workerId: "pdf-worker-1",

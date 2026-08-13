@@ -12,6 +12,8 @@ async function createTrip(page: Page, name: string, endDate?: string) {
 
 export async function createTripWorkspace(page: Page, name: string) {
   const tripId = await createTrip(page, name);
+  await page.getByRole("button", { name: /^Day 1,/u }).click();
+  await expect(page.getByTestId("add-itinerary-item")).toBeVisible();
   for (let index = 0; index < 3; index += 1) {
     await page.getByTestId("add-itinerary-item").click();
     const editor = page.getByTestId("item-editor");
@@ -26,6 +28,8 @@ export async function createTripWorkspace(page: Page, name: string) {
 
 export async function createLocatedTripWorkspace(page: Page, name: string) {
   const tripId = await createTrip(page, name);
+  await page.getByRole("button", { name: /^Day 1,/u }).click();
+  await expect(page.getByTestId("add-itinerary-item")).toBeVisible();
   const fixtures = [
     { target: "A", query: "外滩", mode: "" },
     { target: "B", query: "豫园", mode: "WALK" },

@@ -77,6 +77,8 @@ try {
         "vitest",
         "run",
         ...files.map((file) => relative(groupRoot, file)),
+        "--config",
+        resolve(root, "vitest.required.config.mjs"),
         "--root",
         groupRoot,
         "--reporter=json",
