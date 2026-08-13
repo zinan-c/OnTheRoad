@@ -50,6 +50,15 @@ type FakeItem = {
   externalSource: string | null;
   externalId: string | null;
   version: number;
+  locationId?: string | null;
+};
+
+type FakeLocation = {
+  id: string;
+  inputText: string;
+  name: string;
+  point: { latitude: number; longitude: number } | null;
+  status: "unresolved" | "resolved";
 };
 
 export class FakeCommitDatabase {
@@ -58,8 +67,10 @@ export class FakeCommitDatabase {
   readonly claims = new Map<string, Claim>();
   readonly ledger = new Map<string, LedgerEntry>();
   readonly items = new Map<string, FakeItem>();
+  readonly locations = new Map<string, FakeLocation>();
   readonly expenses: Array<{ itemId: string; amount: number }> = [];
   readonly queue: Array<{ name: string; payload: Record<string, unknown> }> = [];
+  readonly routeGenerations = new Map<string, number>([["day-1", 1]]);
   readonly #rows = new Map<string, FakeImportRow[]>();
   readonly #raceParticipants: number;
   #claimArrivals = 0;
@@ -138,6 +149,35 @@ export class FakeCommitDatabase {
       return result();
     }
     if (sql.startsWith("SELECT id FROM trip_day")) return result([{ id: "day-1" } as T]);
+    if (sql.startsWith("SELECT create_location")) {
+      const input = JSON.parse(String(values[0])) as Record<string, unknown>;
+      const id = `location-${this.locations.size + 1}`;
+      const point = input.point && typeof input.point === "object" && !Array.isArray(input.point)
+        ? input.point as { latitude?: unknown; longitude?: unknown }
+        : null;
+      this.locations.set(id, {
+        id,
+        inputText: String(input.inputText ?? ""),
+        name: String(input.name ?? input.inputText ?? ""),
+        point: point && typeof point.latitude === "number" && typeof point.longitude === "number"
+          ? { latitude: point.latitude, longitude: point.longitude }
+          : null,
+        status: "unresolved",
+      });
+      return result([{ id } as T]);
+    }
+    if (sql.startsWith("SELECT transition_location")) {
+      const location = this.locations.get(String(values[1]));
+      if (location) {
+        const payload = JSON.parse(String(values[2])) as { point?: { latitude?: unknown; longitude?: unknown } };
+        const point = payload.point;
+        location.status = "resolved";
+        location.point = point && typeof point.latitude === "number" && typeof point.longitude === "number"
+          ? { latitude: point.latitude, longitude: point.longitude }
+          : location.point;
+      }
+      return result();
+    }
     if (sql.startsWith("SELECT id, version FROM itinerary_item")) {
       const source = String(values[2]);
       const id = String(values[3]);
@@ -153,8 +193,10 @@ export class FakeCommitDatabase {
         externalSource: typeof input.externalSource === "string" ? input.externalSource : null,
         externalId: typeof input.externalId === "string" ? input.externalId : null,
         version: 1,
+        locationId: typeof input.locationId === "string" ? input.locationId : null,
       };
       this.items.set(id, item);
+      this.bumpRouteGeneration(String(input.tripDayId ?? "day-1"));
       return result([{ value: { id } } as T]);
     }
     if (sql.startsWith("SELECT itinerary_item_as_json")) {
@@ -167,6 +209,7 @@ export class FakeCommitDatabase {
       if (item) {
         item.target = typeof input.target === "string" ? input.target : item.target;
         item.version += 1;
+        this.bumpRouteGeneration("day-1");
       }
       return result([{ value: { id: item?.id } } as T]);
     }
@@ -299,7 +342,7 @@ export class FakeCommitDatabase {
     return null as T;
   }
 
-  async transaction<T>(operation: (client: { query: typeof this.query }) => Promise<T>): Promise<T> {
+  async transaction<T>(operation: (client: { query: FakeCommitDatabase["query"] }) => Promise<T>): Promise<T> {
     return operation({ query: this.query.bind(this) });
   }
 
@@ -310,6 +353,15 @@ export class FakeCommitDatabase {
   }
 
   private job(id: string): FakeImportJob | undefined { return this.jobs.get(id); }
+
+  private bumpRouteGeneration(dayId: string): void {
+    const next = (this.routeGenerations.get(dayId) ?? 0) + 1;
+    this.routeGenerations.set(dayId, next);
+    this.queue.push({
+      name: "route.rebuild.requested",
+      payload: { dayId, routeGeneration: next },
+    });
+  }
 
   #row(id: string): FakeImportRow & { imported_item_id?: string | null } | undefined {
     for (const rows of this.#rows.values()) {
