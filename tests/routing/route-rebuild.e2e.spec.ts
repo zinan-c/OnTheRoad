@@ -4,12 +4,14 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import type { JobEvent } from "../../packages/database/src/schema/jobs.js";
 import { PostgresExecutor } from "../../packages/database/src/postgres/index.js";
+import { createFixtureProvider } from "../../packages/providers/src/index.js";
 import { PostgresRouteRebuildProcessor } from "../../apps/worker/src/processors/directions/postgres-route-rebuild.js";
 
 const databaseUrl = process.env.OTR_C07_DATABASE_URL
   ?? process.env.OTR_M3_DATABASE_URL;
 const liveTest = databaseUrl ? test : test.skip;
 const ownerId = "m3-c07-rebuild";
+const directions = createFixtureProvider().directions;
 let database: PostgresExecutor | undefined;
 let processor: PostgresRouteRebuildProcessor | undefined;
 
@@ -26,7 +28,10 @@ afterEach(async () => {
 describe("TC-C07-03 change-to-rebuild E2E", () => {
   liveTest("obsoletes synchronously and rebuilds only the current route after change/redelivery", async () => {
     database = new PostgresExecutor({ databaseUrl, role: "test" });
-    processor = new PostgresRouteRebuildProcessor(databaseUrl!);
+    processor = new PostgresRouteRebuildProcessor(databaseUrl!, {
+      directions,
+      providerName: "fixture",
+    });
     const context = await seedRoute(database);
     const initialEvent = await latestEvent(database, context.dayId, "route.rebuild.requested");
     await expect(processor.process(initialEvent)).resolves.toMatchObject({ applied: true });

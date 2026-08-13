@@ -28,14 +28,15 @@ describe("TC-M3-INT-02 Import staging isolation", () => {
     const context = await seedImport(database);
     const formalBefore = await formalCounts(database, context.tripId);
 
-    await expect(processor.process(context.jobId)).resolves.toEqual({
+    const expectedResult = {
       jobId: context.jobId,
       totalRows: 5_000,
       validRows: 4_999,
       errorRows: 1,
       duplicateRows: 0,
       unresolvedRows: 0,
-    });
+    };
+    await expect(processor.process(context.jobId)).resolves.toEqual(expectedResult);
     expect(await stagedCounts(database, context.jobId)).toEqual({
       error: 1,
       new: 4_999,
@@ -60,11 +61,7 @@ describe("TC-M3-INT-02 Import staging isolation", () => {
     expect(page[0]?.normalized_data.target).toBe("Item 4951");
     expect(await formalCounts(database, context.tripId)).toEqual(formalBefore);
 
-    await expect(processor.process(context.jobId)).resolves.toMatchObject({
-      totalRows: 5_000,
-      validRows: 4_999,
-      errorRows: 1,
-    });
+    await expect(processor.process(context.jobId)).resolves.toEqual(expectedResult);
     expect(await stagedCounts(database, context.jobId)).toEqual({
       error: 1,
       new: 4_999,

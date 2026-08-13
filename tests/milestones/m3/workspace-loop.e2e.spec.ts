@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { PostgresExecutor } from "../../../packages/database/src/postgres/index.js";
 import type { JobEvent } from "../../../packages/database/src/schema/jobs.js";
+import { createFixtureProvider } from "../../../packages/providers/src/index.js";
 import { PostgresRouteRebuildProcessor } from "../../../apps/worker/src/processors/directions/postgres-route-rebuild.js";
 import {
   AttachmentGalleryService,
@@ -21,6 +22,7 @@ import {
 const databaseUrl = process.env.OTR_M3_DATABASE_URL;
 const liveTest = databaseUrl ? test : test.skip;
 const ownerId = "m3-int-workspace";
+const directions = createFixtureProvider().directions;
 let database: PostgresExecutor | undefined;
 let routeProcessor: PostgresRouteRebuildProcessor | undefined;
 
@@ -45,7 +47,10 @@ afterEach(async () => {
 describe("TC-M3-INT-01 Route/gallery/cost workspace", () => {
   liveTest("persists route rebuilds, gallery edits and five-dimension costs", async () => {
     database = new PostgresExecutor({ databaseUrl, role: "test" });
-    routeProcessor = new PostgresRouteRebuildProcessor(databaseUrl!);
+    routeProcessor = new PostgresRouteRebuildProcessor(databaseUrl!, {
+      directions,
+      providerName: "fixture",
+    });
     const context = await seedWorkspace(database);
 
     await expect(

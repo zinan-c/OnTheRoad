@@ -9,9 +9,11 @@ test("TC-C01-03 fixture provider completes offline operations deterministically"
   const first = await provider.geocoding.search({ query: "普陀山", locale: "zh-CN" });
   const second = await provider.geocoding.search({ query: "普陀山", locale: "zh-CN" });
   const reverse = await provider.reverseGeocoding.reverse(first[0]!.point);
+  const origin = { longitude: 121.4906, latitude: 31.2413, crs: "WGS84" as const };
+  const destination = first[0]!.point;
   const route = await provider.directions.route({
-    from: { longitude: 121.4906, latitude: 31.2413, crs: "WGS84" },
-    to: first[0]!.point,
+    from: origin,
+    to: destination,
     mode: "ferry",
   });
   const map = await provider.staticMap.render({
@@ -22,7 +24,15 @@ test("TC-C01-03 fixture provider completes offline operations deterministically"
 
   expect(second).toEqual(first);
   expect(reverse?.label).toBe("普陀山");
-  expect(route.geometry.coordinates).toHaveLength(2);
+  expect(route.geometry.coordinates).toEqual([
+    origin,
+    {
+      longitude: (origin.longitude + destination.longitude) / 2 + 0.002,
+      latitude: (origin.latitude + destination.latitude) / 2 + 0.001,
+      crs: "WGS84",
+    },
+    destination,
+  ]);
   expect(map.content).toContain("<svg");
   expect(map.content).toContain("On The Road fixture");
   expect(network).not.toHaveBeenCalled();

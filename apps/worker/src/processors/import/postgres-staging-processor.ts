@@ -20,6 +20,9 @@ type ImportJobRecord = {
   status: string;
   trip_id: string;
   owner_id: string;
+  total_rows: number;
+  valid_rows: number;
+  error_rows: number;
 };
 
 export type ImportStagingResult = Readonly<{
@@ -46,13 +49,34 @@ export class PostgresImportStagingProcessor {
   async process(jobId: string): Promise<ImportStagingResult> {
     return this.#database.transaction(async (client) => {
       const job = (await client.query<ImportJobRecord>(
-        `SELECT id, mapping, status, trip_id, owner_id
+        `SELECT id, mapping, status, trip_id, owner_id,
+                total_rows, valid_rows, error_rows
          FROM import_job
          WHERE id = $1::uuid
          FOR UPDATE`,
         [jobId],
       )).rows[0];
       if (!job) throw new Error("IMPORT_JOB_NOT_FOUND");
+      if (job.status === "ready_to_import") {
+        const counts = Object.fromEntries((await client.query<{
+          status: string;
+          count: string;
+        }>(
+          `SELECT status, count(*)::text AS count
+           FROM import_row
+           WHERE import_job_id = $1::uuid
+           GROUP BY status`,
+          [jobId],
+        )).rows.map(({ status, count }) => [status, Number(count)]));
+        return {
+          jobId,
+          totalRows: job.total_rows,
+          validRows: job.valid_rows,
+          errorRows: job.error_rows,
+          duplicateRows: counts.duplicate ?? 0,
+          unresolvedRows: counts.unresolved ?? 0,
+        };
+      }
       if (!["validating", "confirmation_required"].includes(job.status)) {
         throw new Error("IMPORT_JOB_NOT_STAGEABLE");
       }
