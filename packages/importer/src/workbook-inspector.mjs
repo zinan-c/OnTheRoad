@@ -66,7 +66,10 @@ export function inspectWorkbook(value, options) {
   try {
     workbook = XLSX.read(body, {
       type: "buffer",
-      codepage: 65001,
+      // SheetJS detects a UTF-8 BOM correctly. Explicitly selecting UTF-8 is
+      // needed only for BOM-less CSV; applying it to BOM input corrupts the
+      // first field and subsequent non-ASCII values.
+      ...(format === "csv" && !hasUtf8Bom(body) ? { codepage: 65001 } : {}),
       raw: true,
       cellDates: false,
       cellFormula: true,
@@ -136,6 +139,14 @@ export function inspectWorkbook(value, options) {
       sheets: sheets.length,
     },
   };
+}
+
+/** @param {Buffer} body */
+function hasUtf8Bom(body) {
+  return body.byteLength >= 3
+    && body[0] === 0xef
+    && body[1] === 0xbb
+    && body[2] === 0xbf;
 }
 
 /**
