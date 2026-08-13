@@ -11,6 +11,15 @@ import { PlaywrightPdfPrintRenderer } from "./print-renderer.js";
 import { PdfExportProcessor } from "./pdf-processor.js";
 import { createPdfQueueProcess } from "./queue-runtime.js";
 
+type RedisControlConnection = Pick<Redis, "connect" | "ping" | "status">;
+
+export async function waitForRedisControl(
+  redis: RedisControlConnection,
+): Promise<void> {
+  if (redis.status === "wait") await redis.connect();
+  await redis.ping();
+}
+
 export async function startPdfWorker(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
@@ -64,16 +73,19 @@ export async function startPdfWorker(
   });
   const controlRedis = new Redis(config.server.redisUrl.href, {
     enableOfflineQueue: false,
+    lazyConnect: true,
     maxRetriesPerRequest: 1,
   });
   await processRuntime.consumer.waitUntilReady?.();
-  await controlRedis.ping();
+  await waitForRedisControl(controlRedis);
   const heartbeatKey = `otr:pdf-worker:heartbeat:${randomUUID()}`;
   const heartbeat = async () => {
     await controlRedis.set(heartbeatKey, new Date().toISOString(), "EX", 15);
   };
   await heartbeat();
-  const heartbeatTimer = setInterval(() => void heartbeat(), 5_000);
+  const heartbeatTimer = setInterval(() => {
+    void heartbeat().catch(() => undefined);
+  }, 5_000);
   let closed = false;
   const close = async () => {
     if (closed) return;

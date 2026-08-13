@@ -6,8 +6,28 @@ import {
   PDF_QUEUE,
 } from "../../src/queue-runtime.js";
 import { createExportQueueProcessor } from "../../src/export-queue-processor.js";
+import { waitForRedisControl } from "../../src/main.js";
 
 describe("REVIEW-P0-01 PDF Worker composition root", () => {
+  test("connects the heartbeat Redis client before issuing commands", async () => {
+    const events: string[] = [];
+    const redis = {
+      status: "wait",
+      connect: vi.fn(async () => {
+        events.push("connect");
+        redis.status = "ready";
+      }),
+      ping: vi.fn(async () => {
+        events.push("ping");
+        return "PONG";
+      }),
+    };
+
+    await waitForRedisControl(redis);
+
+    expect(events).toEqual(["connect", "ping"]);
+  });
+
   test("uses a dedicated queue and drains before close", async () => {
     const events: string[] = [];
     const processRuntime = createPdfQueueProcess({
