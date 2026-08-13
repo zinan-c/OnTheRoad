@@ -196,12 +196,29 @@ export class PostgresImportUnresolvedLocationService {
       if (typeof input.candidateToken !== "string" || !input.candidateToken) {
         throw new ImportUnresolvedLocationError("CANDIDATE_TOKEN_REQUIRED", "A candidate token is required.", 422);
       }
-      const candidate = /** @type {any} */ (this.candidateSigner.verify(input.candidateToken, {
-        ownerId,
-        tripId: row.trip_id,
-        locationId: row.id,
-        locationVersion: row.version,
-      }));
+      let candidate;
+      try {
+        candidate = /** @type {any} */ (this.candidateSigner.verify(input.candidateToken, {
+          ownerId,
+          tripId: row.trip_id,
+          locationId: row.id,
+          locationVersion: row.version,
+        }));
+      } catch (error) {
+        const candidateError = error && typeof error === "object"
+          ? /** @type {{code?: string, message?: string, status?: number}} */ (error)
+          : {};
+        const candidateCode = candidateError.code && /^[A-Z][A-Z0-9_]+$/u.test(candidateError.code)
+          ? candidateError.code
+          : "CANDIDATE_TOKEN_INVALID";
+        throw new ImportUnresolvedLocationError(
+          candidateCode,
+          candidateError.message ?? "The candidate token is invalid.",
+          candidateError.status && candidateError.status >= 400 && candidateError.status < 500
+            ? candidateError.status
+            : 422,
+        );
+      }
       const point = assertWgs84Point(candidate.point);
     return {
         type: "candidate",
