@@ -195,6 +195,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.match(testWorkflow, /export OTR_M1_REDIS_URL="\$REDIS_URL"/);
   assert.match(testWorkflow, /export NEXT_PUBLIC_API_ORIGIN="\$api_origin"/);
+  assert.match(testWorkflow, /export OTR_PLAYWRIGHT_WEB_ORIGIN="\$web_origin"/);
   assert.match(testWorkflow, /export OTR_C07_DATABASE_URL="\$DATABASE_URL"/);
   assert.match(testWorkflow, /export OTR_E04_DATABASE_URL="\$DATABASE_URL"/);
   assert.match(
@@ -225,6 +226,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(testWorkflow, /cat test-results\/m3-readiness\.json/);
   assert.match(localCi, /"\$\{API_ORIGIN\}\/health\/ready"/);
   assert.match(localCi, /export NEXT_PUBLIC_API_ORIGIN="\$\{API_ORIGIN\}"/);
+  assert.match(localCi, /export OTR_PLAYWRIGHT_WEB_ORIGIN="\$\{WEB_ORIGIN\}"/);
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "Worker" "\$\{WORKER_PID\}"/);
   assert.match(
