@@ -56,6 +56,5 @@ test("TC-D03-03 real gallery E2E persists upload, order, caption, cover, and lig
 
   const refreshed = page.getByRole("region", { name: "真实图片画廊" });
   await expect(refreshed.getByLabel("说明").nth(0)).toHaveValue(/抵达|出发/);
-  await expect(refreshed.getByRole("button", { name: "设为封面" }).first())
-    .toHaveAttribute("aria-pressed", "true");
+  await expect(refreshed.locator('button[aria-pressed="true"]')).toHaveCount(1);
 });

@@ -40,10 +40,17 @@ export function createFixtureGeocoder(
         );
       }
       const query = request.query.normalize("NFKC").trim().toLocaleLowerCase("und");
-      return locations
-        .filter((location) => location.name.toLocaleLowerCase("und").includes(query))
+      const normalizedLocations = locations.map((location) => ({
+        location,
+        name: location.name.normalize("NFKC").trim().toLocaleLowerCase("und"),
+      }));
+      const exactMatches = normalizedLocations.filter(({ name }) => name === query);
+      const matches = exactMatches.length > 0
+        ? exactMatches
+        : normalizedLocations.filter(({ name }) => name.includes(query));
+      return matches
         .slice(0, Math.min(Math.max(request.limit ?? 5, 1), 20))
-        .map(candidate);
+        .map(({ location }) => candidate(location));
     },
     async reverse(point) {
       assertWgs84Point(point);

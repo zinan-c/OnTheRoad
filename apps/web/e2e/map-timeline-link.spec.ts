@@ -6,7 +6,7 @@ test("TC-C09-03 bidirectional focus E2E keeps a single selection", async ({ page
   const timelineItem = page.getByRole("button", { name: "B", exact: true });
   await timelineItem.click();
   await expect(timelineItem).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("application", { name: "真实地图路线" }).getByRole("button", { name: /C$/u }).click();
+  await page.getByRole("application", { name: "Route map" }).getByRole("button", { name: /C$/u }).click();
   await expect(page.getByRole("button", { name: "C", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(timelineItem).toHaveAttribute("aria-pressed", "false");
 });

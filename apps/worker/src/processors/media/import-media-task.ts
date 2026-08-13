@@ -225,7 +225,7 @@ export class PostgresImportMediaTaskRepository implements ImportMediaTaskReposit
   }
 
   async reconcileParentJob(jobId: string): Promise<string | null> {
-    return this.#database.json<string | null>(
+    const result = await this.#database.query<{ status: string | null }>(
       `WITH counts AS (
          SELECT
            count(*) FILTER (WHERE status NOT IN ('ready', 'failed', 'rejected', 'cancelled')) AS pending,
@@ -256,16 +256,20 @@ export class PostgresImportMediaTaskRepository implements ImportMediaTaskReposit
          WHERE j.id = $1::uuid
          RETURNING j.status
        )
-       SELECT COALESCE((SELECT status FROM updated), 'null'::text)::text`,
+       SELECT (SELECT status FROM updated) AS status`,
       [jobId],
     );
+    return result.rows[0]?.status ?? null;
   }
 
   async getImportJobId(id: string): Promise<string | null> {
-    return this.#database.json<string | null>(
-      `SELECT COALESCE((SELECT import_job_id::text FROM import_media_task WHERE id = $1::uuid), 'null'::text)::text`,
+    const result = await this.#database.query<{ import_job_id: string | null }>(
+      `SELECT import_job_id::text AS import_job_id
+       FROM import_media_task
+       WHERE id = $1::uuid`,
       [id],
     );
+    return result.rows[0]?.import_job_id ?? null;
   }
 
   close(): Promise<void> { return this.#database.close(); }

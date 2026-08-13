@@ -189,6 +189,7 @@ export class PostgresGeocodingBatchProcessor {
         },
       });
       const status = candidates.length === 0 ? "failed" : candidates.length === 1 ? "resolved" : "ambiguous";
+      const candidatePayload = candidates.length > 0 ? JSON.stringify(candidates) : null;
       await this.#database.transaction(async (client) => {
         const batch = (await client.query<{ cancel_requested_at: string | null }>(
           `SELECT cancel_requested_at FROM geocoding_batch WHERE id = $1::uuid FOR UPDATE`,
@@ -201,7 +202,7 @@ export class PostgresGeocodingBatchProcessor {
            SET status = $2, candidates = $3::jsonb,
                error_code = $4, completed_at = now(), updated_at = now()
            WHERE id = $1::uuid AND status = 'running'`,
-          [job.id, nextStatus, JSON.stringify(candidates), candidates.length === 0 ? "NO_RESULTS" : null],
+          [job.id, nextStatus, candidatePayload, candidates.length === 0 ? "NO_RESULTS" : null],
         );
         if (!cancelled && candidates.length > 0) {
           await client.query(

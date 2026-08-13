@@ -24,6 +24,7 @@ afterEach(async () => {
 describe("TC-M3-INT-02 Import staging isolation", () => {
   liveTest("stages and pages 5,000 rows without formal Trip side effects", async () => {
     database = new PostgresExecutor({ databaseUrl, role: "test" });
+    await database.query("DELETE FROM trip WHERE owner_id = $1", [ownerId]);
     processor = new PostgresImportStagingProcessor(databaseUrl!);
     const context = await seedImport(database);
     const formalBefore = await formalCounts(database, context.tripId);

@@ -19,10 +19,14 @@ export async function createTripWorkspace(page: Page, name: string) {
     const editor = page.getByTestId("item-editor");
     await editor.getByTestId("item-name-input").fill(`地点${index + 1}`);
     await editor.getByTestId("save-item-button").click();
-    await expect(page.getByTestId("itinerary-item").filter({ hasText: `地点${index + 1}` })).toBeVisible();
+    await expect(page.getByTestId("itinerary-item").filter({
+      has: page.getByRole("heading", { name: `地点${index + 1}`, exact: true }),
+    })).toBeVisible();
   }
   await expect(page.getByRole("heading", { name })).toBeVisible();
-  await expect(page.getByTestId("itinerary-item").filter({ hasText: "地点1" })).toBeVisible();
+  await expect(page.getByTestId("itinerary-item").filter({
+    has: page.getByRole("heading", { name: "地点1", exact: true }),
+  })).toBeVisible();
   return tripId;
 }
 
@@ -45,10 +49,12 @@ export async function createLocatedTripWorkspace(page: Page, name: string) {
     await editor.getByTestId("location-confirm-button").click();
     if (fixture.mode) await editor.getByLabel("Inbound transport mode").selectOption(fixture.mode);
     await editor.getByTestId("save-item-button").click();
-    await expect(page.getByTestId("itinerary-item").filter({ hasText: fixture.target })).toBeVisible();
+    await expect(page.getByTestId("itinerary-item").filter({
+      has: page.getByRole("heading", { name: fixture.target, exact: true }),
+    })).toBeVisible();
   }
-  await expect(page.getByRole("application", { name: "真实地图路线" })).toBeVisible();
-  await expect(page.getByRole("list", { name: "路线列表" }).getByRole("button")).toHaveCount(2, { timeout: 20_000 });
+  await expect(page.getByRole("application", { name: "Route map" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Route list" }).getByRole("button")).toHaveCount(2, { timeout: 20_000 });
   return tripId;
 }
 

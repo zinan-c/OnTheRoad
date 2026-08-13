@@ -238,19 +238,20 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
           : "Location not confirmed";
         return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}: {blockers}</li>;
       })}</ul></aside> : null}
-      <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
+    </> : null}
+    <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
         type="button"
         aria-pressed={selectedItemId === item.id}
         data-selected={selectedItemId === item.id}
         onClick={() => { selectionStore.selectFromTimeline(item.id, item.tripDayId); setSelectedRouteId(null); }}
       >{item.target ?? "Untitled item"}</button></li>)}</ol>
-      {selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
-      {visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
+    {selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
+    {visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
         const customMode = transportModes.find(({ code }) => code === route.transportModeCode);
         const style = routeStyle({ modeCode: route.transportModeCode, quality: route.quality ?? "unknown", ...(customMode ? { customMode } : {}) });
         return <li key={route.id}><button type="button" onClick={() => setSelectedRouteId(route.id)}>{route.kind === "item_transport" ? "Transport route" : "Connection route"}: {itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)} · {style.label} · {style.qualityLabel}</button></li>;
       })}</ol> : null}
-      {selectedRoute ? <aside aria-label="Route details">
+    {selectedRoute ? <aside aria-label="Route details">
         <h3>{itemLabel(selectedRoute.fromItineraryItemId)} → {itemLabel(selectedRoute.toItineraryItemId)}</h3>
         <dl>
           <div><dt>Transport mode</dt><dd>{routeStyle({ modeCode: selectedRoute.transportModeCode, quality: selectedRoute.quality ?? "unknown", ...(transportModes.find(({ code }) => code === selectedRoute.transportModeCode) ? { customMode: transportModes.find(({ code }) => code === selectedRoute.transportModeCode)! } : {}) }).label}</dd></div>
@@ -259,7 +260,6 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
           <div><dt>Endpoints</dt><dd>{selectedRoute.fromLocationId ?? "Unresolved"} → {selectedRoute.toLocationId ?? "Unresolved"}</dd></div>
         </dl>
       </aside> : null}
-    </> : null}
   </section>;
 }
 

@@ -16,5 +16,7 @@ test("TC-E03-03 editable mapping E2E saves a valid mapping through the API", asy
     mapping.getByRole("status").filter({ hasText: "映射已保存" }),
   ).toBeVisible();
   await page.reload();
-  await expect(mapping.getByRole("combobox").first()).toHaveValue("Target");
+  await expect(
+    mapping.locator("tbody tr").nth(1).getByRole("combobox"),
+  ).toHaveValue("Target");
 });

@@ -24,11 +24,12 @@ test("TC-E05-03 5,000-row preview E2E filters errors and keeps mobile controls u
   const preview = page.getByRole("region", { name: "导入预览工作台" });
   await expect(preview.getByRole("status")).toContainText("尚未写入正式行程");
   await preview.getByRole("button", { name: /error 1/ }).click();
+  await preview.getByRole("button", { name: /跳过当前页错误/ }).click();
   const [skipped] = await Promise.all([
     page.waitForResponse((response) =>
       response.request().method() === "POST"
       && response.url().includes("/preview/skip")),
-    preview.getByRole("button", { name: /确认跳过当前页错误/ }).click(),
+    preview.getByRole("button", { name: "确认跳过" }).click(),
   ]);
   expect(skipped.ok(), await skipped.text()).toBe(true);
   await preview.getByRole("button", { name: /skipped 1/ }).click();

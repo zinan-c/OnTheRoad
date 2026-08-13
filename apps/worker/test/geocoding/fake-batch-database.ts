@@ -121,7 +121,7 @@ export class FakeGeocodingDatabase {
     if (sql.startsWith("UPDATE geocoding_job SET status = $2, candidates")) {
       const job = this.findJob(String(values[0]));
       if (job?.status === "running") {
-        const candidates = JSON.parse(String(values[2])) as unknown[];
+        const candidates = values[2] === null ? [] : JSON.parse(String(values[2])) as unknown[];
         job.status = this.batch.cancelRequestedAt
           ? "cancelled"
           : candidates.length === 0 ? "failed" : candidates.length === 1 ? "resolved" : "ambiguous";

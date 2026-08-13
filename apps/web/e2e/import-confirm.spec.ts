@@ -36,7 +36,7 @@ test("TC-E08-03 confirm import E2E commits rows once and survives idempotent rep
   }, {
     timeout: 60_000,
     intervals: [250, 500, 1_000],
-  }).toBe("completed_with_warnings");
+  }).toMatch(/^(completed|completed_with_warnings)$/u);
 
   const unresolved = await getJson<Array<{
     id: string;

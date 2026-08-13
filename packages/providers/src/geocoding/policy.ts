@@ -34,7 +34,7 @@ function cacheKey(provider: Geocoder, request: GeocodingSearchRequest): string {
     countryCodes: request.context?.countryCodes?.map((code) => code.toLowerCase()).sort() ?? [],
     viewbox: request.context?.viewbox ?? null,
   });
-  return `geocoding:v1:${hash(canonical)}`;
+  return `geocoding:v2:${hash(canonical)}`;
 }
 
 export class PolicyGeocoder implements Geocoder {

@@ -49,7 +49,7 @@ test("TC-E06-03 staging geocode E2E survives refresh and keeps formal items unto
     failedUnits: 0,
   });
   const unresolved = await page.request.get(`${apiOrigin}/api/v1/imports/${job.id}/unresolved-locations`).then((response) => response.json()) as Array<{ inputText: string; candidates: unknown[] }>;
-  expect(unresolved.map(({ inputText }) => inputText)).toEqual(["人民广场", "外滩"]);
+  expect(unresolved.map(({ inputText }) => inputText)).toEqual(["外滩", "人民广场"]);
   expect(unresolved.find(({ inputText }) => inputText === "外滩")?.candidates).toHaveLength(1);
   expect(unresolved.find(({ inputText }) => inputText === "人民广场")?.candidates).toHaveLength(2);
   expect(await countItems(page, tripId, days[0]?.id ?? "")).toBe(itemCountBefore);

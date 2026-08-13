@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ExpenseWorkspace } from "../expenses/expense-workspace";
+import { TripGalleryWorkspace } from "../attachments/trip-gallery";
 import { ImportWorkspace } from "../imports/import-workspace";
 import { ItineraryPanel, type ProductItem } from "../itinerary/itinerary-panel";
 import { RouteMapWorkspace } from "../map/route-map-workspace";
@@ -147,6 +148,7 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
       days={days.map(({ id, dayNumber }) => ({ id, dayNumber }))}
       items={items}
     />
+    <TripGalleryWorkspace tripId={tripId} items={items} />
     <ImportWorkspace tripId={tripId} />
   </div>;
 }

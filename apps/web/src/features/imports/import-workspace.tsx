@@ -59,6 +59,7 @@ export function ImportWorkspace({ tripId }: { readonly tripId: string }) {
   const [mappingVersion, setMappingVersion] = useState<number | undefined>();
   const [status, setStatus] = useState<string>();
   const [mappingSaved, setMappingSaved] = useState(false);
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -153,6 +154,7 @@ export function ImportWorkspace({ tripId }: { readonly tripId: string }) {
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
+    setPreviewRefreshKey((value) => value + 1);
   }
 
   return <>
@@ -170,7 +172,7 @@ export function ImportWorkspace({ tripId }: { readonly tripId: string }) {
       </> : <p role="status">暂无真实导入任务，请先上传并检查文件。</p>}
     </section>
     <section aria-label="导入预览工作台" className="workspaceCard">
-      {jobId ? <ServerImportPreview jobId={jobId} /> : <p role="status">暂无真实导入任务，上传并检查文件后可预览。</p>}
+      {jobId ? <ServerImportPreview jobId={jobId} refreshKey={previewRefreshKey} /> : <p role="status">暂无真实导入任务，上传并检查文件后可预览。</p>}
     </section>
   </>;
 }

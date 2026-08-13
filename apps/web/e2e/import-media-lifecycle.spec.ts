@@ -47,7 +47,7 @@ test("TC-E09-03 media lifecycle E2E aggregates ready/failed tasks and resumes a 
   }).toBe("completed_with_warnings");
 
   tasks = await waitForTerminalMediaTasks(page, first.id);
-  expect(tasks.map(({ status }) => status).sort()).toEqual(["failed", "ready", "rejected"]);
+  expect(tasks.map(({ status }) => status).sort()).toEqual(["failed", "failed", "ready", "rejected"]);
   const ready = tasks.find(({ status }) => status === "ready");
   expect(ready).toMatchObject({
     itineraryItemId: expect.any(String),

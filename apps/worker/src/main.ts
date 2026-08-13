@@ -53,7 +53,7 @@ export async function startWorker(
     maxRetriesPerRequest: null,
   });
   const geocoder = new PolicyGeocoder(
-    createFixtureGeocoder({ profile: "fixture-global" }),
+    createFixtureGeocoder({ profile: "fixture-cn" }),
     {
       store: new RedisGeocodingStateStore({
         get: (key) => workRedis.get(key),
@@ -132,7 +132,7 @@ export async function startWorker(
     databaseUrl: config.server.databaseUrl.href,
     geocoder: {
       provider: "fixture",
-      profile: "fixture-global",
+      profile: "fixture-cn",
       capabilities: () => geocoder.capabilities(),
       search: (request) => geocoder.search(request),
       reverse: (point, locale) => geocoder.reverse(point, locale),

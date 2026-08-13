@@ -49,21 +49,34 @@ export class PostgresImportCommitTransport {
 
   /** @param {string} ownerId @param {string} jobId @param {{idempotencyKey?: string}} [input] */
   async startCommit(ownerId, jobId, input = {}) {
+    const idempotencyKey = String(input.idempotencyKey ?? `commit:${jobId}`);
+    if (idempotencyKey.length < 1 || idempotencyKey.length > 255) {
+      throw new ImportCommitError("IMPORT_IDEMPOTENCY_KEY_INVALID", "The idempotency key is invalid.", 422);
+    }
     const queued = await this.database.transaction(async (client) => {
       const current = (await client.query(
-        `SELECT id, trip_id, owner_id, status
+        `SELECT id, trip_id, owner_id, status, idempotency_key
          FROM import_job
          WHERE id = $1::uuid AND owner_id = $2
          FOR UPDATE`,
         [jobId, ownerId],
       )).rows[0];
       if (!current) throw new ImportCommitError("IMPORT_JOB_NOT_FOUND", "Import job was not found.", 404);
+      if (current.idempotency_key && current.idempotency_key !== idempotencyKey) {
+        throw new ImportCommitError(
+          "IMPORT_IDEMPOTENCY_KEY_REUSED",
+          "The import job has already been started with a different idempotency key.",
+        );
+      }
+      if (current.idempotency_key === idempotencyKey && [
+        "processing_media",
+        "completed",
+        "completed_with_warnings",
+      ].includes(current.status)) {
+        return false;
+      }
       assertImportCommitCanStart(current.status);
       if (current.status === "importing") return false;
-      const idempotencyKey = String(input.idempotencyKey ?? `commit:${jobId}`);
-      if (idempotencyKey.length < 1 || idempotencyKey.length > 255) {
-        throw new ImportCommitError("IMPORT_IDEMPOTENCY_KEY_INVALID", "The idempotency key is invalid.", 422);
-      }
       await client.query(
         `UPDATE import_job
          SET status = 'importing', stage = 'importing',

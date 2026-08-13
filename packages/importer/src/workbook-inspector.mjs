@@ -66,6 +66,7 @@ export function inspectWorkbook(value, options) {
   try {
     workbook = XLSX.read(body, {
       type: "buffer",
+      codepage: 65001,
       raw: true,
       cellDates: false,
       cellFormula: true,
