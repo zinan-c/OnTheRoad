@@ -112,10 +112,10 @@ export function TripCreateForm({
   }
 
   return (
-    <form className="tripForm" onSubmit={submit} aria-label="New trip">
+    <form className="tripForm" onSubmit={submit} aria-label="New trip" data-testid="trip-create-form">
       <label>
         Trip name
-        <input name="name" required minLength={2} defaultValue="Shanghai and Zhoushan" />
+        <input name="name" required minLength={2} defaultValue="Shanghai and Zhoushan" data-testid="trip-name-input" />
       </label>
       <div className="formRow">
         <label>
@@ -133,13 +133,14 @@ export function TripCreateForm({
           <input
             name="endDate"
             type="date"
+            data-testid="trip-end-date-input"
             required
             value={endDate}
             onChange={(event) => setEndDate(event.currentTarget.value)}
           />
         </label>
       </div>
-      <p className={totalDays === null ? "formError" : "formHint"} aria-live="polite">
+      <p className={totalDays === null ? "formError" : "formHint"} aria-live="polite" data-testid="trip-duration-hint">
         {totalDays === null ? "The end date cannot be earlier than the start date." : `${totalDays} daily ${totalDays === 1 ? "plan" : "plans"} will be created automatically.`}
       </p>
       <label>
@@ -161,7 +162,7 @@ export function TripCreateForm({
         </label>
       </div>
       {error ? <p className="formError" role="alert">{error}</p> : null}
-      <button className="primary formSubmit" disabled={submitting || totalDays === null}>
+      <button className="primary formSubmit" disabled={submitting || totalDays === null} data-testid="create-trip-submit">
         {submitting ? "Creating…" : "Create trip"}
       </button>
     </form>

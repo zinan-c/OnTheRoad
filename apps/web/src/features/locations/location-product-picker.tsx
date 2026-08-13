@@ -178,18 +178,18 @@ export function LocationProductPicker({
 
   return <fieldset className="locationProductPicker">
     <legend>{legend}</legend>
-    <label>{inputLabel}<input aria-label={inputLabel} value={inputText} disabled={location?.status === "resolved"} onChange={(event) => setInputText(event.target.value)} /></label>
+    <label>{inputLabel}<input aria-label={inputLabel} data-testid="location-text-input" value={inputText} disabled={location?.status === "resolved"} onChange={(event) => setInputText(event.target.value)} /></label>
     {!location ? <button type="button" disabled={pending} onClick={() => void saveTextOnly()}>Save text only</button> : null}
     {!location || location.status === "unresolved" || location.status === "failed"
-      ? <button type="button" disabled={pending} onClick={() => void explicitSearch()}>{pending ? "Working…" : "Search location"}</button>
+      ? <button type="button" data-testid="location-search-button" disabled={pending} onClick={() => void explicitSearch()}>{pending ? "Working…" : "Search location"}</button>
       : null}
-    {location ? <p id={`${controlId}-status`} role="status">Location status: {location.status}{location.formattedAddress ? ` · ${location.formattedAddress}` : ""}{location.attribution ? ` · ${location.attribution}` : ""}</p> : null}
+    {location ? <p id={`${controlId}-status`} role="status" data-testid="location-status" data-status={location.status}>Location status: {location.status}{location.formattedAddress ? ` · ${location.formattedAddress}` : ""}{location.attribution ? ` · ${location.attribution}` : ""}</p> : null}
     {offer ? <div className="locationCandidates" role="radiogroup" aria-label="Location candidates">
       {offer.candidates.map((candidate, index) => <label key={candidate.candidateToken}>
         <input id={`${controlId}-candidate-${index}`} type="radio" name={`location-candidate-${offer.location.id}`} value={candidate.candidateToken} checked={selectedToken === candidate.candidateToken} onChange={(event) => setSelectedToken(event.target.value)} />
         <strong>{candidate.label}</strong><span>{candidate.city ?? ""} {candidate.district ?? ""}</span><span>{candidate.formattedAddress}</span><small>{candidate.provider} · {candidate.attribution}</small>
       </label>)}
-      <button type="button" disabled={pending || !selectedToken} onClick={() => void confirmCandidate()}>Confirm location</button>
+      <button type="button" data-testid="location-confirm-button" disabled={pending || !selectedToken} onClick={() => void confirmCandidate()}>Confirm location</button>
       <small>Map profile：{offer.mapProfile}</small>
     </div> : null}
     {location ? <LocationCoordinateEditor tripId={tripId} location={location} onSaved={(saved) => {

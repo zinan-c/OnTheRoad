@@ -20,7 +20,7 @@ export default function HomePage() {
           Plan multiple destinations and days, keep routes aligned with the itinerary, and track expenses in one editable workspace.
         </p>
         <div className="actions">
-          <a className="primary" href="/trips/new">Create a trip</a>
+          <a className="primary" href="/trips/new" data-testid="create-trip-link">Create a trip</a>
           <a className="secondary" href="/trips">View trips</a>
         </div>
         <CapabilityStatus />

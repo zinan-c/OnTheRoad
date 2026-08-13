@@ -114,6 +114,7 @@ pnpm run profile:dev -- pnpm --filter @on-the-road/worker start \
 WORKER_PID=$!
 API_ORIGIN="$(bash scripts/run-profile.sh dev -- node -e \
   'process.stdout.write(new URL(process.env.API_BASE_URL).origin)')"
+export NEXT_PUBLIC_API_ORIGIN="${API_ORIGIN}"
 print_runtime_diagnostics() {
   echo "Application runtime readiness response:"
   cat test-results/m3-readiness.json 2>/dev/null || true

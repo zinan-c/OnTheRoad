@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const webOrigin = process.env.OTR_PLAYWRIGHT_WEB_ORIGIN ?? "http://127.0.0.1:3000";
+const webPort = Number(new URL(webOrigin).port);
+
 export default defineConfig({
   testDir: ".",
   testMatch: ["browser/**/*.spec.ts", "e2e/**/*.spec.ts"],
@@ -8,7 +11,7 @@ export default defineConfig({
   retries: 0,
   reporter: "line",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: webOrigin,
     trace: "retain-on-failure",
   },
   webServer: {
@@ -16,12 +19,10 @@ export default defineConfig({
       ? "pnpm --filter @on-the-road/web start"
       : "pnpm --filter @on-the-road/web build && pnpm --filter @on-the-road/web start",
     cwd: "../..",
-    port: 3000,
+    port: webPort,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: {
-      NEXT_PUBLIC_API_ORIGIN: "http://localhost:3001",
-    },
+    env: { PORT: String(webPort) },
   },
   projects: [
     {

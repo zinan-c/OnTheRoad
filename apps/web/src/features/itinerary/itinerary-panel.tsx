@@ -729,8 +729,8 @@ export function ItineraryPanel({
     if (workspaceMode) setEditing(null);
   }
 
-  const editorForm = editorOpen ? <form className="itemEditorForm" aria-label={editing ? "Edit item" : "Add item"} onSubmit={(event) => { event.preventDefault(); void save(); }}>
-    <header><h3>{editing ? "Edit item" : `Add ${draft.kind}`}</h3><button type="button" onClick={closeEditor}>Cancel</button></header>
+  const editorForm = editorOpen ? <form className="itemEditorForm" aria-label={editing ? "Edit item" : "Add item"} data-testid="item-editor" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+    <header><h3>{editing ? "Edit item" : `Add ${draft.kind}`}</h3><button type="button" data-testid="item-editor-close" onClick={closeEditor}>Cancel</button></header>
     <label>Item type<select aria-label="Item type" value={draft.kind} onChange={(event) => {
       const kind = event.target.value as ItemKind;
       update("kind", kind);
@@ -738,7 +738,7 @@ export function ItineraryPanel({
     }}>
       <option value="activity">Activity</option><option value="attraction">Attraction</option><option value="dining">Dining</option><option value="accommodation">Hotel</option><option value="transport">Transport</option><option value="other">Other</option>
     </select></label>
-    <label>Item name<input value={draft.target} onChange={(event) => update("target", event.target.value)} /></label>
+    <label>Item name<input data-testid="item-name-input" value={draft.target} onChange={(event) => update("target", event.target.value)} /></label>
     <label>Description<textarea value={draft.description} onChange={(event) => update("description", event.target.value)} /></label>
     <div className="formRow">
       <label>Time type<select value={draft.timeKind} onChange={(event) => update("timeKind", event.target.value as ItemDraft["timeKind"])}><option value="unscheduled">Unscheduled</option><option value="clock">Time</option><option value="range">Range</option><option value="period">Period</option></select></label>
@@ -768,7 +768,7 @@ export function ItineraryPanel({
     <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
     <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input id="item-expense-amount" inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<select id="item-expense-currency" value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value)}>{currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select></label></div><label>Expense remark<input id="item-expense-remark" value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
     <label className="itemNotesField"><span>Notes</span><textarea rows={6} value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
-    <footer><button className="primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" disabled={status === "saving"} onClick={closeEditor}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
+    <footer><button className="primary" type="submit" data-testid="save-item-button" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" data-testid="item-editor-cancel" disabled={status === "saving"} onClick={closeEditor}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
   </form> : null;
 
   if (workspaceMode) {
@@ -782,11 +782,11 @@ export function ItineraryPanel({
         </div>
         <div className="workspaceItineraryActions">
           {selectedDayId ? workspaceEditing ? <>
-            <button className="secondary" type="button" onClick={cancelWorkspaceEdit}>Cancel</button>
-            <button className="primary" type="button" onClick={() => void saveWorkspaceEdit()} disabled={status === "saving"}>Save</button>
+            <button className="secondary" type="button" data-testid="cancel-itinerary-edit" onClick={cancelWorkspaceEdit}>Cancel</button>
+            <button className="primary" type="button" data-testid="save-itinerary-edit" onClick={() => void saveWorkspaceEdit()} disabled={status === "saving"}>Save</button>
           </> : <>
-            <button className="secondary" type="button" onClick={enterWorkspaceEdit}>Edit</button>
-            <button className="iconAddButton" type="button" aria-label="Add item" title="Add item" onClick={() => beginCreate("activity")}>+</button>
+            <button className="secondary" type="button" data-testid="edit-itinerary" onClick={enterWorkspaceEdit}>Edit</button>
+            <button className="iconAddButton" type="button" data-testid="add-itinerary-item" aria-label="Add item" title="Add item" onClick={() => beginCreate("activity")}>+</button>
           </> : <span className="workspaceHint">Choose a Day to edit</span>}
         </div>
       </header>
@@ -803,14 +803,14 @@ export function ItineraryPanel({
         if (!item) return null;
         const day = dayById.get(item.tripDayId);
         const expense = itemExpenses[item.id];
-        return <article className="workspaceItemCard" data-item-id={item.id}>
+        return <article className="workspaceItemCard" data-item-id={item.id} data-testid="itinerary-item">
           <div className="workspaceItemMeta">
             {selectedDayId === null ? <span className="workspaceItemDay">Day {day?.dayNumber ?? "?"}</span> : null}
             <h3>{itemLabel(item)}</h3>
             <p>{item.description || "No description yet."}</p>
             {expense ? <span className="workspaceItemExpense">Expense · {displayAmount(expense.originalAmount)} {expense.currency}</span> : null}
           </div>
-          <button className="workspaceItemAction" type="button" aria-label={`${workspaceEditing ? "Item edit" : "Expand"} ${itemLabel(item)}`} onClick={() => workspaceEditing ? beginEdit(item) : void openDetails(item)}>
+          <button className="workspaceItemAction" type="button" data-testid="edit-itinerary-item" aria-label={`${workspaceEditing ? "Item edit" : "Expand"} ${itemLabel(item)}`} onClick={() => workspaceEditing ? beginEdit(item) : void openDetails(item)}>
             {workspaceEditing ? "Item edit" : "Expand"}
           </button>
         </article>;
@@ -849,7 +849,7 @@ export function ItineraryPanel({
       }}>Day {day.dayNumber}</button>)}
     </nav>
     <div className="itemCreateActions" aria-label="Item actions">
-      <button type="button" onClick={() => beginCreate("activity")}>Add item</button>
+      <button type="button" data-testid="add-itinerary-item" onClick={() => beginCreate("activity")}>Add item</button>
     </div>
     {error ? <p role="alert" className="formError">{error}</p> : null}
     {status === "loading" ? <p role="status">Loading itinerary…</p> : null}
@@ -861,7 +861,7 @@ export function ItineraryPanel({
     >{(id) => {
       const item = items.find((entry) => entry.id === id)!;
       return <>
-        <button id={`itinerary-item-edit-${item.id}`} className="timelineEditButton" type="button" aria-label={`Edit ${item.target || item.description}`} onClick={() => beginEdit(item)}>
+        <button id={`itinerary-item-edit-${item.id}`} className="timelineEditButton" type="button" data-testid="edit-itinerary-item" aria-label={`Edit ${item.target || item.description}`} onClick={() => beginEdit(item)}>
           <strong>{item.target || item.description}</strong><span>{item.itemType} · {item.timeKind === "period" ? item.timePeriod : item.startTime || "Unscheduled"}</span>
         </button>
         <label>Copy to<select id={`itinerary-item-copy-${item.id}`} aria-label={`Copy ${item.target || item.description} to`} defaultValue="" onChange={(event) => {

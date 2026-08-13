@@ -43,17 +43,17 @@ export function CapabilityStatus() {
   }, []);
 
   if (state.kind === "loading") {
-    return <p className="status" aria-live="polite">Connecting to the travel service…</p>;
+    return <p className="status" aria-live="polite" data-testid="service-readiness">Connecting to the travel service…</p>;
   }
   if (state.kind === "error") {
     return (
-      <p className="status statusError" role="alert">
+      <p className="status statusError" role="alert" data-testid="service-readiness">
         The API is temporarily unavailable. Your local content has not been lost.
       </p>
     );
   }
   return (
-    <p className="status statusReady" aria-live="polite">
+    <p className="status statusReady" aria-live="polite" data-testid="service-readiness" data-status="ready">
       Service ready · Location search {state.geocoding ? "available" : "degraded"}
     </p>
   );

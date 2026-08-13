@@ -51,9 +51,9 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
   if (status === "signed-out") {
     return (
       <section className="emptyState">
-        <h1>Session ended</h1>
+        <h1 data-testid="session-ended">Session ended</h1>
         <p>Sign in again to continue editing this trip.</p>
-        <button className="primary" onClick={login}>Sign in again</button>
+        <button className="primary" data-testid="sign-in-again" onClick={login}>Sign in again</button>
       </section>
     );
   }
@@ -61,14 +61,14 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
   return (
     <section className="tripSummary">
       <p className="eyebrow">Your journey</p>
-      <h1 id="trip-title">{trip.name}</h1>
+      <h1 id="trip-title" data-testid="trip-title">{trip.name}</h1>
       <p className="lead">{trip.startDate} — {trip.endDate}</p>
       <div className="actions">
         <a className="secondary" href={`/trips/${tripId}/settings`}>Trip settings</a>
       </div>
       <p className="status statusReady">Saved · your changes persist after refresh</p>
       <TripWorkspace key={trip.version} tripId={tripId} />
-      <button className="secondary" onClick={logout}>Sign out</button>
+      <button className="secondary" data-testid="sign-out" onClick={logout}>Sign out</button>
     </section>
   );
 }

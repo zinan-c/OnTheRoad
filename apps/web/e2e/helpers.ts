@@ -2,10 +2,10 @@ import { expect, type Page } from "@playwright/test";
 
 async function createTrip(page: Page, name: string, endDate?: string) {
   await page.goto("/");
-  await page.getByRole("link", { name: "创建我的旅行" }).click();
-  await page.getByLabel("旅行名称").fill(name);
-  if (endDate) await page.getByLabel("结束日期").fill(endDate);
-  await page.getByRole("button", { name: "创建旅行" }).click();
+  await page.getByTestId("create-trip-link").click();
+  await page.getByTestId("trip-name-input").fill(name);
+  if (endDate) await page.getByTestId("trip-end-date-input").fill(endDate);
+  await page.getByTestId("create-trip-submit").click();
   await expect(page).toHaveURL(/\/trips\/[0-9a-f-]+$/u);
   return page.url().split("/").at(-1)!;
 }
@@ -13,15 +13,14 @@ async function createTrip(page: Page, name: string, endDate?: string) {
 export async function createTripWorkspace(page: Page, name: string) {
   const tripId = await createTrip(page, name);
   for (let index = 0; index < 3; index += 1) {
-    await page.getByRole("button", { name: "新增 attraction" }).click();
-    const editor = page.getByRole("form", { name: "新增事项" });
-    await editor.getByLabel("事项名称").fill(`地点${index + 1}`);
-    await editor.getByRole("button", { name: "保存事项" }).click();
-    await expect(page.getByRole("button", { name: `编辑 地点${index + 1}` })).toBeVisible();
-    await editor.getByRole("button", { name: "关闭" }).click();
+    await page.getByTestId("add-itinerary-item").click();
+    const editor = page.getByTestId("item-editor");
+    await editor.getByTestId("item-name-input").fill(`地点${index + 1}`);
+    await editor.getByTestId("save-item-button").click();
+    await expect(page.getByTestId("itinerary-item").filter({ hasText: `地点${index + 1}` })).toBeVisible();
   }
   await expect(page.getByRole("heading", { name })).toBeVisible();
-  await expect(page.getByRole("button", { name: "地点1", exact: true })).toBeVisible();
+  await expect(page.getByTestId("itinerary-item").filter({ hasText: "地点1" })).toBeVisible();
   return tripId;
 }
 
@@ -33,16 +32,16 @@ export async function createLocatedTripWorkspace(page: Page, name: string) {
     { target: "C", query: "人民广场", mode: "METRO" },
   ];
   for (const fixture of fixtures) {
-    await page.getByRole("button", { name: "新增 attraction" }).click();
-    const editor = page.getByRole("form", { name: "新增事项" });
-    await editor.getByLabel("事项名称").fill(fixture.target);
-    await editor.getByLabel("地点文字").fill(fixture.query);
-    await editor.getByRole("button", { name: "显式搜索地点" }).click();
+    await page.getByTestId("add-itinerary-item").click();
+    const editor = page.getByTestId("item-editor");
+    await editor.getByTestId("item-name-input").fill(fixture.target);
+    await editor.getByTestId("location-text-input").fill(fixture.query);
+    await editor.getByTestId("location-search-button").click();
     await editor.getByRole("radio").first().check();
-    await editor.getByRole("button", { name: "确认候选地点" }).click();
-    if (fixture.mode) await editor.getByLabel("入站交通方式").selectOption(fixture.mode);
-    await editor.getByRole("button", { name: "保存事项" }).click();
-    await expect(page.getByRole("button", { name: `编辑 ${fixture.target}` })).toBeVisible();
+    await editor.getByTestId("location-confirm-button").click();
+    if (fixture.mode) await editor.getByLabel("Inbound transport mode").selectOption(fixture.mode);
+    await editor.getByTestId("save-item-button").click();
+    await expect(page.getByTestId("itinerary-item").filter({ hasText: fixture.target })).toBeVisible();
   }
   await expect(page.getByRole("application", { name: "真实地图路线" })).toBeVisible();
   await expect(page.getByRole("list", { name: "路线列表" }).getByRole("button")).toHaveCount(2, { timeout: 20_000 });
