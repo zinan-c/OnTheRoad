@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-import { buildPrintChapters, type PrintChapter, type PrintDay, type PrintItem } from "@on-the-road/application/export/print";
+import { buildPrintChapters, buildPrintManifest, type PrintChapter, type PrintDay, type PrintItem } from "@on-the-road/application/export/print";
 import type { ExportSection, ExportSnapshot } from "@on-the-road/application/export";
+import { exportSnapshotHash } from "@on-the-road/application/export/snapshot";
 import { createStaticMapAssetProvider, type StaticMapRouteGeometry } from "@on-the-road/providers/static-map/renderer";
 import { chromium } from "@playwright/test";
 import type { PdfPrintRenderer } from "./pdf-processor.js";
@@ -253,15 +254,19 @@ export function renderPrintHtml(
   maps: readonly RenderedMapAsset[],
   fontData: string,
   orientation: "portrait" | "landscape",
+  metadata: Readonly<{ templateVersion?: string; snapshotHash?: string | null }> = {},
 ): string {
   const chapters = buildPrintChapters(snapshot, sections.filter((section): section is ExportSection => typeof section === "string"));
+  const manifest = buildPrintManifest(snapshot, chapters);
+  const templateVersion = metadata.templateVersion ?? "m4-print-v1";
+  const snapshotHash = metadata.snapshotHash === undefined ? exportSnapshotHash(snapshot) : metadata.snapshotHash;
   const mapLookup = new Map(maps.map((asset) => [asset.assetId, asset.dataUrl]));
   const pageWidth = orientation === "portrait" ? "210mm" : "297mm";
   const pageHeight = orientation === "portrait" ? "296mm" : "209mm";
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
 @font-face{font-family:OtrNoto;src:url(data:font/otf;base64,${fontData}) format("opentype");}
 @page{size:A4 ${orientation};margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#1f2937;font-family:OtrNoto,"Noto Sans CJK SC",sans-serif}.page{width:${pageWidth};min-height:${pageHeight};padding:18mm;break-after:page;page-break-after:always}.page:last-child{break-after:auto;page-break-after:auto}.page h1,.page h2,.page h3{break-after:avoid}.page p,.page li{overflow-wrap:anywhere}.cover{min-height:calc(${pageHeight} - 36mm);display:flex;flex-direction:column;justify-content:center;background:#163f3a;color:#fff;padding:18mm;font-size:16pt}.cover p:first-child{font-size:32pt;margin:0 0 8mm}.page dl div{display:flex;gap:8mm;border-bottom:.2mm solid #e5e7eb;padding:2mm 0}.page dt{font-weight:700;min-width:28mm}.page dd{margin:0}.page article{break-inside:avoid}.page figure{margin:5mm 0;break-inside:avoid}.page figure img{width:100%;height:92mm;object-fit:contain;border:.3mm solid #d1d5db}.page figcaption{font-size:8pt;color:#6b7280}.page ol,.page ul{padding-left:7mm}.page li{margin:2mm 0}.page li h3{margin:0 0 1mm}
-</style></head><body>${chapters.map((chapter) => `<section class="page" data-print-section="${escapeHtml(chapter.section)}"><h1>${escapeHtml(chapter.title)}</h1>${chapterHtml(chapter, mapLookup)}</section>`).join("")}</body></html>`;
+</style></head><body><main class="otrPrintDocument" data-template-version="${escapeHtml(templateVersion)}"${snapshotHash ? ` data-snapshot-hash="${escapeHtml(snapshotHash)}"` : ""} data-asset-manifest="${json(manifest.referencedAssetIds)}" data-missing-asset-manifest="${json(manifest.missingReferencedAssetIds)}">${chapters.map((chapter) => `<section class="otrPrintChapter otrPrintChapter--${escapeHtml(chapter.kind)} page" data-print-section="${escapeHtml(chapter.section)}" aria-labelledby="print-heading-${escapeHtml(chapter.id)}"><h1 id="print-heading-${escapeHtml(chapter.id)}">${escapeHtml(chapter.title)}</h1>${chapterHtml(chapter, mapLookup)}</section>`).join("")}</main></body></html>`;
 }
 
 export class PlaywrightPdfPrintRenderer implements PdfPrintRenderer {
@@ -305,6 +310,7 @@ export class PlaywrightPdfPrintRenderer implements PdfPrintRenderer {
         maps,
         font.toString("base64"),
         input.job.options?.orientation ?? "portrait",
+        { templateVersion: input.job.templateVersion, snapshotHash: input.job.snapshotHash },
       );
       const browser = await chromium.launch({
         headless: true,
