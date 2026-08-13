@@ -266,13 +266,21 @@ export class PostgresExportService {
       [tripId],
     )).rows;
     const attachments = (await client.query(
-      `SELECT id, itinerary_item_id, object_key, status, object_version,
+      `SELECT id, itinerary_item_id, import_media_task_id, object_key, status, object_version,
               checksum_sha256, content_type, content_length, width, height,
               caption, sort_order, is_cover, version
        FROM attachment
        WHERE trip_id = $1::uuid AND deleted_at IS NULL
        ORDER BY itinerary_item_id NULLS FIRST, sort_order, id`,
       [tripId],
+    )).rows;
+    const mediaTasks = (await client.query(
+      `SELECT id, itinerary_item_id, attachment_id, source_row_key,
+              url_ordinal, status, error_code
+       FROM import_media_task
+       WHERE trip_id = $1::uuid AND owner_id = $2
+       ORDER BY source_row_key, url_ordinal, id`,
+      [tripId, ownerId],
     )).rows;
     const destinations = (await client.query(
       `SELECT id, name, country_code, city, region, sort_order
@@ -311,7 +319,7 @@ export class PostgresExportService {
       accommodation: items.filter(/** @param {any} item */ (item) => item.item_type === "hotel").map(serializeItem),
       transport: items.filter(/** @param {any} item */ (item) => item.item_type === "transport").map(serializeItem),
     };
-    const assets = buildAssets(options, attachments, days, trip, items);
+    const assets = buildAssets(options, attachments, mediaTasks, days, trip, items);
     const snapshot = {
       schemaVersion: SNAPSHOT_SCHEMA_VERSION,
       tripId,
@@ -337,9 +345,11 @@ export class PostgresExportService {
     const snapshot = result.snapshot;
     const optionsHash = hashExportOptions(options);
     const templateHash = hashExportTemplate(this.templateVersion);
-    const blockingAssets = result.assets?.filter(/** @param {any} asset */ (asset) =>
-      asset.kind !== "map" && asset.required && asset.status !== "ready",
-    ) ?? [];
+    const blockingAssets = options.mediaPolicy === "require_all"
+      ? result.assets?.filter(/** @param {any} asset */ (asset) =>
+        asset.kind !== "map" && asset.required && asset.status !== "ready",
+      ) ?? []
+      : [];
     return {
       options,
       optionsHash,
@@ -446,11 +456,19 @@ function baseAsset(input) {
   };
 }
 
-/** @param {any} options @param {any} attachments @param {any} days @param {any} trip @param {any} items */
-function buildAssets(options, attachments, days, trip, items) {
+/** @param {any} options @param {any[]} attachments @param {any[]} mediaTasks @param {any[]} days @param {any} trip @param {any[]} items */
+function buildAssets(options, attachments, mediaTasks, days, trip, items) {
   const assets = [];
   const gallerySelected = options.sections.includes("gallery");
+  const attachmentsById = new Map(attachments.map((attachment) => [String(attachment.id), attachment]));
+  const mediaAttachmentIds = new Set();
+  for (const task of mediaTasks) {
+    const attachment = task.attachment_id ? attachmentsById.get(String(task.attachment_id)) : undefined;
+    if (attachment) mediaAttachmentIds.add(String(attachment.id));
+    assets.push(mediaTaskAsset(options, task, attachment, gallerySelected));
+  }
   for (const attachment of attachments) {
+    if (attachment.import_media_task_id || mediaAttachmentIds.has(String(attachment.id))) continue;
     const ready = attachment.status === "ready" && checksumHex(attachment.checksum_sha256) && attachment.object_version;
     const status = ready ? "ready" : options.mediaPolicy === "exclude" ? "excluded" : attachment.status === "failed" ? "failed" : "missing";
     assets.push(baseAsset({
@@ -479,4 +497,38 @@ function buildAssets(options, attachments, days, trip, items) {
     }));
   }
   return assets;
+}
+
+/** @param {any} options @param {any} task @param {any} attachment @param {boolean} required */
+function mediaTaskAsset(options, task, attachment, required) {
+  const taskReady = task.status === "ready";
+  const attachmentReady = attachment
+    && attachment.status === "ready"
+    && checksumHex(attachment.checksum_sha256)
+    && attachment.object_version;
+  const ready = taskReady && attachmentReady;
+  const status = ready
+    ? "ready"
+    : options.mediaPolicy === "exclude"
+      ? "excluded"
+      : ["failed", "rejected"].includes(task.status)
+        ? "failed"
+        : "processing";
+  const reason = status === "excluded"
+    ? "excluded by export option"
+    : ready
+      ? null
+      : `media task status: ${task.status}${task.error_code ? ` (${task.error_code})` : ""}`;
+  return baseAsset({
+    id: attachment ? `attachment:${attachment.id}` : `media-task:${task.id}`,
+    kind: "image",
+    contentType: attachment?.content_type ?? "image/png",
+    checksum: attachment?.checksum_sha256,
+    objectVersion: attachment?.object_version,
+    width: attachment?.width,
+    height: attachment?.height,
+    required,
+    status,
+    reason,
+  });
 }
