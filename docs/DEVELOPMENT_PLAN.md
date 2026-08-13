@@ -4,7 +4,7 @@
 > 日期：2026-07-26
 > 依赖设计：[DESIGN.md](./DESIGN.md)
 > 计划口径：可直接进入排期的工作包；工期为理想人日，不含产品方等待时间。
-> 执行状态：M0–M3 已完成 Dev Track Gate；M4 实现已完成，Dev Track Gate 待真实栈 required-case 运行关闭。当前状态与证据见 [文档状态索引](./README.md)。
+> 执行状态：M0–M4 已完成 Dev Track Gate；M5–M6 尚未宣称完成。当前状态与证据见 [文档状态索引](./README.md)。
 
 ## 0. 计划摘要
 

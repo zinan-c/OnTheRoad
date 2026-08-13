@@ -12,7 +12,7 @@ and context; this index states what the repository currently claims.
 | M1 | Yes | Yes | Yes | No — A02 release parity/A05 release items remain | [`reports/m1-gate.md`](./reports/m1-gate.md) |
 | M2 | Yes | Yes | Yes | No — A02 release parity/A05 release items remain | [`reports/m2-gate.md`](./reports/m2-gate.md) |
 | M3 | Yes | Yes | Yes — 129/129 closure Gate plus 22/22 product-browser re-acceptance | No — A02 release parity, A05, and real-provider checks remain | [`reports/m3-gate.md`](./reports/m3-gate.md), [`reports/m3-product-acceptance.md`](./reports/m3-product-acceptance.md), [`reports/m3-rnd-final-review.md`](./reports/m3-rnd-final-review.md), [`E2E_AUTOMATION_CASES.md`](./E2E_AUTOMATION_CASES.md) |
-| M4 | Yes — implementation complete | Partial — local composition and integration coverage exist; full real-stack Gate is open | Pending — M0–M4 manifest/CI wiring is in place; closure run is pending | No | [`reports/m4-gate.md`](./reports/m4-gate.md) |
+| M4 | Yes — Dev Track complete | Yes — real Compose/API/Worker/PDF Worker path passed | Yes — 156/156 required Cases passed on the closure SHA | No — production release gates remain separate | [`reports/m4-gate.md`](./reports/m4-gate.md) |
 | M5–M6 | Planned | No | No | No | [`DEVELOPMENT_MILESTONE.md`](./DEVELOPMENT_MILESTONE.md) |
 
 “Done for the Dev Track” means implemented, assembled through production
@@ -30,13 +30,11 @@ blocking for a production release.
 - **M3 Dev Track:** Complete; the required-case Gate is 129/129 and the latest
   product-browser regression is 22/22. M3 production release approval remains
   separate from A02/A05 and real-provider checks.
-- **M4 implementation:** Complete for E06–E09, F01–F03, F05, and the three M4
-  integration Cases on the current implementation SHA. The M4 Dev Track Gate
-  remains open until the M0–M4 required-case run executes against the real
-  dependency stack and its commit-bound evidence is archived.
-- **M4 Gate blockers:** The current environment has no running Docker daemon, so
-  Compose/API/Worker/PDF Worker runtime evidence and QG-01/QG-02/QG-05 closure
-  cannot be claimed locally. See [`reports/m4-gate.md`](./reports/m4-gate.md).
+- **M4 Dev Track:** Complete on closure SHA `82c3de5`; the real
+  Compose/API/Worker/PDF Worker run passed with 156/156 required Cases,
+  commit-bound evidence, PDF Worker round-trip, and clean-checkout smoke.
+  Production release approval remains separate. See
+  [`reports/m4-gate.md`](./reports/m4-gate.md).
 
 ## Authoritative documents
 
@@ -75,7 +73,8 @@ blocking for a production release.
 - The M4 required-case runner includes 156 active Cases: the 129 historical
   M0–M3 Cases, 24 M4 Task Cases, and three M4 integration Cases. A configured
   manifest is not closure evidence until the exact-SHA run has zero failed,
-  skipped, todo, or uncollected Cases.
+  skipped, todo, or uncollected Cases. The accepted closure run is
+  `82c3de537e67501d761e2c107a011cc32bf009d9` with 156/156 passed.
 
 ## Maintenance rule
 

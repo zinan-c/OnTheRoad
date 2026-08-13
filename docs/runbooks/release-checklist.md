@@ -5,8 +5,8 @@
 M3 is Done for the Dev Track at closure SHA
 `10d7c1d03c7a1df579ac37f79b71bbfef5919424`; see the
 [M3 Gate report](../reports/m3-gate.md). M4 implementation is complete on the
-current development baseline, but its Dev Track Gate remains open; see the
-[M4 Gate report](../reports/m4-gate.md). The M3 result proves the native Dev
+current development baseline, and its Dev Track Gate is closed on the exact
+closure SHA; see the [M4 Gate report](../reports/m4-gate.md). The M3 result proves the native Dev
 runtime and all 129 M0–M3 required Cases. It does not check any box below.
 
 Run release checks only against an immutable, clean release-candidate SHA.

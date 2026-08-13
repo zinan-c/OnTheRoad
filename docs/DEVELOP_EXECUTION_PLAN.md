@@ -5,7 +5,7 @@
 > 上游基线：[DEVELOPMENT_MILESTONE.md](./DEVELOPMENT_MILESTONE.md)
 > 测试明细：[TEST_CASES.md](./TEST_CASES.md)
 > 用途：供多个 AI agent 按 Milestone → Task → Test Case 领取、实现、验证和交接。
-> 当前游标：M0–M3 Dev Track 已关门；M4 实现已完成，当前停在 M4 Dev Track Gate 关闭前的真实栈验证。当前状态见 [文档状态索引](./README.md)。
+> 当前游标：M0–M4 Dev Track 已关门；当前进入 M5 规划，M5–M6 尚未宣称完成。当前状态见 [文档状态索引](./README.md)。
 
 ## 0. 执行约束
 

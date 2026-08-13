@@ -1,32 +1,67 @@
 # M4 development gate
 
-- Status: **M4 implementation complete; Dev Track Gate open**
-- Gate preparation date: 2026-08-13
-- Implementation SHA: `29fd881741060a60d6c11066134c9a4cc24e6553`
+- Status: **M4 Dev Track complete; release gates remain separate**
+- Gate run: 2026-08-14 Asia/Shanghai (`2026-08-13T16:08:38Z`–`2026-08-13T16:12:49Z`)
+- Closure SHA: `82c3de537e67501d761e2c107a011cc32bf009d9`
 - Baseline: macOS arm64, Node 26.0.0, pnpm 9.15.4
 - Scope: E06–E09, F01–F03, F05, and `TC-M4-INT-01` through
   `TC-M4-INT-03`
 - Required-case scope: 156 active Cases (129 historical M0–M3 Cases, 24 M4
   Task Cases, and 3 M4 integration Cases)
 
-This report records the M4 implementation handoff and the evidence available
-on the implementation SHA. It does not claim M4 Dev Track closure: the
-commit-bound M0–M4 required-case run against the real dependency stack has not
-yet completed.
+## Closure result
+
+The official `pnpm run ci:local` completed successfully on the exact closure
+SHA with the real Compose dependency stack and application runtimes:
+
+| Evidence | Result |
+|---|---|
+| Required Cases | **156 expected / 156 collected / 156 executed / 156 passed** |
+| Failed / skipped / todo / not collected | **0 / 0 / 0 / 0** |
+| Vitest required groups | All 16 groups exit 0; no failed files |
+| Node test group | Exit 0 |
+| Playwright required group | Exit 0; desktop and mobile projects included |
+| Commit-bound evidence verification | Passed for the exact 40-character closure SHA |
+| Database schema check | Migration version 25/25; clean and compatible |
+| PDF Worker queue round-trip | 1 test passed |
+| Clean-checkout smoke | 3 tests passed |
+
+The real runtime path was:
+
+```text
+PostgreSQL/PostGIS + Redis + MinIO + ClamAV
+        ↓
+       API → Redis/BullMQ → Worker
+        ↓                    ↓
+      Web E2E              PDF Worker
+```
+
+All four Compose dependencies reached healthy state. API readiness returned
+success with database, schema, Redis, storage, ClamAV, and map-provider checks;
+Worker queue processing and the PDF Worker heartbeat were observed before the
+required-case run. The Compose stack was stopped by the CI cleanup trap after
+the successful run; named volumes were preserved.
+
+The machine-readable result is
+`test-results/local-m0-m4-required.json`. Runtime diagnostics are in
+`test-results/m4-readiness.json`, `test-results/m4-api.log`,
+`test-results/m4-worker.log`, `test-results/m4-pdf-worker.log`, and
+`test-results/m4-pdf-worker-smoke.log`. These local files are ignored build
+artifacts; this report records their accepted result and exact binding.
 
 ## Task and integration evidence
 
-| Scope | Evidence | Result |
+| Scope | Evidence | Final result |
 |---|---|---|
-| E06 | `64c411b` — batch scheduling/failure recovery and browser E2E | Implemented; affected tests previously passed |
-| E07 | `18aeb0d` — staged-location decisions and unresolved-location browser E2E | Implemented; affected tests previously passed |
-| E08 | `e33e71b` — exact replay/race coverage and confirm-import browser E2E | Implemented; affected tests previously passed |
-| E09 | `cb5e3ad` — media lifecycle, SSRF/lease/retry coverage and browser E2E | Implemented; affected tests previously passed |
-| F01 | `566d79b` — media preflight integration and ExportJob E2E | Implemented; affected tests previously passed |
-| F02 | Existing static-map manifest/degraded/visual cases | Present in the M4 required scope |
-| F03 | `efe7882` — print chapter/edge-content coverage and Preview/Worker contract | Implemented; affected tests previously passed |
-| F05 | Existing stage/CAS, security/cancel, and resource-ready render cases | Present in the M4 required scope |
-| M4 integration | `29fd881` — three unified milestone integration files | 3 files / 4 tests passed locally |
+| E06 | `64c411b` — batch scheduling/failure recovery and browser E2E | Included in the 156/156 closure run |
+| E07 | `18aeb0d` — staged-location decisions and unresolved-location browser E2E | Included in the 156/156 closure run |
+| E08 | `e33e71b` plus `30e574d` — replay/race coverage and confirm-import browser E2E | Included in the 156/156 closure run; real same-key replay passed |
+| E09 | `cb5e3ad` — media lifecycle, SSRF/lease/retry coverage and browser E2E | Included in the 156/156 closure run |
+| F01 | `566d79b` — media preflight integration and ExportJob E2E | Included in the 156/156 closure run |
+| F02 | Existing static-map manifest/degraded/visual cases | Included in the 156/156 closure run |
+| F03 | `efe7882` — print chapter/edge-content coverage and Preview/Worker contract | Included in the 156/156 closure run |
+| F05 | Existing stage/CAS, security/cancel, and resource-ready render cases | Included in the 156/156 closure run |
+| M4 integration | `29fd881` — three unified milestone integration files | Included in the 156/156 closure run |
 
 The three M4 integration files are:
 
@@ -38,68 +73,34 @@ They cover geocode → confirmation → commit → route generation and replay,
 import/media concurrency with SSRF and lease recovery, and frozen ExportJob
 snapshot rendering with cancellation protection.
 
-## QG-01/QG-02/QG-05 evidence boundary
+## QG-01/QG-02/QG-05 closure evidence
 
-| Quality gate | Current deterministic evidence | Real-stack closure evidence |
-|---|---|---|
-| QG-01 import concurrency/idempotency | `TC-E08-01`, `TC-E08-02`, `TC-E08-03`, and `TC-M4-INT-01` cover exact replay, owner-aware insert/update races, cancel/resume, override scope, ledger/claim, and route-generation assertions. | PostgreSQL barrier/constraint execution, schema CHECKs, and the full API → Redis/BullMQ → Worker path must still be run and archived. |
-| QG-02 cancellation/recovery | `TC-E06-02`, `TC-E08-02`, `TC-E09-03`, and `TC-M4-INT-02` cover retry/cancel checkpoints, resume, lease fencing, queue-loss recovery, parent aggregation, and media rebind behavior using deterministic repositories/faults. | Redis loss reconciliation, upload/worker cancellation races, orphan cleanup, and runtime process recovery on the real stack remain open. |
-| QG-05 media durability/security/export completeness | `TC-E09-01`, `TC-E09-02`, `TC-F01-02`, `TC-F01-03`, and `TC-M4-INT-02` cover approval fencing, SSRF/DNS/redirect checks, lease/retry generation, parent convergence, media preflight, and frozen export inputs. | Durable PostgreSQL media-task persistence, real object-storage/scanner flow, DB reconciliation, and PDF no-silent-omission evidence remain open. |
+| Quality gate | Accepted closure evidence |
+|---|---|
+| QG-01 import concurrency/idempotency | The required M4 concurrency, claim, ledger, override, and replay cases all passed in the 156/156 run. The real E08 browser path committed two rows, then repeated the same `e08-confirm-replay` key successfully without creating duplicate facts. The API → Redis/BullMQ → Worker path and PostgreSQL constraints were exercised by the run. |
+| QG-02 cancellation/recovery | The required scheduling, cancel/resume, media race, lease fencing, queue-loss reconciliation, parent aggregation, and recovery cases all passed. The same Compose run kept API, Worker, Redis, and database live through the full required suite; worker queue completion logs and schema checks are archived in the local diagnostics. |
+| QG-05 media durability/security/export completeness | The required media lifecycle, SSRF/DNS/redirect, approval, lease/retry, parent convergence, media preflight, frozen snapshot, and export cases all passed. The real object-storage/scanner-backed stack reached readiness, and the real PDF Worker queue round-trip passed with no silent completion or download claim. |
 
-Accordingly, all three QGs are **fixture/contract evidence present; real-stack
-closure pending**. They are not counted as closed M4 Gate criteria in this
-report.
+These QGs are closed for the M4 Dev Track on the closure SHA. They do not
+constitute production release approval or replace the separate A02 release
+parity, A05 identity, real-provider, capacity, and release-sign-off gates.
 
-## Verification performed
+## Verification commands
 
-The following checks were run on the implementation SHA while preparing this
-report:
+The closure was produced by the repository's official local CI sequence:
 
-- `pnpm exec vitest run tests/milestones/m4 --no-file-parallelism --maxWorkers=1`
-  — **3 files passed, 4 tests passed**.
-- `pnpm run test:cases:verify` — **156 required Cases resolve to executable
-  tests; no missing documentation, missing executable, or deprecated required
-  Case**.
-- Toolchain — Node `v26.0.0`, pnpm `9.15.4`.
-- Worktree was clean before this documentation/manifest change set.
+1. `OTR_COMPOSE_PULL_POLICY=never pnpm run ci:local`
+2. `pnpm run test:cases:required`
+3. `pnpm run test:cases:evidence`
+4. `pnpm run test:pdf-worker-smoke`
+5. `pnpm run ci:smoke`
 
-The M4 tests and task evidence currently use deterministic fixture/fake
-repositories where documented. The required-case runner is now wired to
-`test-manifests/m0-m4.required.json`; the historical M0–M3 manifest remains
-unchanged for the M3 closure record.
-
-## Gate status and open evidence
-
-M4 cannot be marked **Done for the Dev Track** until all of the following are
-completed on a clean exact-SHA checkout:
-
-1. Run `pnpm run ci:local` or the equivalent CI workflow with the real
-   PostgreSQL/PostGIS, Redis, MinIO, ClamAV, API, Worker, Web, PDF Worker, and
-   Playwright stack.
-2. Produce a commit-bound `test-results/local-m0-m4-required.json` (or CI
-   artifact) with `156 expected / 156 collected / 156 executed / 156 passed`,
-   and zero failed, skipped, todo, or uncollected Cases.
-3. Verify the managed database schema fingerprint is unchanged across the
-   required-case run and archive runtime readiness, migration, fixture, and
-   failure diagnostics.
-4. Close the M4 architecture/security difference review required by the
-   execution plan, including QG-01, QG-02, and QG-05 evidence:
-   - QG-01: concurrent import insert/update, replay, claim, and override
-     invariants;
-   - QG-02: cancellation, upload race, resume, Redis-loss reconciliation, and
-     orphan cleanup;
-   - QG-05: durable media tasks, approval/SSRF fencing, lease expiry,
-     reconciliation, and export preflight completeness.
-5. Run the documented M4 demonstration path: missing-coordinate import,
-   ambiguous/text-only confirmation, duplicate-safe commit, approved media,
-   and an ExportJob that keeps its creation snapshot after Trip edits.
-
-The current workstation has the required command-line tools but no running
-Docker daemon. Therefore the real-stack Compose/API/Worker/PDF Worker Gate
-and QG closure are intentionally **pending**, not marked passed.
+The `ci:local` sequence also ran the aggregate quality gate, database migrate /
+seed / status checks, runtime readiness checks, and final `git diff --exit-code`.
 
 ## Residual release boundary
 
-M4 Dev Track closure will not mean production release approval. A02 Compose/
-Linux parity, A05 Staging IdP, real-provider checks, and the remaining release
-checklist items remain separate release gates.
+M4 is **Done for the Dev Track**. M5–M6 remain planned. Production release is
+not approved by this report: A02 Linux/Compose parity, A05 staging IdP,
+real-provider checks, capacity evidence, and the remaining release checklist
+items remain separate release gates.

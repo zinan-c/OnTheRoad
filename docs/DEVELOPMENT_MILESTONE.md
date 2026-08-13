@@ -5,7 +5,7 @@
 > 依赖文档：[DESIGN.md](./DESIGN.md)、[DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md)
 > 计划基线：58 个有效 P0 任务，合计约 223 理想人日；G08 以 Deprecated 历史编号保留但不计入任务数/人日；1 周 Sprint 0 + 5 个两周功能 Sprint + 2 周稳定/灰度，第 14 周为显式缓冲。
 > 文档用途：研发排期、TDD、里程碑评审、演示验收及 Go/No-Go 签署。
-> 执行状态：M0–M3 已完成 Dev Track Gate；M4 实现已完成但 Dev Track Gate 尚未关闭，M5–M6 尚未宣称完成。当前成熟度和 Gate 入口见 [文档状态索引](./README.md)。
+> 执行状态：M0–M4 已完成 Dev Track Gate；M5–M6 尚未宣称完成。当前成熟度和 Gate 入口见 [文档状态索引](./README.md)。
 
 ## 0. 需求理解、假设与执行口径
 
@@ -48,7 +48,7 @@ MVP 必须形成真实、可恢复、可验证的完整链路：
 | M1 旅行基础与异步底座 | Sprint 1，2 周 | A05–A07、B01–B04、C01、C03、D01 | 33 | Dev Track Done | Trip/Day、身份、Job、Location/Storage 契约 |
 | M2 行程编辑与地点确认 | Sprint 2，2 周 | B05–B09、C02、C04–C06、D02、D04、E01–E02 | 55 | Dev Track Done | 可持久编辑的一天、地点确认、媒体安全底座、导入入口 |
 | M3 路线、图片、费用与导入 staging | Sprint 3，2 周 | C07–C09、D03、D05、E03–E05 | 36 | Dev Track Done | 地图路线联动、图片 UX、费用统计、Excel 校验预览 |
-| M4 Excel 闭环与 PDF 骨架 | Sprint 4，2 周 | E06–E09、F01–F03、F05 | 40 | Implementation complete / Gate open | 幂等正式导入、媒体子任务、冻结快照、可运行打印 Worker |
+| M4 Excel 闭环与 PDF 骨架 | Sprint 4，2 周 | E06–E09、F01–F03、F05 | 40 | Done for Dev Track / release gates separate | 幂等正式导入、媒体子任务、冻结快照、可运行打印 Worker |
 | M5 PDF 闭环与功能冻结 | Sprint 5，2 周 | F04、F06–F07、G01 | 15 | Planned | 中文完整 PDF、下载/取消/重试、完整五日样例 |
 | M6 稳定、灰度与 GA 门禁 | 稳定/灰度 2 周 | G02–G07 | 23 | Planned | E2E/安全/容量证据、监控 Runbook、发布签署 |
 
