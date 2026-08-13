@@ -42,6 +42,7 @@ describe("TC-A03-01 minimal config schema", () => {
         api: "native",
         web: "native",
         worker: "native",
+        pdf_worker: "native",
       });
       expect(config.map.profile).toBe("fixture");
       expect(config.map.capabilities).toEqual({

@@ -29,6 +29,7 @@
     "qa": "bash scripts/run-environment.sh qa ${OTR_QA_TRACK:-native}",
     "prod": "bash scripts/run-environment.sh prod native",
     "test:runtime-smoke": "bash scripts/run-profile.sh dev -- vitest run tests/runtime/real-stack.e2e.spec.ts",
+    "test:pdf-worker-smoke": "bash scripts/run-profile.sh dev -- vitest run tests/runtime/pdf-worker-stack.e2e.spec.ts",
     "test:e2e": "playwright test --config playwright.e2e.config.ts",
     "test:cases:verify": "node scripts/verify-required-cases.mjs",
     "test:cases:required": "node scripts/run-required-cases.mjs",

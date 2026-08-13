@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { PostgresExecutor } from "../../packages/database/src/postgres/index.js";
 import { OnTheRoadClient } from "../../packages/contracts/src/generated/index.mjs";
+import { createFixtureProvider } from "../../packages/providers/src/index.js";
 import { startApi, type StartedApi } from "../../apps/api/src/main.js";
 import { PostgresEventProcessor } from "../../apps/worker/src/processors/maintenance/postgres-event-processor.js";
 import {
@@ -65,7 +66,7 @@ beforeAll(async () => {
   database = new PostgresExecutor({ databaseUrl: process.env.DATABASE_URL, role: "test" });
   api = await startApi(runtimeEnvironment());
   const queueName = `${APPLICATION_QUEUE}.runtime-smoke.${randomUUID()}`;
-  eventProcessor = new PostgresEventProcessor(databaseUrl!);
+  eventProcessor = new PostgresEventProcessor(databaseUrl!, createFixtureProvider().directions);
   worker = createQueueProcess({
     redisUrl: redisUrl!,
     queueName,

@@ -352,7 +352,7 @@ function baseReport(status, requiredCaseIds) {
   return {
     schemaVersion: 1,
     status,
-    scope: "M0-M3 required cases",
+    scope: "M0-M4 required cases",
     generatedAt: new Date().toISOString(),
     commit: resolveCommit(),
     worktreeClean: repositoryIsClean(),

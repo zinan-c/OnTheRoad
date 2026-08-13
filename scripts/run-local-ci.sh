@@ -3,10 +3,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
-REPORT_PATH="test-results/local-m0-m3-required.json"
+REPORT_PATH="test-results/local-m0-m4-required.json"
 STACK_STARTED=0
 API_PID=""
 WORKER_PID=""
+PDF_WORKER_PID=""
 
 cleanup() {
   if [[ -n "${API_PID}" ]]; then
@@ -14,6 +15,9 @@ cleanup() {
   fi
   if [[ -n "${WORKER_PID}" ]]; then
     kill "${WORKER_PID}" 2>/dev/null || true
+  fi
+  if [[ -n "${PDF_WORKER_PID}" ]]; then
+    kill "${PDF_WORKER_PID}" 2>/dev/null || true
   fi
   if [[ "${STACK_STARTED}" -eq 1 ]]; then
     bash "${SCRIPT_DIR}/dev-down.sh" --track compose
@@ -66,6 +70,7 @@ OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}" \
   node scripts/initialize-required-case-report.mjs
 
 STACK_STARTED=1
+export OTR_COMPOSE_PULL_POLICY="${OTR_COMPOSE_PULL_POLICY:-never}"
 bash scripts/dev-up.sh --track compose
 
 set -a
@@ -102,29 +107,36 @@ export OTR_RUN_CLAMAV_INTEGRATION="1"
 export OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}"
 export OTR_COMMIT_SHA="$(git rev-parse HEAD)"
 
-echo "Starting M3 API and Worker runtimes..."
+echo "Starting M4 API, Worker, and PDF Worker runtimes..."
 pnpm exec turbo run build \
   --filter=@on-the-road/api \
-  --filter=@on-the-road/worker
+  --filter=@on-the-road/worker \
+  --filter=@on-the-road/pdf-worker
 pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
-  > test-results/m3-api.log 2>&1 &
+  > test-results/m4-api.log 2>&1 &
 API_PID=$!
 pnpm run profile:dev -- pnpm --filter @on-the-road/worker start \
-  > test-results/m3-worker.log 2>&1 &
+  > test-results/m4-worker.log 2>&1 &
 WORKER_PID=$!
+pnpm run profile:dev -- pnpm --filter @on-the-road/pdf-worker start \
+  > test-results/m4-pdf-worker.log 2>&1 &
+PDF_WORKER_PID=$!
 API_ORIGIN="$(bash scripts/run-profile.sh dev -- node -e \
   'process.stdout.write(new URL(process.env.API_BASE_URL).origin)')"
 WEB_ORIGIN="$(bash scripts/run-profile.sh dev -- node -e \
   'process.stdout.write(new URL(process.env.APP_ORIGIN).origin)')"
 export NEXT_PUBLIC_API_ORIGIN="${API_ORIGIN}"
+export OTR_PLAYWRIGHT_API_ORIGIN="${API_ORIGIN}"
 export OTR_PLAYWRIGHT_WEB_ORIGIN="${WEB_ORIGIN}"
 print_runtime_diagnostics() {
   echo "Application runtime readiness response:"
-  cat test-results/m3-readiness.json 2>/dev/null || true
+  cat test-results/m4-readiness.json 2>/dev/null || true
   echo "API runtime log:"
-  cat test-results/m3-api.log 2>/dev/null || true
+  cat test-results/m4-api.log 2>/dev/null || true
   echo "Worker runtime log:"
-  cat test-results/m3-worker.log 2>/dev/null || true
+  cat test-results/m4-worker.log 2>/dev/null || true
+  echo "PDF Worker runtime log:"
+  cat test-results/m4-pdf-worker.log 2>/dev/null || true
   echo "Compose dependency health:"
   bash scripts/dev-up-health.sh --track compose || true
 }
@@ -143,12 +155,16 @@ echo "Compose dependencies ready; waiting for application runtimes..."
 for attempt in $(seq 1 60); do
   fail_if_runtime_exited "API" "${API_PID}"
   fail_if_runtime_exited "Worker" "${WORKER_PID}"
+  fail_if_runtime_exited "PDF Worker" "${PDF_WORKER_PID}"
   if curl --fail --silent "${API_ORIGIN}/health/ready" \
-    > test-results/m3-readiness.json; then
+    > test-results/m4-readiness.json; then
     fail_if_runtime_exited "API" "${API_PID}"
     fail_if_runtime_exited "Worker" "${WORKER_PID}"
-    echo "Application runtimes ready: API and Worker are running"
-    break
+    fail_if_runtime_exited "PDF Worker" "${PDF_WORKER_PID}"
+    if redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:pdf-worker:heartbeat:*' 2>/dev/null | grep -q .; then
+      echo "Application runtimes ready: API, Worker, and PDF Worker heartbeat passed"
+      break
+    fi
   fi
   if [ "${attempt}" -eq 60 ]; then
     echo "Application runtime readiness timed out at ${API_ORIGIN}." >&2
@@ -158,9 +174,16 @@ for attempt in $(seq 1 60); do
   sleep 1
 done
 
-echo "Running every required M0-M3 case without skips..."
+echo "Running every required M0-M4 case without skips..."
 pnpm run test:cases:required
 pnpm run test:cases:evidence
+
+echo "Running the real PDF Worker queue round-trip smoke..."
+if ! pnpm run test:pdf-worker-smoke > test-results/m4-pdf-worker-smoke.log 2>&1; then
+  cat test-results/m4-pdf-worker-smoke.log
+  exit 1
+fi
+cat test-results/m4-pdf-worker-smoke.log
 
 echo "Running the clean-checkout smoke gate..."
 pnpm run ci:smoke

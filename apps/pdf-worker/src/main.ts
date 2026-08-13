@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 
+import { Redis } from "ioredis";
 import { loadProcessConfig } from "@on-the-road/config/env";
 import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { IMPORT_CONTENT_TYPES, S3ObjectStorage } from "@on-the-road/storage";
@@ -61,10 +62,25 @@ export async function startPdfWorker(
     redisUrl: config.server.redisUrl.href,
     processor: createExportQueueProcessor(exportProcessor),
   });
+  const controlRedis = new Redis(config.server.redisUrl.href, {
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+  });
+  await processRuntime.consumer.waitUntilReady?.();
+  await controlRedis.ping();
+  const heartbeatKey = `otr:pdf-worker:heartbeat:${randomUUID()}`;
+  const heartbeat = async () => {
+    await controlRedis.set(heartbeatKey, new Date().toISOString(), "EX", 15);
+  };
+  await heartbeat();
+  const heartbeatTimer = setInterval(() => void heartbeat(), 5_000);
   let closed = false;
   const close = async () => {
     if (closed) return;
     closed = true;
+    clearInterval(heartbeatTimer);
+    await controlRedis.del(heartbeatKey).catch(() => undefined);
+    controlRedis.disconnect();
     await processRuntime.close();
     await database.close();
   };

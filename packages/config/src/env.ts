@@ -121,6 +121,7 @@ const SERVICE_MODE_FIELDS = [
   "API",
   "WEB",
   "WORKER",
+  "PDF_WORKER",
 ] as const;
 const VALID_MAP_PROFILES = new Set<MapProfile>([
   "fixture",

@@ -5,7 +5,7 @@ const apiOrigin = process.env.OTR_PLAYWRIGHT_API_ORIGIN ?? "http://127.0.0.1:310
 
 test.setTimeout(180_000);
 
-test("TC-E08-02 confirm import E2E commits rows once and survives idempotent replay", async ({ page }) => {
+test("TC-E08-03 confirm import E2E commits rows once and survives idempotent replay", async ({ page }) => {
   const tripId = await createTripWorkspace(page, "E08 确认导入");
   const days = await getJson<Array<{ id: string }>>(page, `/api/v1/trips/${tripId}/days`);
   const dayId = days[0]?.id;

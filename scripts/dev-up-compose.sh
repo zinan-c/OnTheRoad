@@ -29,6 +29,17 @@ if [[ "${1:-}" == "--dry-run" ]]; then
   exit 0
 fi
 
+compose_pull_args=()
+if [[ -n "${OTR_COMPOSE_PULL_POLICY:-}" ]]; then
+  case "${OTR_COMPOSE_PULL_POLICY}" in
+    always|missing|never) compose_pull_args=(--pull "${OTR_COMPOSE_PULL_POLICY}") ;;
+    *)
+      echo "OTR_COMPOSE_PULL_POLICY must be always, missing or never." >&2
+      exit 2
+      ;;
+  esac
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker CLI is missing. Install Docker Desktop or Docker Engine." >&2
   exit 3
@@ -54,7 +65,7 @@ compose_diagnostics() {
 }
 
 echo "Starting PostGIS, Redis, MinIO, and ClamAV (Compose Track)..."
-if ! compose up -d --wait --wait-timeout "${COMPOSE_WAIT_TIMEOUT_SECONDS}" \
+if ! compose up -d "${compose_pull_args[@]}" --wait --wait-timeout "${COMPOSE_WAIT_TIMEOUT_SECONDS}" \
   postgres redis minio clamav; then
   echo "Compose Track failed to become healthy within ${COMPOSE_WAIT_TIMEOUT_SECONDS}s." >&2
   compose_diagnostics

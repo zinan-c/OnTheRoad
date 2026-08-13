@@ -53,6 +53,7 @@ stop_application() {
 
 failed=0
 stop_application app-web Web "pnpm run start:web" || failed=1
+stop_application app-pdf-worker "PDF Worker" "pnpm run start:pdf-worker" || failed=1
 stop_application app-worker Worker "pnpm run start:worker" || failed=1
 stop_application app-api API "pnpm run start:api" || failed=1
 

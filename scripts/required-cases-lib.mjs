@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { dirname, extname, join, relative, resolve } from "node:path";
 
 const CASE_PATTERN = /TC-(?:[A-Z]\d{2}|M\d-INT)-\d{2}/gu;
-const TEST_FILE_PATTERN = /\.(?:spec|test)\.(?:[cm]?[jt]sx?)$/u;
+const TEST_FILE_PATTERN = /\.(?:e2e-)?(?:spec|test)\.(?:[cm]?[jt]sx?)$/u;
 const IGNORED_DIRECTORIES = new Set([
   ".git",
   ".turbo",
@@ -15,7 +15,7 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 const TEST_ROOTS = ["apps", "packages", "spikes", "tests"];
 
-export async function loadRequiredCaseManifest(root, manifestPath = "test-manifests/m0-m3.required.json") {
+export async function loadRequiredCaseManifest(root, manifestPath = "test-manifests/m0-m4.required.json") {
   const absolutePath = resolve(root, manifestPath);
   const manifest = JSON.parse(await readFile(absolutePath, "utf8"));
   return {

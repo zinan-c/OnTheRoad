@@ -4,7 +4,7 @@
 > 日期：2026-07-26
 > 执行顺序：[DEVELOP_EXECUTION_PLAN.md](./DEVELOP_EXECUTION_PLAN.md)
 > 验收基线：[DEVELOPMENT_MILESTONE.md](./DEVELOPMENT_MILESTONE.md)
-> 当前 Gate：`test-manifests/m0-m3.required.json` 定义 129 个 M0–M3 required Cases；最终 M3 Dev Gate 在精确 closure SHA 上 129/129 通过，详见 [M3 Gate](./reports/m3-gate.md)。
+> 当前 Gate：`test-manifests/m0-m4.required.json` 定义 156 个 M0–M4 required Cases；M3 历史 Dev Gate 在精确 closure SHA 上 129/129 通过，M4 当前实现与 Gate 状态详见 [M4 Gate](./reports/m4-gate.md)。
 
 ## 0. 用例执行规范
 
@@ -542,8 +542,8 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 - 失败后重试必须保留首次失败 evidence，便于判断 flaky 或真实回归。
 - fixture/golden 更新必须在结果中记录新版本和批准原因。
 - Milestone Gate 只能读取主干对应 commit 的测试结果，不接受其他分支或本地口头结果。
-- M0–M3 聚合 Gate 使用 `pnpm run test:cases:required` 生成报告，并立即用
+- M0–M4 聚合 Gate 使用 `pnpm run test:cases:required` 生成报告，并立即用
   `pnpm run test:cases:evidence` 验证：完整 SHA、clean worktree、`.nvmrc`
   版本、expected/collected/executed/passed 全等且 failed/skipped/notCollected
-  均为零。默认本地路径为 `test-results/local-m0-m3-required.json`；该路径
+  均为零。默认本地路径为 `test-results/local-m0-m4-required.json`；该路径
   是 ignored 诊断产物，CI 上传的 artifact 才是持久机器证据。

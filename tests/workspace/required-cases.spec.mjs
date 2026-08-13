@@ -14,10 +14,10 @@ import {
 
 const root = resolve(new URL("../..", import.meta.url).pathname);
 
-describe("M0-M3 required-case gate", () => {
+describe("M0-M4 required-case gate", () => {
   test("resolves every active documented Case ID to an executable test", async () => {
     const result = await verifyRequiredCases(root);
-    assert.equal(result.requiredCaseIds.length, 129);
+    assert.equal(result.requiredCaseIds.length, 156);
     assert.deepEqual(result.missingFromDocumentation, []);
     assert.deepEqual(result.missingTestFiles, []);
     assert.deepEqual(result.deprecatedRequired, []);
@@ -27,8 +27,12 @@ describe("M0-M3 required-case gate", () => {
       "apps/web/browser/trip-session.spec.ts",
       "apps/web/e2e/attachments-gallery.spec.ts",
       "apps/web/e2e/cost-summary.spec.ts",
+      "apps/web/e2e/import-batch-geocode.spec.ts",
+      "apps/web/e2e/import-confirm.spec.ts",
       "apps/web/e2e/import-mapping.spec.ts",
+      "apps/web/e2e/import-media-lifecycle.spec.ts",
       "apps/web/e2e/import-preview.spec.ts",
+      "apps/web/e2e/import-unresolved-locations.spec.ts",
       "apps/web/e2e/import-upload-chain.spec.ts",
       "apps/web/e2e/map-timeline-link.spec.ts",
       "apps/web/e2e/routes-visual.spec.ts",
@@ -145,7 +149,7 @@ describe("M0-M3 required-case gate", () => {
       assert.equal(result.status, 1);
       const report = JSON.parse(await readFile(reportPath, "utf8"));
       assert.equal(report.status, "execution-error");
-      assert.equal(report.counts.expected, 129);
+      assert.equal(report.counts.expected, 156);
       assert.match(report.error.message, /pnpm/u);
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
@@ -179,10 +183,10 @@ describe("M0-M3 required-case gate", () => {
         worktreeClean: true,
         node,
         counts: {
-          expected: 129,
-          collected: 129,
-          executed: 129,
-          passed: 129,
+          expected: 156,
+          collected: 156,
+          executed: 156,
+          passed: 156,
           failed: 0,
           skipped: 0,
           notCollected: 0,
@@ -230,8 +234,8 @@ describe("M0-M3 required-case gate", () => {
       assert.equal(result.status, 0, result.stderr);
       const report = JSON.parse(await readFile(reportPath, "utf8"));
       assert.equal(report.status, "not-started");
-      assert.equal(report.counts.expected, 129);
-      assert.equal(report.counts.notCollected, 129);
+      assert.equal(report.counts.expected, 156);
+      assert.equal(report.counts.notCollected, 156);
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });
     }

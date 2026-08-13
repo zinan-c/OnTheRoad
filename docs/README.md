@@ -12,7 +12,8 @@ and context; this index states what the repository currently claims.
 | M1 | Yes | Yes | Yes | No — A02 release parity/A05 release items remain | [`reports/m1-gate.md`](./reports/m1-gate.md) |
 | M2 | Yes | Yes | Yes | No — A02 release parity/A05 release items remain | [`reports/m2-gate.md`](./reports/m2-gate.md) |
 | M3 | Yes | Yes | Yes — 129/129 closure Gate plus 22/22 product-browser re-acceptance | No — A02 release parity, A05, and real-provider checks remain | [`reports/m3-gate.md`](./reports/m3-gate.md), [`reports/m3-product-acceptance.md`](./reports/m3-product-acceptance.md), [`reports/m3-rnd-final-review.md`](./reports/m3-rnd-final-review.md), [`E2E_AUTOMATION_CASES.md`](./E2E_AUTOMATION_CASES.md) |
-| M4–M6 | Planned | No | No | No | [`DEVELOPMENT_MILESTONE.md`](./DEVELOPMENT_MILESTONE.md) |
+| M4 | Yes — implementation complete | Partial — local composition and integration coverage exist; full real-stack Gate is open | Pending — M0–M4 manifest/CI wiring is in place; closure run is pending | No | [`reports/m4-gate.md`](./reports/m4-gate.md) |
+| M5–M6 | Planned | No | No | No | [`DEVELOPMENT_MILESTONE.md`](./DEVELOPMENT_MILESTONE.md) |
 
 “Done for the Dev Track” means implemented, assembled through production
 composition roots, and verified by the required development Gate. It does not
@@ -29,6 +30,13 @@ blocking for a production release.
 - **M3 Dev Track:** Complete; the required-case Gate is 129/129 and the latest
   product-browser regression is 22/22. M3 production release approval remains
   separate from A02/A05 and real-provider checks.
+- **M4 implementation:** Complete for E06–E09, F01–F03, F05, and the three M4
+  integration Cases on the current implementation SHA. The M4 Dev Track Gate
+  remains open until the M0–M4 required-case run executes against the real
+  dependency stack and its commit-bound evidence is archived.
+- **M4 Gate blockers:** The current environment has no running Docker daemon, so
+  Compose/API/Worker/PDF Worker runtime evidence and QG-01/QG-02/QG-05 closure
+  cannot be claimed locally. See [`reports/m4-gate.md`](./reports/m4-gate.md).
 
 ## Authoritative documents
 
@@ -46,9 +54,10 @@ blocking for a production release.
 
 ## Evidence rules
 
-- Current M0–M3 required Cases are defined by
-  `test-manifests/m0-m3.required.json` and checked against this documentation
-  and executable test files.
+- Current M0–M4 required Cases are defined by
+  `test-manifests/m0-m4.required.json` and checked against this documentation
+  and executable test files. The historical M3 closure remains recorded by
+  `test-manifests/m0-m3.required.json` and `reports/m3-gate.md`.
 - `pnpm run test:cases:required` writes the configured machine-readable report;
   `pnpm run test:cases:evidence` accepts it only when it is passed, clean,
   bound to the exact 40-character closure SHA, running the pinned Node version,
@@ -63,6 +72,10 @@ blocking for a production release.
   2026-08-11 run executed E2E-001 through E2E-022 with 22 passed, zero failed,
   and zero skipped. E2E-022 covers the Global/Day map-scope and stable
   MapLibre sizing regression fixed by the accompanying implementation commit.
+- The M4 required-case runner includes 156 active Cases: the 129 historical
+  M0–M3 Cases, 24 M4 Task Cases, and three M4 integration Cases. A configured
+  manifest is not closure evidence until the exact-SHA run has zero failed,
+  skipped, todo, or uncollected Cases.
 
 ## Maintenance rule
 

@@ -7,6 +7,7 @@ export const PDF_QUEUE = EXPORT_QUEUE_NAME;
 export interface QueueConsumer {
   pause(doNotWaitActive?: boolean): Promise<void>;
   close(force?: boolean): Promise<void>;
+  waitUntilReady?(): Promise<unknown>;
 }
 
 export async function defaultPdfProcessor(job: Job): Promise<unknown> {

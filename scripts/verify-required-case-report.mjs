@@ -7,7 +7,7 @@ const reportPath = resolve(
   root,
   process.argv[2]
     ?? process.env.OTR_REQUIRED_CASE_REPORT
-    ?? "test-results/local-m0-m3-required.json",
+    ?? "test-results/local-m0-m4-required.json",
 );
 const expectedCommit = process.argv[3]
   ?? process.env.GITHUB_SHA

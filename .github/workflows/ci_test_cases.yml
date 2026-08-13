@@ -40,7 +40,7 @@ jobs:
           sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils redis-tools
       - name: Initialize required-case diagnostic artifact
         env:
-          OTR_REQUIRED_CASE_REPORT: test-results/m0-m3-required.json
+          OTR_REQUIRED_CASE_REPORT: test-results/m0-m4-required.json
         run: node scripts/initialize-required-case-report.mjs
       - name: Start real integration dependencies
         run: |
@@ -57,10 +57,10 @@ jobs:
           OTR_DATABASE_MIGRATION_TEST_URL="$DATABASE_URL" \
             pnpm --filter @on-the-road/database exec vitest run \
               test/migration-runner.spec.ts test/migration-runner.integration.spec.ts
-      - name: Run every required M0-M3 case without skips
+      - name: Run every required M0-M4 case without skips
         env:
           OTR_RUN_CLAMAV_INTEGRATION: "1"
-          OTR_REQUIRED_CASE_REPORT: test-results/m0-m3-required.json
+          OTR_REQUIRED_CASE_REPORT: test-results/m0-m4-required.json
         run: |
           set -a
           source infra/local-stack.env
@@ -84,29 +84,36 @@ jobs:
           mkdir -p test-results
           pnpm exec turbo run build \
             --filter=@on-the-road/api \
-            --filter=@on-the-road/worker
+            --filter=@on-the-road/worker \
+            --filter=@on-the-road/pdf-worker
           pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
-            > test-results/m3-api.log 2>&1 &
+            > test-results/m4-api.log 2>&1 &
           api_pid=$!
           pnpm run profile:dev -- pnpm --filter @on-the-road/worker start \
-            > test-results/m3-worker.log 2>&1 &
+            > test-results/m4-worker.log 2>&1 &
           worker_pid=$!
+          pnpm run profile:dev -- pnpm --filter @on-the-road/pdf-worker start \
+            > test-results/m4-pdf-worker.log 2>&1 &
+          pdf_worker_pid=$!
           api_origin="$(bash scripts/run-profile.sh dev -- node -e \
             'process.stdout.write(new URL(process.env.API_BASE_URL).origin)')"
           web_origin="$(bash scripts/run-profile.sh dev -- node -e \
             'process.stdout.write(new URL(process.env.APP_ORIGIN).origin)')"
           export NEXT_PUBLIC_API_ORIGIN="$api_origin"
+          export OTR_PLAYWRIGHT_API_ORIGIN="$api_origin"
           export OTR_PLAYWRIGHT_WEB_ORIGIN="$web_origin"
           cleanup_runtimes() {
-            kill "$api_pid" "$worker_pid" 2>/dev/null || true
+            kill "$api_pid" "$worker_pid" "$pdf_worker_pid" 2>/dev/null || true
           }
           print_runtime_diagnostics() {
             echo "Application runtime readiness response:"
-            cat test-results/m3-readiness.json 2>/dev/null || true
+            cat test-results/m4-readiness.json 2>/dev/null || true
             echo "API runtime log:"
-            cat test-results/m3-api.log 2>/dev/null || true
+            cat test-results/m4-api.log 2>/dev/null || true
             echo "Worker runtime log:"
-            cat test-results/m3-worker.log 2>/dev/null || true
+            cat test-results/m4-worker.log 2>/dev/null || true
+            echo "PDF Worker runtime log:"
+            cat test-results/m4-pdf-worker.log 2>/dev/null || true
             echo "Compose dependency health:"
             bash scripts/dev-up-health.sh --track compose || true
           }
@@ -125,13 +132,17 @@ jobs:
           for attempt in $(seq 1 60); do
             fail_if_runtime_exited "API" "$api_pid"
             fail_if_runtime_exited "Worker" "$worker_pid"
+            fail_if_runtime_exited "PDF Worker" "$pdf_worker_pid"
             curl --silent "$api_origin/health/ready" \
-              > test-results/m3-readiness.json || true
-            if grep --quiet '"status":"ready"' test-results/m3-readiness.json; then
+              > test-results/m4-readiness.json || true
+            if grep --quiet '"status":"ready"' test-results/m4-readiness.json; then
               fail_if_runtime_exited "API" "$api_pid"
               fail_if_runtime_exited "Worker" "$worker_pid"
-              echo "Application runtimes ready: API and Worker are running"
-              break
+              fail_if_runtime_exited "PDF Worker" "$pdf_worker_pid"
+              if redis-cli -u "$REDIS_URL" --scan --pattern 'otr:pdf-worker:heartbeat:*' 2>/dev/null | grep --quiet .; then
+                echo "Application runtimes ready: API, Worker, and PDF Worker heartbeat passed"
+                break
+              fi
             fi
             if [ "$attempt" -eq 60 ]; then
               echo "Application runtime readiness timed out at $api_origin." >&2
@@ -142,7 +153,9 @@ jobs:
           done
           pnpm run test:cases:required
           pnpm run test:cases:evidence
-      - name: Run the real API, database, queue, and Worker smoke
+          pnpm run test:pdf-worker-smoke > test-results/m4-pdf-worker-smoke.log 2>&1
+          cat test-results/m4-pdf-worker-smoke.log
+      - name: Run the real API, database, queue, Worker, and PDF Worker smoke
         run: |
           set -a
           source infra/local-stack.env
@@ -156,7 +169,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: m0-m3-required-case-evidence
+          name: m0-m4-required-case-evidence
           path: |
             test-results/
             apps/web/test-results/

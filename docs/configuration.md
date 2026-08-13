@@ -35,7 +35,8 @@ pnpm run profile:release -- pnpm run test:cases:required
 ```
 
 In QA, `OTR_QA_<SERVICE>_MODE` accepts `native`, `container` or `remote` for
-`POSTGRES`, `REDIS`, `MINIO`, `CLAMAV`, `API`, `WEB` and `WORKER`. Selecting
+  `POSTGRES`, `REDIS`, `MINIO`, `CLAMAV`, `API`, `WEB`, `WORKER` and
+  `PDF_WORKER`. Selecting
 `container` records the intended topology but does not start Docker implicitly;
 the selected endpoints must still be supplied and reachable. This keeps QA
 flexible without moving the A02 Docker gate into ordinary development runs.

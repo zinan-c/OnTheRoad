@@ -6,8 +6,9 @@ PostGIS, Redis, S3-compatible object storage, and ClamAV.
 
 ## Project status
 
-M0 through M3 are complete for the **Dev Track**. M4 is the next planned
-milestone. The repository currently
+M0 through M3 are complete for the **Dev Track**. M4 implementation is complete
+for its current E06–E09, F01–F03, F05 scope, while the M4 Dev Track Gate remains
+open pending the real-stack required-case run. The repository currently
 includes:
 
 - runnable Web, API, Worker, and PDF Worker processes;
@@ -32,6 +33,7 @@ release checks remain mandatory release gates.
 Use the [documentation status index](./docs/README.md) as the canonical current
 status entry point. Detailed evidence is in [CODE_REVIEW](./docs/CODE_REVIEW.md),
 the [M3 Gate report](./docs/reports/m3-gate.md), the
+[M4 Gate report](./docs/reports/m4-gate.md), the
 [Product acceptance record](./docs/reports/m3-product-acceptance.md), and the
 [final R&D review](./docs/reports/m3-rnd-final-review.md).
 
@@ -165,10 +167,10 @@ pnpm run ci:local
 
 `pnpm run ci:local` must run from a clean, committed worktree. It verifies the
 current full SHA, provisions the dependency stack, applies and checks
-migrations, starts the real API and Worker, and executes every required M0–M3
+migrations, starts the real API and Worker, and executes every required M0–M4
 Vitest, `node:test`, and Playwright Case without skips. The Gate rejects dirty,
 wrong-commit, failed, skipped, todo, or uncollected evidence. Diagnostics are
-written to `test-results/local-m0-m3-required.json` and validated by
+written to `test-results/local-m0-m4-required.json` and validated by
 `pnpm run test:cases:evidence`.
 
 The local aggregate Gate requires Docker Compose v2, Playwright Chromium,

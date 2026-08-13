@@ -188,13 +188,14 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     /cp infra\/local-stack\.env\.example infra\/local-stack\.env[\s\S]*docker compose --env-file infra\/local-stack\.env/,
   );
   assert.match(testWorkflow, /bash scripts\/dev-up\.sh --track compose/);
-  assert.match(testWorkflow, /OTR_REQUIRED_CASE_REPORT: test-results\/m0-m3-required\.json/);
+  assert.match(testWorkflow, /OTR_REQUIRED_CASE_REPORT: test-results\/m0-m4-required\.json/);
   assert.match(
     testWorkflow,
     /: "\$\{REDIS_URL:\?infra\/local-stack\.env must define REDIS_URL\}"/,
   );
   assert.match(testWorkflow, /export OTR_M1_REDIS_URL="\$REDIS_URL"/);
   assert.match(testWorkflow, /export NEXT_PUBLIC_API_ORIGIN="\$api_origin"/);
+  assert.match(testWorkflow, /export OTR_PLAYWRIGHT_API_ORIGIN="\$api_origin"/);
   assert.match(testWorkflow, /export OTR_PLAYWRIGHT_WEB_ORIGIN="\$web_origin"/);
   assert.match(testWorkflow, /export OTR_C07_DATABASE_URL="\$DATABASE_URL"/);
   assert.match(testWorkflow, /export OTR_E04_DATABASE_URL="\$DATABASE_URL"/);
@@ -206,35 +207,46 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     testWorkflow,
     /pnpm exec turbo run build[\s\\]*--filter=@on-the-road\/api[\s\\]*--filter=@on-the-road\/worker/,
   );
+  assert.match(testWorkflow, /--filter=@on-the-road\/pdf-worker/);
   assert.match(
     testWorkflow,
-    /profile:dev -- pnpm --filter @on-the-road\/api start[\s\\]*> test-results\/m3-api\.log 2>&1 &/,
+    /profile:dev -- pnpm --filter @on-the-road\/api start[\s\\]*> test-results\/m4-api\.log 2>&1 &/,
   );
   assert.match(
     testWorkflow,
-    /profile:dev -- pnpm --filter @on-the-road\/worker start[\s\\]*> test-results\/m3-worker\.log 2>&1 &/,
+    /profile:dev -- pnpm --filter @on-the-road\/worker start[\s\\]*> test-results\/m4-worker\.log 2>&1 &/,
   );
   assert.match(
     testWorkflow,
-    /curl --silent "\$api_origin\/health\/ready"[\s\\]*> test-results\/m3-readiness\.json/,
+    /profile:dev -- pnpm --filter @on-the-road\/pdf-worker start[\s\\]*> test-results\/m4-pdf-worker\.log 2>&1 &/,
+  );
+  assert.match(
+    testWorkflow,
+    /curl --silent "\$api_origin\/health\/ready"[\s\\]*> test-results\/m4-readiness\.json/,
   );
   assert.match(testWorkflow, /kill -0 "\$runtime_pid"/);
   assert.match(testWorkflow, /fail_if_runtime_exited "API" "\$api_pid"/);
   assert.match(testWorkflow, /fail_if_runtime_exited "Worker" "\$worker_pid"/);
+  assert.match(testWorkflow, /fail_if_runtime_exited "PDF Worker" "\$pdf_worker_pid"/);
+  assert.match(testWorkflow, /otr:pdf-worker:heartbeat:\*/);
   assert.match(testWorkflow, /Compose dependencies ready/);
   assert.match(testWorkflow, /Application runtimes ready/);
-  assert.match(testWorkflow, /cat test-results\/m3-readiness\.json/);
+  assert.match(testWorkflow, /cat test-results\/m4-readiness\.json/);
   assert.match(localCi, /"\$\{API_ORIGIN\}\/health\/ready"/);
   assert.match(localCi, /export NEXT_PUBLIC_API_ORIGIN="\$\{API_ORIGIN\}"/);
+  assert.match(localCi, /export OTR_PLAYWRIGHT_API_ORIGIN="\$\{API_ORIGIN\}"/);
   assert.match(localCi, /export OTR_PLAYWRIGHT_WEB_ORIGIN="\$\{WEB_ORIGIN\}"/);
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "Worker" "\$\{WORKER_PID\}"/);
+  assert.match(localCi, /fail_if_runtime_exited "PDF Worker" "\$\{PDF_WORKER_PID\}"/);
+  assert.match(localCi, /otr:pdf-worker:heartbeat:\*/);
   assert.match(
     testWorkflow,
     /Initialize required-case diagnostic artifact[\s\S]*node scripts\/initialize-required-case-report\.mjs[\s\S]*Start real integration dependencies/,
   );
   assert.match(testWorkflow, /uses: actions\/upload-artifact@v6/);
   assert.match(testWorkflow, /pnpm run test:cases:evidence/);
+  assert.match(testWorkflow, /pnpm run test:pdf-worker-smoke/);
   assert.doesNotMatch(
     `${testWorkflow}\n${qualityWorkflow}\n${releaseWorkflow}`,
     /uses: (?:actions\/(?:checkout|setup-node|upload-artifact)|pnpm\/action-setup)@v4(?:\s|$)/m,
@@ -287,12 +299,14 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     "pnpm run db:seed",
     "pnpm run test:cases:required",
     "pnpm run test:cases:evidence",
+    "pnpm run test:pdf-worker-smoke",
     "pnpm run ci:smoke",
     "git diff --exit-code",
   ]) {
     assert.ok(localCi.includes(command), `local CI must include ${command}`);
   }
   assert.match(localCi, /trap cleanup EXIT/);
+  assert.match(localCi, /OTR_COMPOSE_PULL_POLICY/);
   assert.match(localCi, /psql redis-cli magick/);
   assert.match(localCi, /export OTR_M1_REDIS_URL="\$\{REDIS_URL\}"/);
   assert.match(localCi, /export OTR_C07_DATABASE_URL="\$\{DATABASE_URL\}"/);
@@ -307,7 +321,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.match(
     runEnvironment,
-    /pnpm exec turbo run build[\s\\]*--filter=@on-the-road\/api[\s\\]*--filter=@on-the-road\/worker[\s\\]*--filter=@on-the-road\/web/,
+    /pnpm exec turbo run build[\s\\]*--filter=@on-the-road\/api[\s\\]*--filter=@on-the-road\/worker[\s\\]*--filter=@on-the-road\/pdf-worker[\s\\]*--filter=@on-the-road\/web/,
   );
   assert.doesNotMatch(playwrightConfig, /start:dev/);
   assert.match(

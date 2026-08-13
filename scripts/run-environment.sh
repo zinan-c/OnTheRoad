@@ -132,6 +132,7 @@ fi
 pnpm exec turbo run build \
   --filter=@on-the-road/api \
   --filter=@on-the-road/worker \
+  --filter=@on-the-road/pdf-worker \
   --filter=@on-the-road/web
 
 pids=()
@@ -159,6 +160,8 @@ bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_envir
 stack_record_pid "app-api" "${application_pid}" "pnpm run start:api"
 bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:worker & application_pid="$!"; pids+=("${application_pid}"); child_names+=("Worker"); child_services+=("app-worker")
 stack_record_pid "app-worker" "${application_pid}" "pnpm run start:worker"
+bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:pdf-worker & application_pid="$!"; pids+=("${application_pid}"); child_names+=("PDF Worker"); child_services+=("app-pdf-worker")
+stack_record_pid "app-pdf-worker" "${application_pid}" "pnpm run start:pdf-worker"
 bash "${SCRIPT_DIR}/run-profile.sh" "${runtime_profile}" -- "${application_environment[@]}" pnpm run start:web & application_pid="$!"; pids+=("${application_pid}"); child_names+=("Web"); child_services+=("app-web")
 stack_record_pid "app-web" "${application_pid}" "pnpm run start:web"
 
@@ -182,12 +185,14 @@ for attempt in $(seq 1 60); do
   api_ok=false
   web_ok=false
   worker_ok=false
+  pdf_worker_ok=false
   curl -fsS "${api_origin}/health/ready" >/dev/null 2>&1 && api_ok=true
   curl -fsS "${web_origin}/" >/dev/null 2>&1 && web_ok=true
   if [[ -n "${REDIS_URL:-}" ]] && redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:worker:heartbeat:*' 2>/dev/null | grep -q .; then worker_ok=true; fi
-  if [[ "${api_ok}" == true && "${web_ok}" == true && "${worker_ok}" == true ]]; then
+  if [[ -n "${REDIS_URL:-}" ]] && redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:pdf-worker:heartbeat:*' 2>/dev/null | grep -q .; then pdf_worker_ok=true; fi
+  if [[ "${api_ok}" == true && "${web_ok}" == true && "${worker_ok}" == true && "${pdf_worker_ok}" == true ]]; then
     assert_children_running
-    echo "${profile} environment ready: API, Web and Worker heartbeat passed."
+    echo "${profile} environment ready: API, Web, Worker and PDF Worker heartbeat passed."
     echo "Access addresses (${track}):"
     echo "  Web: ${web_origin}/"
     echo "  API live: ${api_origin}/health/live"
