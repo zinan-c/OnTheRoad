@@ -280,6 +280,9 @@ select {
 .itemNotesField { align-items: start; }
 .itemNotesField textarea { box-sizing: border-box; width: 100%; min-height: 10rem; resize: vertical; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .7rem; font: inherit; }
 .workspaceItemCard { display: flex; min-height: 0; width: 100%; align-items: center; justify-content: space-between; gap: 1rem; margin: 0; border: 0; border-radius: 0; padding: .1rem 0; background: transparent; box-shadow: none; }
+.workspaceItemCardClickable { cursor: pointer; border-radius: .65rem; padding: .5rem; transition: background .16s ease, box-shadow .16s ease; }
+.workspaceItemCardClickable:hover { background: rgb(255 255 255 / 72%); box-shadow: 0 4px 14px rgb(25 50 80 / 7%); }
+.workspaceItemCardClickable:focus-visible { outline: 3px solid rgb(29 97 81 / 35%); outline-offset: 2px; }
 .workspaceItemMeta { display: grid; min-width: 0; gap: .25rem; }
 .workspaceItemMeta h3 { overflow-wrap: anywhere; margin: 0; font-size: 1rem; }
 .workspaceItemMeta p { margin: 0; overflow-wrap: anywhere; color: #667085; line-height: 1.5; }

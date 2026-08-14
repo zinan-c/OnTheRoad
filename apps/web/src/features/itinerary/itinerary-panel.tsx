@@ -854,18 +854,33 @@ export function ItineraryPanel({
         if (!item) return null;
         const day = dayById.get(item.tripDayId);
         const expense = itemExpenses[item.id];
-        return <article className="workspaceItemCard" data-item-id={item.id} data-testid="itinerary-item">
+        return <article
+          className={`workspaceItemCard${workspaceEditing ? "" : " workspaceItemCardClickable"}`}
+          data-item-id={item.id}
+          data-testid="itinerary-item"
+          {...(workspaceEditing ? {} : {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": `Open details ${itemLabel(item)}`,
+          })}
+          onClick={workspaceEditing ? undefined : () => void openDetails(item)}
+          onKeyDown={workspaceEditing ? undefined : (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            void openDetails(item);
+          }}
+        >
           <div className="workspaceItemMeta">
             {selectedDayId === null ? <span className="workspaceItemDay">Day {day?.dayNumber ?? "?"}</span> : null}
             <h3>{itemLabel(item)}</h3>
             <p>{item.description || "No description yet."}</p>
             {expense ? <span className="workspaceItemExpense">Expense · {displayAmount(expense.originalAmount)} {expense.currency}</span> : null}
           </div>
-          <div className="workspaceItemActions">
-            <button className="workspaceItemAction" type="button" data-testid="edit-itinerary-item" disabled={status === "saving"} aria-label={`${workspaceEditing ? "Item edit" : "Expand"} ${itemLabel(item)}`} onClick={() => workspaceEditing ? beginEdit(item) : void openDetails(item)}>
-              {workspaceEditing ? "Item edit" : "Expand"}
+          {workspaceEditing ? <div className="workspaceItemActions">
+            <button className="workspaceItemAction" type="button" data-testid="edit-itinerary-item" disabled={status === "saving"} aria-label={`Item edit ${itemLabel(item)}`} onClick={() => beginEdit(item)}>
+              Item edit
             </button>
-            {workspaceEditing ? <button
+            <button
               className="workspaceItemAction workspaceItemDeleteAction"
               type="button"
               id={`itinerary-item-delete-${item.id}`}
@@ -873,8 +888,8 @@ export function ItineraryPanel({
               aria-label={`Item delete ${itemLabel(item)}`}
               disabled={status === "saving"}
               onClick={() => requestDelete(item)}
-            >Item delete</button> : null}
-          </div>
+            >Item delete</button>
+          </div> : null}
         </article>;
       }}</ProductSortableTimeline> : status !== "loading" ? <p className="workspaceEmptyState">No itinerary items for this view yet.</p> : null}
       {editorForm ? <div className="workspaceDialogBackdrop" role="presentation"><div className="workspaceDialog" role="dialog" aria-modal="true" aria-label={editing ? "Edit item" : "Add item"}>{editorForm}</div></div> : null}
