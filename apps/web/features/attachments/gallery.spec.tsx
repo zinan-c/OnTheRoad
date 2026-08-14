@@ -16,6 +16,9 @@ describe("TC-D03-01 upload/gallery component", () => {
     expect(attachmentAspectRatio(ready)).toBe("1200 / 800");
     await user.click(screen.getByRole("button", { name: "上海" }));
     expect(screen.getByRole("dialog", { name: "图片灯箱" })).toBeTruthy();
+    expect(document.body.style.overflow).toBe("hidden");
+    await user.click(screen.getByRole("button", { name: "关闭灯箱" }));
+    expect(document.body.style.overflow).toBe("");
     await user.click(screen.getByRole("button", { name: "设为封面" }));
     expect(actions.setCover).toHaveBeenCalledWith("a");
   });

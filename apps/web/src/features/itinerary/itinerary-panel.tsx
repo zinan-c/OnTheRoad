@@ -10,6 +10,7 @@ import {
 } from "./product-sortable-timeline";
 import type { TransportModeView } from "../trips/settings/transport-modes";
 import { LocationProductPicker } from "../locations/location-product-picker";
+import { useBodyScrollLock } from "../../components/use-body-scroll-lock";
 
 export type ProductDay = {
   id: string;
@@ -284,6 +285,8 @@ export function ItineraryPanel({
   const selectedDayId = controlledSelectedDayId !== undefined
     ? controlledSelectedDayId
     : localSelectedDayId;
+
+  useBodyScrollLock(editorOpen || Boolean(viewing) || Boolean(deleteCandidate));
 
   const loadItems = useCallback(async (dayId: string) => {
     setStatus("loading");

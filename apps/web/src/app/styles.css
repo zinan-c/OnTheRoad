@@ -294,7 +294,7 @@ select {
 .workspaceItemAction:hover { border-color: #1d6151; color: #1d6151; }
 .workspaceItemDeleteAction { border-color: #d9a39a; color: #8f3025; }
 .workspaceItemDeleteAction:hover { border-color: #8f3025; color: #8f3025; background: #fff8f6; }
-.workspaceDialogBackdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgb(18 36 32 / 38%); }
+.workspaceDialogBackdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgb(18 36 32 / 38%); overscroll-behavior: contain; }
 .workspaceDialog { width: min(760px, 100%); max-height: min(900px, calc(100vh - 2rem)); overflow: auto; border: 1px solid rgb(22 51 45 / 14%); border-radius: 1.25rem; padding: 1rem; background: #fbf8ef; box-shadow: 0 24px 70px rgb(15 23 42 / 28%); }
 .deleteItemDialog { width: min(480px, 100%); }
 .deleteItemDialog h2 { margin-top: 0; }

@@ -293,10 +293,43 @@ test("workspace day cards open item details without an Expand button", async () 
   expect(screen.queryByRole("button", { name: "Expand 外滩" })).toBeNull();
   fireEvent.click(card);
   expect(await screen.findByRole("dialog", { name: "Item details" })).toBeTruthy();
+  expect(document.body.style.overflow).toBe("hidden");
 
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(document.body.style.overflow).toBe("");
   fireEvent.keyDown(card, { key: " " });
   expect(await screen.findByRole("dialog", { name: "Item details" })).toBeTruthy();
+  expect(document.body.style.overflow).toBe("hidden");
+});
+
+test("itinerary editor and delete confirmation lock page scrolling", async () => {
+  const item = {
+    id: "item-1", tripDayId: "day-1", itemType: "attraction" as const,
+    target: "外滩", description: null, timeKind: "unscheduled" as const,
+    startTime: null, endTime: null, endDayOffset: 0, timePeriod: null,
+    durationMinutes: null, locationId: null, startLocationId: null,
+    endLocationId: null, transportModeCode: null, bookingInfo: null,
+    contactInfo: null, remark: null, dining: null, accommodation: null, version: 1,
+  };
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    if (url.endsWith("/days")) return Response.json([{ id: "day-1", dayNumber: 1, version: 1 }]);
+    if (url.endsWith("/days/day-1/itinerary-items")) return Response.json([item]);
+    if (url.endsWith("/itinerary-items/item-1/expenses")) return Response.json([]);
+    return Response.json([]);
+  }));
+
+  render(<ItineraryPanel tripId="trip-1" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Edit 外滩" }));
+  expect(await screen.findByTestId("item-editor")).toBeTruthy();
+  expect(document.body.style.overflow).toBe("hidden");
+  fireEvent.click(screen.getByTestId("item-editor-cancel"));
+  expect(document.body.style.overflow).toBe("");
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete 外滩" }));
+  expect(screen.getByTestId("delete-item-dialog")).toBeTruthy();
+  expect(document.body.style.overflow).toBe("hidden");
+  fireEvent.click(screen.getByTestId("cancel-delete-item"));
+  expect(document.body.style.overflow).toBe("");
 });
 
 test("workspace global scope hides all-day itinerary cards until a day is selected", async () => {

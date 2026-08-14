@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useBodyScrollLock } from "../../components/use-body-scroll-lock";
 
 export type GalleryAttachment = {
   readonly id: string;
@@ -32,6 +33,7 @@ export function attachmentAspectRatio(attachment: Pick<GalleryAttachment, "width
 export function Gallery({ attachments, actions }: { readonly attachments: readonly GalleryAttachment[]; readonly actions: GalleryActions }) {
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const selected = attachments.find(({ id }) => id === lightboxId);
+  useBodyScrollLock(Boolean(selected));
   return <section aria-label="图片画廊" className="gallery">
     <div className="galleryGrid">
       {attachments.length === 0 ? <p role="status">还没有图片</p> : attachments.map((attachment, index) => <GalleryCard
@@ -50,7 +52,7 @@ export function Gallery({ attachments, actions }: { readonly attachments: readon
         canMoveDown={index < attachments.length - 1}
       />)}
     </div>
-    {selected ? <div role="dialog" aria-label="图片灯箱" className="lightbox" onClick={() => setLightboxId(null)}><button type="button" aria-label="关闭灯箱">关闭</button>{selected.previewUrl ? <img src={selected.previewUrl} alt={selected.caption || "行程图片"} style={{ aspectRatio: attachmentAspectRatio(selected) }} /> : <p>图片预览不可用</p>}</div> : null}
+    {selected ? <div role="dialog" aria-modal="true" aria-label="图片灯箱" className="lightbox" onClick={() => setLightboxId(null)}><button type="button" aria-label="关闭灯箱">关闭</button>{selected.previewUrl ? <img src={selected.previewUrl} alt={selected.caption || "行程图片"} style={{ aspectRatio: attachmentAspectRatio(selected) }} /> : <p>图片预览不可用</p>}</div> : null}
   </section>;
 }
 
