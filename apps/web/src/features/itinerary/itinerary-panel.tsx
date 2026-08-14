@@ -304,10 +304,15 @@ export function ItineraryPanel({
     availableDays: readonly ProductDay[],
   ) => {
     setStatus("loading");
+    if (!dayId) {
+      setItems([]);
+      setItemExpenses({});
+      setError(null);
+      setStatus("idle");
+      return;
+    }
     try {
-      const selectedDays = dayId
-        ? availableDays.filter((day) => day.id === dayId)
-        : availableDays;
+      const selectedDays = availableDays.filter((day) => day.id === dayId);
       const itemGroups = await Promise.all(selectedDays.map(async (day) => ({
         day,
         items: await itineraryApi<ProductItem[]>(`/trips/${tripId}/days/${day.id}/itinerary-items`),
@@ -837,7 +842,7 @@ export function ItineraryPanel({
       </header>
       {error ? <p role="alert" className="formError">{error}</p> : null}
       {status === "loading" ? <p role="status">Loading itinerary…</p> : null}
-      {items.length > 0 ? <ProductSortableTimeline
+      {selectedDayId === null ? <p className="workspaceEmptyState" data-testid="all-days-itinerary-hint">Select a day to view itinerary details.</p> : items.length > 0 ? <ProductSortableTimeline
         entries={items.map((item) => ({ id: item.id, label: itemLabel(item) }))}
         disabled={!workspaceEditing || status === "saving"}
         showDragHandle={workspaceEditing}

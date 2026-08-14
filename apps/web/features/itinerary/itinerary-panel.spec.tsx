@@ -272,6 +272,37 @@ test("workspace edit keeps drag handles, hides arrow controls, and confirms item
   await waitFor(() => expect(screen.queryByText("外滩")).toBeNull());
 });
 
+test("workspace global scope hides all-day itinerary cards until a day is selected", async () => {
+  const calls: string[] = [];
+  const item = {
+    id: "item-1", tripDayId: "day-1", itemType: "attraction" as const,
+    target: "外滩", description: null, timeKind: "unscheduled" as const,
+    startTime: null, endTime: null, endDayOffset: 0, timePeriod: null,
+    durationMinutes: null, locationId: null, startLocationId: null,
+    endLocationId: null, transportModeCode: null, bookingInfo: null,
+    contactInfo: null, remark: null, dining: null, accommodation: null, version: 1,
+  };
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    calls.push(url);
+    if (url.endsWith("/days")) return Response.json([
+      { id: "day-1", dayNumber: 1, date: "2026-08-14", version: 1 },
+      { id: "day-2", dayNumber: 2, date: "2026-08-15", version: 1 },
+    ]);
+    if (url.endsWith("/days/day-1/itinerary-items")) return Response.json([item]);
+    if (url.endsWith("/itinerary-items/item-1/expenses")) return Response.json([]);
+    return Response.json([]);
+  }));
+
+  const { rerender } = render(<ItineraryPanel tripId="trip-1" selectedDayId={null} variant="workspace" />);
+  await screen.findByTestId("all-days-itinerary-hint");
+  expect(screen.queryByTestId("itinerary-item")).toBeNull();
+  expect(calls.some((url) => url.endsWith("/days/day-1/itinerary-items"))).toBe(false);
+
+  rerender(<ItineraryPanel tripId="trip-1" selectedDayId="day-1" variant="workspace" />);
+  await screen.findByText("外滩");
+  expect(calls.some((url) => url.endsWith("/days/day-1/itinerary-items"))).toBe(true);
+});
+
 test("E2E-012 persists the complete Day order with its current version", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const makeItem = (id: string, target: string) => ({
