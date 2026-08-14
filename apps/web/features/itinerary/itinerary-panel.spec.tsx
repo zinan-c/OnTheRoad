@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import { ItineraryPanel } from "../../src/features/itinerary/itinerary-panel";
@@ -176,7 +176,6 @@ test("E2E-011 exposes copy and confirmed soft-delete operations", async () => {
     contactInfo: null, remark: null, dining: { name: "早餐店", mealType: "breakfast" },
     accommodation: null, version: 1,
   };
-  vi.stubGlobal("confirm", vi.fn(() => true));
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, ...(init ? { init } : {}) });
     const body = url.endsWith("/days")
@@ -198,12 +197,79 @@ test("E2E-011 exposes copy and confirmed soft-delete operations", async () => {
     && JSON.parse(String(init.body)).targetTripDayId === "day-2",
   )).toBe(true));
   fireEvent.click(screen.getByRole("button", { name: "Delete 早餐" }));
+  expect(screen.getByTestId("delete-item-dialog")).toBeTruthy();
+  fireEvent.click(screen.getByTestId("cancel-delete-item"));
+  expect(screen.queryByTestId("delete-item-dialog")).toBeNull();
+  expect(calls.some(({ init }) => init?.method === "DELETE")).toBe(false);
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete 早餐" }));
+  fireEvent.click(screen.getByTestId("confirm-delete-item"));
   await waitFor(() => expect(calls.some(({ url, init }) =>
     url.endsWith("/itinerary-items/item-1")
     && init?.method === "DELETE"
     && new Headers(init.headers).get("if-match") === "1",
   )).toBe(true));
   await waitFor(() => expect(screen.queryByText("早餐")).toBeNull());
+});
+
+test("workspace edit keeps drag handles, hides arrow controls, and confirms item delete", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const items = [
+    {
+      id: "item-1", tripDayId: "day-1", itemType: "attraction" as const,
+      target: "外滩", description: null, timeKind: "unscheduled" as const,
+      startTime: null, endTime: null, endDayOffset: 0, timePeriod: null,
+      durationMinutes: null, locationId: null, startLocationId: null,
+      endLocationId: null, transportModeCode: null, bookingInfo: null,
+      contactInfo: null, remark: null, dining: null, accommodation: null, version: 1,
+    },
+    {
+      id: "item-2", tripDayId: "day-1", itemType: "dining" as const,
+      target: "午餐", description: null, timeKind: "unscheduled" as const,
+      startTime: null, endTime: null, endDayOffset: 0, timePeriod: null,
+      durationMinutes: null, locationId: null, startLocationId: null,
+      endLocationId: null, transportModeCode: null, bookingInfo: null,
+      contactInfo: null, remark: null, dining: { name: "午餐", mealType: "lunch" }, accommodation: null, version: 1,
+    },
+  ];
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, ...(init ? { init } : {}) });
+    if (url.endsWith("/days")) return Response.json([{ id: "day-1", dayNumber: 1, date: "2026-08-14", version: 4 }]);
+    if (url.endsWith("/days/day-1/itinerary-items")) return Response.json(items);
+    if (url.endsWith("/itinerary-items/item-1/expenses") || url.endsWith("/itinerary-items/item-2/expenses")) return Response.json([]);
+    if (url.endsWith("/itinerary-items/item-1") && init?.method === "DELETE") return Response.json({ ...items[0], deletedAt: "2026-08-14T00:00:00.000Z", version: 2 });
+    return Response.json([]);
+  }));
+
+  render(<ItineraryPanel tripId="trip-1" selectedDayId="day-1" variant="workspace" />);
+  await screen.findByText("外滩");
+  fireEvent.click(screen.getByTestId("edit-itinerary"));
+
+  const firstCard = screen.getAllByTestId("itinerary-item").find((card) => card.textContent?.includes("外滩"));
+  expect(firstCard).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Drag 外滩" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Move 外滩 up" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Move 外滩 down" })).toBeNull();
+  expect(within(firstCard!).getByRole("button", { name: "Item edit 外滩" })).toBeTruthy();
+  expect(within(firstCard!).getByRole("button", { name: "Item delete 外滩" })).toBeTruthy();
+  expect(within(firstCard!).getAllByRole("button").map(({ textContent }) => textContent)).toEqual(["Item edit", "Item delete"]);
+
+  fireEvent.click(within(firstCard!).getByRole("button", { name: "Item delete 外滩" }));
+  expect(screen.getByRole("dialog", { name: "Delete item?" })).toBeTruthy();
+  fireEvent.click(screen.getByTestId("cancel-delete-item"));
+  expect(screen.queryByTestId("delete-item-dialog")).toBeNull();
+  expect(calls.some(({ init }) => init?.method === "DELETE")).toBe(false);
+
+  const cardAfterCancel = screen.getAllByTestId("itinerary-item").find((card) => card.textContent?.includes("外滩"));
+  expect(cardAfterCancel).toBeTruthy();
+  fireEvent.click(within(cardAfterCancel!).getByRole("button", { name: "Item delete 外滩" }));
+  fireEvent.click(screen.getByTestId("confirm-delete-item"));
+  await waitFor(() => expect(calls.some(({ url, init }) =>
+    url.endsWith("/itinerary-items/item-1")
+    && init?.method === "DELETE"
+    && new Headers(init.headers).get("if-match") === "1",
+  )).toBe(true));
+  await waitFor(() => expect(screen.queryByText("外滩")).toBeNull());
 });
 
 test("E2E-012 persists the complete Day order with its current version", async () => {

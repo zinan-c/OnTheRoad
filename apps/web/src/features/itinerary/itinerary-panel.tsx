@@ -266,6 +266,7 @@ export function ItineraryPanel({
   const [status, setStatus] = useState<"idle" | "loading" | "dirty" | "saving" | "saved" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [expenseLoading, setExpenseLoading] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<ProductItem | null>(null);
   const [modeCatalog, setModeCatalog] = useState<TransportModeView[]>(() => transportModes.map((mode) => ({
     ...mode,
     id: `system:${mode.code}`,
@@ -337,6 +338,7 @@ export function ItineraryPanel({
     onSelectedDayChange?.(dayId);
     onDaySelect?.(dayId);
     setEditorOpen(false);
+    setDeleteCandidate(null);
     void loadItems(dayId);
   }, [loadItems, onDaySelect, onSelectedDayChange]);
 
@@ -365,6 +367,7 @@ export function ItineraryPanel({
     setEditing(null);
     setViewing(null);
     setViewingExpense(null);
+    setDeleteCandidate(null);
     void itineraryApi<ProductDay[]>(`/trips/${tripId}/days`).then(async (loaded) => {
       if (cancelled) return;
       setDays(loaded);
@@ -650,8 +653,12 @@ export function ItineraryPanel({
     }
   }
 
+  function requestDelete(item: ProductItem) {
+    if (status === "saving") return;
+    setDeleteCandidate(item);
+  }
+
   async function deleteItem(item: ProductItem) {
-    if (!window.confirm(`Delete “${item.target || item.description}”?`)) return;
     setStatus("saving");
     setError(null);
     try {
@@ -680,6 +687,13 @@ export function ItineraryPanel({
       setError(caught instanceof Error ? caught.message : "Delete failed");
       setStatus("error");
     }
+  }
+
+  async function confirmDelete() {
+    const item = deleteCandidate;
+    if (!item) return;
+    setDeleteCandidate(null);
+    await deleteItem(item);
   }
 
   async function reorderItems(orderedIds: string[], input: ProductReorderInput) {
@@ -771,6 +785,37 @@ export function ItineraryPanel({
     <footer><button className="primary" type="submit" data-testid="save-item-button" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" data-testid="item-editor-cancel" disabled={status === "saving"} onClick={closeEditor}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
   </form> : null;
 
+  const deleteDialog = deleteCandidate ? <div className="workspaceDialogBackdrop" role="presentation">
+    <div
+      className="workspaceDialog deleteItemDialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-item-dialog-title"
+      aria-describedby="delete-item-dialog-description"
+      data-testid="delete-item-dialog"
+    >
+      <h2 id="delete-item-dialog-title">Delete item?</h2>
+      <p id="delete-item-dialog-description">Are you sure you want to delete “{itemLabel(deleteCandidate)}”?</p>
+      <div className="actions">
+        <button
+          className="itemDeleteConfirmButton"
+          type="button"
+          data-testid="confirm-delete-item"
+          disabled={status === "saving"}
+          onClick={() => void confirmDelete()}
+        >Confirm delete</button>
+        <button
+          className="secondary"
+          type="button"
+          data-testid="cancel-delete-item"
+          disabled={status === "saving"}
+          autoFocus
+          onClick={() => setDeleteCandidate(null)}
+        >Cancel</button>
+      </div>
+    </div>
+  </div> : null;
+
   if (workspaceMode) {
     const dayById = new Map(days.map((day) => [day.id, day]));
     return <section className="workspaceCard itineraryWorkspace" aria-label="Daily itinerary">
@@ -795,7 +840,8 @@ export function ItineraryPanel({
       {items.length > 0 ? <ProductSortableTimeline
         entries={items.map((item) => ({ id: item.id, label: itemLabel(item) }))}
         disabled={!workspaceEditing || status === "saving"}
-        showOrderControls={workspaceEditing}
+        showDragHandle={workspaceEditing}
+        showOrderControls={false}
         label={selectedDayId ? `Day ${selectedDay?.dayNumber ?? ""} itinerary` : "All days itinerary"}
         onReorder={(orderedIds, input) => void reorderItems(orderedIds, input)}
       >{(id) => {
@@ -810,9 +856,20 @@ export function ItineraryPanel({
             <p>{item.description || "No description yet."}</p>
             {expense ? <span className="workspaceItemExpense">Expense · {displayAmount(expense.originalAmount)} {expense.currency}</span> : null}
           </div>
-          <button className="workspaceItemAction" type="button" data-testid="edit-itinerary-item" aria-label={`${workspaceEditing ? "Item edit" : "Expand"} ${itemLabel(item)}`} onClick={() => workspaceEditing ? beginEdit(item) : void openDetails(item)}>
-            {workspaceEditing ? "Item edit" : "Expand"}
-          </button>
+          <div className="workspaceItemActions">
+            <button className="workspaceItemAction" type="button" data-testid="edit-itinerary-item" disabled={status === "saving"} aria-label={`${workspaceEditing ? "Item edit" : "Expand"} ${itemLabel(item)}`} onClick={() => workspaceEditing ? beginEdit(item) : void openDetails(item)}>
+              {workspaceEditing ? "Item edit" : "Expand"}
+            </button>
+            {workspaceEditing ? <button
+              className="workspaceItemAction workspaceItemDeleteAction"
+              type="button"
+              id={`itinerary-item-delete-${item.id}`}
+              data-testid="delete-itinerary-item"
+              aria-label={`Item delete ${itemLabel(item)}`}
+              disabled={status === "saving"}
+              onClick={() => requestDelete(item)}
+            >Item delete</button> : null}
+          </div>
         </article>;
       }}</ProductSortableTimeline> : status !== "loading" ? <p className="workspaceEmptyState">No itinerary items for this view yet.</p> : null}
       {editorForm ? <div className="workspaceDialogBackdrop" role="presentation"><div className="workspaceDialog" role="dialog" aria-modal="true" aria-label={editing ? "Edit item" : "Add item"}>{editorForm}</div></div> : null}
@@ -835,6 +892,7 @@ export function ItineraryPanel({
           <div><dt>Expense</dt><dd>{viewingExpense ? `${displayAmount(viewingExpense.originalAmount)} ${viewingExpense.currency}${viewingExpense.remark ? ` · ${viewingExpense.remark}` : ""}` : "—"}</dd></div>
         </dl>
       </section></div> : null}
+      {deleteDialog}
     </section>;
   }
 
@@ -869,12 +927,13 @@ export function ItineraryPanel({
           event.target.value = "";
           void copyItem(item, target);
         }}><option value="">Select day</option>{days.map((day) => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}</select></label>
-        <button id={`itinerary-item-delete-${item.id}`} type="button" aria-label={`Delete ${item.target || item.description}`} onClick={() => void deleteItem(item)}>Delete</button>
+        <button id={`itinerary-item-delete-${item.id}`} type="button" aria-label={`Delete ${item.target || item.description}`} disabled={status === "saving"} onClick={() => requestDelete(item)}>Delete</button>
       </>;
     }}</ProductSortableTimeline>
     {!editorOpen && status !== "idle" && status !== "loading" ? <p role="status">
       {status === "saving" ? "Saving order…" : status === "saved" ? "Saved" : status === "error" ? "Unable to save order" : ""}
     </p> : null}
     {editorForm}
+    {deleteDialog}
   </section>;
 }

@@ -286,10 +286,17 @@ select {
 .workspaceItemDay, .workspaceItemTime, .workspaceItemExpense { color: #7a8b85; font-size: .78rem; }
 .workspaceItemDay { font-weight: 700; color: #b25935; }
 .workspaceItemExpense { color: #34715f; font-weight: 650; }
+.workspaceItemActions { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .45rem; }
 .workspaceItemAction { flex: 0 0 auto; border: 1px solid #c4cfdd; border-radius: 999px; padding: .45rem .8rem; color: #35554c; background: #fff; white-space: nowrap; }
 .workspaceItemAction:hover { border-color: #1d6151; color: #1d6151; }
+.workspaceItemDeleteAction { border-color: #d9a39a; color: #8f3025; }
+.workspaceItemDeleteAction:hover { border-color: #8f3025; color: #8f3025; background: #fff8f6; }
 .workspaceDialogBackdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgb(18 36 32 / 38%); }
 .workspaceDialog { width: min(760px, 100%); max-height: min(900px, calc(100vh - 2rem)); overflow: auto; border: 1px solid rgb(22 51 45 / 14%); border-radius: 1.25rem; padding: 1rem; background: #fbf8ef; box-shadow: 0 24px 70px rgb(15 23 42 / 28%); }
+.deleteItemDialog { width: min(480px, 100%); }
+.deleteItemDialog h2 { margin-top: 0; }
+.itemDeleteConfirmButton { border: 0; border-radius: 999px; padding: .65rem 1rem; color: #fff; background: #8f3025; }
+.itemDeleteConfirmButton:hover { background: #74251c; }
 .workspaceDialog > .itemEditorForm { margin: 0; border: 0; padding: 0; background: transparent; }
 .workspaceDialogHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .workspaceDialogHeader .eyebrow { margin: 0 0 .35rem; color: #b25935; }

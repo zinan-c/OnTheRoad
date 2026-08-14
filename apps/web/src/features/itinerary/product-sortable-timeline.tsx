@@ -29,6 +29,7 @@ function SortableRow({
   index,
   total,
   disabled,
+  showDragHandle,
   showOrderControls,
   children,
   onKeyboardMove,
@@ -37,22 +38,23 @@ function SortableRow({
   readonly index: number;
   readonly total: number;
   readonly disabled: boolean;
+  readonly showDragHandle: boolean;
   readonly showOrderControls: boolean;
   readonly children: ReactNode;
   readonly onKeyboardMove: (id: string, direction: -1 | 1) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
-    disabled: disabled || !showOrderControls,
+    disabled: disabled || !showDragHandle,
   });
   return <li
     ref={setNodeRef}
     className="productTimelineItem"
     data-dragging={isDragging || undefined}
-    data-reorderable={showOrderControls || undefined}
+    data-reorderable={showDragHandle || undefined}
     style={{ transform: CSS.Transform.toString(transform), transition }}
   >
-    {showOrderControls ? <button
+    {showDragHandle ? <button
       type="button"
       className="dragHandle"
       aria-label={`Drag ${entry.label}`}
@@ -72,6 +74,7 @@ export function ProductSortableTimeline({
   entries,
   disabled = false,
   showOrderControls = true,
+  showDragHandle,
   label,
   children,
   onReorder,
@@ -79,11 +82,13 @@ export function ProductSortableTimeline({
   readonly entries: readonly TimelineEntry[];
   readonly disabled?: boolean;
   readonly showOrderControls?: boolean;
+  readonly showDragHandle?: boolean;
   readonly label: string;
   readonly children: (id: string) => ReactNode;
   readonly onReorder: (orderedIds: string[], input: ProductReorderInput) => void;
 }) {
   const [announcement, setAnnouncement] = useState("");
+  const dragHandleVisible = showDragHandle ?? showOrderControls;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 5 } }),
@@ -117,6 +122,7 @@ export function ProductSortableTimeline({
           index={index}
           total={entries.length}
           disabled={disabled}
+          showDragHandle={dragHandleVisible}
           showOrderControls={showOrderControls}
           onKeyboardMove={(id, direction) => {
             const target = entries[index + direction];
