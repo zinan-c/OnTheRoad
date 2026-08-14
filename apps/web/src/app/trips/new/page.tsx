@@ -3,7 +3,7 @@ import { TripCreateForm } from "../../../features/trips/trip-create-form";
 export default function NewTripPage() {
   return (
     <main>
-      <nav aria-label="Main navigation">
+      <nav className="siteHeader" aria-label="Main navigation">
         <a className="brand" href="/">On The Road</a>
         <a className="newTrip" href="/trips">My trips</a>
       </nav>

@@ -9,7 +9,7 @@ const features = [
 export default function HomePage() {
   return (
     <main>
-      <nav aria-label="Main navigation">
+      <nav className="siteHeader" aria-label="Main navigation">
         <a className="brand" href="/">On The Road</a>
         <a className="newTrip" href="/trips/new">New trip</a>
       </nav>

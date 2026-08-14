@@ -8,9 +8,9 @@ export default async function TripSettingsPage({
   const { tripId } = await params;
   return (
     <main>
-      <nav aria-label="Main navigation">
+      <nav className="siteHeader" aria-label="Main navigation">
         <a className="brand" href="/">On The Road</a>
-        <div className="actions">
+        <div className="actions siteHeaderActions">
           <a className="secondary" href={`/trips/${tripId}`}>Back to itinerary</a>
           <a className="secondary" href="/trips">Trips</a>
         </div>

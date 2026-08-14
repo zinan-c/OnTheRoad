@@ -3,6 +3,7 @@
   font-family: Inter, "Noto Sans SC", system-ui, sans-serif;
   color: #16332d;
   background: #f6f2e8;
+  --page-content-gap: clamp(24px, 4vw, 48px);
 }
 
 * {
@@ -33,6 +34,9 @@ nav {
   justify-content: space-between;
   min-height: 76px;
 }
+
+.siteHeader { min-height: 76px; }
+.siteHeaderActions { margin: 0; }
 
 a {
   color: inherit;
@@ -119,7 +123,7 @@ select {
 
 .formPage {
   max-width: 760px;
-  padding: 48px 0;
+  padding: var(--page-content-gap) 0;
 }
 
 .formPage h1,
@@ -181,8 +185,9 @@ select {
 }
 
 .tripSummary,
-.emptyState {
-  padding: clamp(70px, 12vw, 140px) 0;
+.emptyState,
+.tripListPage {
+  padding: var(--page-content-gap) 0;
 }
 
 .status {
@@ -240,7 +245,6 @@ select {
 .tripSettings textarea { min-height: 6rem; resize: vertical; }
 .dangerZone { border: 1px solid #d9a39a; border-radius: 1rem; padding: 1rem; background: #fff8f6; }
 .dangerZone h3 { color: #8f3025; }
-.tripListPage { padding: clamp(48px, 8vw, 96px) 0; }
 .tripListPage h1 { font-size: clamp(2.4rem, 6vw, 4.8rem); }
 .tripListPage [role="tab"] { border: 1px solid rgb(22 51 45 / 20%); border-radius: 999px; padding: .65rem 1rem; background: white; }
 .tripListPage [role="tab"][aria-selected="true"] { color: white; background: #1d6151; }
