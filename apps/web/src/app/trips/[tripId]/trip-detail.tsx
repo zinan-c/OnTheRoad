@@ -67,7 +67,12 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
         <a className="secondary" href={`/trips/${tripId}/settings`}>Trip settings</a>
       </div>
       <p className="status statusReady">Saved · your changes persist after refresh</p>
-      <TripWorkspace key={trip.version} tripId={tripId} showItineraryPanel />
+      <TripWorkspace
+        key={trip.version}
+        tripId={tripId}
+        showItineraryPanel
+        showMapTimeline
+      />
       <button className="secondary" data-testid="sign-out" onClick={logout}>Sign out</button>
     </section>
   );

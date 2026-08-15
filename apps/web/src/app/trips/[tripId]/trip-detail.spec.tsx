@@ -14,10 +14,17 @@ vi.mock("@on-the-road/contracts", () => ({
 }));
 
 vi.mock("../../../features/trips/trip-workspace", () => ({
-  TripWorkspace: ({ showItineraryPanel }: { readonly showItineraryPanel?: boolean }) => (
+  TripWorkspace: ({
+    showItineraryPanel,
+    showMapTimeline,
+  }: {
+    readonly showItineraryPanel?: boolean;
+    readonly showMapTimeline?: boolean;
+  }) => (
     <div
       data-testid="trip-workspace"
       data-itinerary-panel={String(showItineraryPanel)}
+      data-map-timeline={String(showMapTimeline)}
     />
   ),
 }));
@@ -29,7 +36,7 @@ afterEach(() => {
   mocks.request.mockReset();
 });
 
-test("production trip detail enables the itinerary editing panel", async () => {
+test("production trip detail enables itinerary editing and the map timeline", async () => {
   mocks.request.mockResolvedValue({
     data: {
       id: "trip-1",
@@ -48,7 +55,7 @@ test("production trip detail enables the itinerary editing panel", async () => {
 
   render(<TripDetail tripId="trip-1" />);
 
-  expect(
-    (await screen.findByTestId("trip-workspace")).getAttribute("data-itinerary-panel"),
-  ).toBe("true");
+  const workspace = await screen.findByTestId("trip-workspace");
+  expect(workspace.getAttribute("data-itinerary-panel")).toBe("true");
+  expect(workspace.getAttribute("data-map-timeline")).toBe("true");
 });

@@ -28,7 +28,7 @@ test("TC-B04-03 creates a Trip and Item through the UI and restores its session"
 
   await page.reload();
   await expect(page.getByTestId("trip-title")).toHaveText("Playwright 东海之旅");
-  await expect(page.getByTestId("all-days-itinerary-hint")).toBeVisible();
+  await expect(page.getByTestId("add-itinerary-item")).toHaveCount(0);
   await page.getByRole("button", { name: /^Day 1,/u }).click();
   await expect(page.getByTestId("itinerary-item").filter({ hasText: "外滩夜景" })).toBeVisible();
 
