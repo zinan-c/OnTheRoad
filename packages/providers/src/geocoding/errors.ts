@@ -17,14 +17,14 @@ export class GeocoderError extends Error {
       readonly retryAfterSeconds?: number;
       readonly status?: number;
       readonly source?: "provider" | "client";
-      readonly provider?: "here" | "amap" | "hybrid" | "fixture";
+      readonly provider?: "here" | "amap" | "nominatim" | "hybrid" | "fixture";
     } = {},
   ) {
     super(message);
     this.name = "GeocoderError";
   }
 
-  get provider(): "here" | "amap" | "hybrid" | "fixture" {
+  get provider(): "here" | "amap" | "nominatim" | "hybrid" | "fixture" {
     return this.details.provider ?? "here";
   }
 

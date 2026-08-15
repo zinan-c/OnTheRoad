@@ -35,6 +35,22 @@ blocking for a production release.
   commit-bound evidence, PDF Worker round-trip, and clean-checkout smoke.
   Production release approval remains separate. See
   [`reports/m4-gate.md`](./reports/m4-gate.md).
+- **Post-M4 Online Map Workstream:** Planned/open. The target is online
+  Nominatim search/reverse, online tiles, and an independent non-HERE
+  Directions endpoint in `dev`/`qa`/`prod`; the required-case suite remains
+  fixture-backed until the online smoke gate is implemented.
+
+## Current map-provider decision
+
+The active architecture no longer selects HERE. `international_primary` uses
+public online Nominatim through the API proxy; `hybrid` uses AMAP in China and
+Nominatim overseas. Local development uses the same online `dev` profile as
+the application runtime; `dev`, `qa`, and `prod` use online geocoding and map
+runtime by default. `fixture` remains an explicit CI/offline profile. Tiles
+and Directions are separate online capabilities and are not provided by
+Nominatim; the Directions provider still requires its own implementation and
+real-provider gate. See [`ADR-003`](./adr/003-online-nominatim-map-runtime.md)
+and the [migration plan](./reports/nominatim-online-plan.md).
 
 ## Authoritative documents
 
@@ -66,6 +82,9 @@ blocking for a production release.
 - Historical reports keep the toolchain and environment that were actually
   used at the time. The current supported toolchain is always the root
   `.nvmrc` and `packageManager` pair.
+- Historical M0–M3 reports may mention HERE because it was the Provider under
+  test at that time. Those mentions are evidence only; they do not override
+  the current online Nominatim decision in [`adr/003-online-nominatim-map-runtime.md`](./adr/003-online-nominatim-map-runtime.md).
 - The current product-browser suite is `pnpm run test:e2e`. Its accepted
   2026-08-11 run executed E2E-001 through E2E-022 with 22 passed, zero failed,
   and zero skipped. E2E-022 covers the Global/Day map-scope and stable

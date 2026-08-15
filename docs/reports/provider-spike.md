@@ -1,4 +1,6 @@
-# A08 Provider Spike Go/No-Go 报告
+# A08 Provider Spike Go/No-Go 报告（历史）
+
+> 历史说明：本报告记录 2026-07-27 对 HERE adapter 的 M0 验证结果。HERE 已被 [`ADR-003`](../adr/003-online-nominatim-map-runtime.md) supersede；本文的 GO 只对当时的 Spike 证据有效，不代表当前生产 Provider 选择。
 
 ## 结论
 

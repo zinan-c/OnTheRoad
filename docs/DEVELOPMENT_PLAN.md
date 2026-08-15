@@ -6,9 +6,16 @@
 > 计划口径：可直接进入排期的工作包；工期为理想人日，不含产品方等待时间。
 > 执行状态：M0–M4 已完成 Dev Track Gate；M5–M6 尚未宣称完成。当前状态与证据见 [文档状态索引](./README.md)。
 
+> Post-M4 Provider 决策：HERE 从当前架构移除。`international_primary` 使用公共在线 Nominatim，`hybrid` 使用中国高德/海外 Nominatim；本地开发使用 `dev` profile，`dev`、`qa`、`prod` 默认使用在线 geocoding、瓦片和独立 Directions endpoint，CI/离线回归使用显式 `fixture`。详见 [`ADR-003`](./adr/003-online-nominatim-map-runtime.md)。
+
 ## 0. 计划摘要
 
 完整 P0 当前有效任务表合计约 **223 理想人日**（含 Spike、QA 自动化与上线加固；排期预留仍按 220–230 管理）。建议按 1 周 Sprint 0 + 5 个两周功能 Sprint + 2 周稳定/灰度执行，以 **13 周目标、第 14 周显式缓冲**管理，前提是采用下列团队：
+
+Post-M4 Online Map Workstream（MAP-01–MAP-04）是本次 Provider 迁移新增的
+跨里程碑工作包，尚未纳入上述 223 理想人日；它必须在生产发布前完成，具体切片和
+Gate 见 [`DEVELOP_EXECUTION_PLAN.md`](./DEVELOP_EXECUTION_PLAN.md) 与
+[`reports/nominatim-online-plan.md`](./reports/nominatim-online-plan.md)。
 
 - 产品经理/交付负责人：1 人
 - UX/UI：前 8 周 1 人，后续 0.5 人
@@ -187,8 +194,8 @@ on-the-road/
 - 冻结本文 Q1–Q14 的默认决策或 ADR。
 - 建立 monorepo/CI；平台流并行建立原生开发 + Compose 验证双轨依赖栈，Spike 使用独立 harness，不等待完整基础设施串行完成。
 - 生成 OpenAPI 客户端和统一 Problem Details。
-- Spike A：高德/国际 Provider 的搜索、反查、坐标转换与 attribution。
-- Spike B：MapLibre Marker 拖动、地图点选、路线线型。
+- Spike A：高德/公共 Nominatim 的搜索、反查、坐标转换、限流和 attribution。
+- Spike B：MapLibre Marker 拖动、地图点选、在线瓦片、路线线型和 tile failure 降级。
 - Spike C：SheetJS 安全解析 xlsx/xls/csv，5,000 行内存基线。
 - Spike D：使用固定静态地图资产验证 Playwright + Noto Sans CJK + 50 页分页 PDF，并校验目录目标页。
 - 先冻结最小 5 天契约 fixture，供四个 Spike 并行使用。
@@ -315,10 +322,10 @@ on-the-road/
 | ID | 任务 | 角色 | 估算 | 依赖 | 完成标准 |
 |---|---|---:|---:|---|---|
 | C01 | Provider contracts 与 fixture provider | BE | 2 | A04 | 契约测试可离线运行 |
-| C02 | 生产/开发 Geocoder adapter | BE | 5 | C01 | 能力、限流、缓存、重试符合政策；公共 Nominatim 不做自动补全/常规批处理 |
+| C02 | 生产/开发 Nominatim + AMAP Geocoder adapter | BE | 5 | C01 | `international_primary`/`hybrid` 接入公共 Nominatim；能力、限流、缓存、重试符合政策；不做 autocomplete/常规批处理 |
 | C03 | Location schema、staging location、候选签名与状态机 | BE | 4 | A04,B02 | resolved/ambiguous/failed 可重放；Import 确认前不落正式 Location |
 | C04 | 地点输入、候选和失败恢复 UI | FE | 5 | C03 | 不静默选择不确定结果 |
-| C05 | MapLibre 地图、Marker、图例与 fit bounds | FE | 5 | C01 | 无坐标空态正确 |
+| C05 | MapLibre 地图、在线瓦片、Marker、图例与 fit bounds | FE | 5 | C01 | dev/qa/prod 在线瓦片可用；CI/离线 fixture 和无底图降级正确 |
 | C06 | 地图点选、反查和 Marker 拖动 | BE/FE | 5 | C03,C05 | 手调后 `manuallyAdjusted=true` |
 | C07 | RouteSegment 领域逻辑、window generation 与 outbox 队列 | BE | 6 | A06,C03,B05 | 日内/跨日/transport 正确；无 Location 显式缺口；旧 rebuild/route 结果均无法覆盖新 generation |
 | C08 | 不同 Mode 的轨迹绘制与详情 | FE | 4 | C05,C07 | 线型/图标/文字均可区分 |
@@ -343,7 +350,7 @@ on-the-road/
 | E03 | 映射建议和可编辑映射 UI | FE/BE | 4 | E02 | 示例值与目标字段清晰 |
 | E04 | Row normalize/validate/staging + mapping hash | BE | 6 | E01,E02 | 日期/金额/币种/Mode/坐标错误精确到行；能查询跨 Job ledger |
 | E05 | 预览、筛选与新增/更新/重复/错误计数 UI | FE | 4 | E03,E04 | 逐行 action 清楚；跳过错误需二次确认 |
-| E06 | 批量地理编码、限流和进度 | BE | 5 | C02,E04 | 失败不导致整个 Job 失败 |
+| E06 | 批量地理编码、限流和进度 | BE | 5 | C02,E04 | 公共 Nominatim 不作为常规批量 provider；未解析地点可进入受控显式队列/人工确认；失败不导致整个 Job 失败 |
 | E07 | 未确认地点地图处理 | FE/BE | 4 | C06,E04 | 基于批量解析契约/fixture 并行开发，最终接 E06；候选/点选/纯文字均可继续 |
 | E08 | insert/update、owner-aware claim、幂等、取消续跑和路线重算 | BE | 6 | E04,E06,E07,C07 | insert/update 并发不重复；ExternalId 才 update；resumed_from 续跑不重写文字 |
 | E09 | 持久化 ImportMediaTask、批准、SSRF-safe 下载、聚合与重试 | BE/FE | 6 | D02,D03,E04 | 每 URL 有审批/hash/attempt/retry-generation/终态；Redis 丢失可调和；父 Job 收敛前 processing_media |
@@ -353,7 +360,7 @@ on-the-road/
 | ID | 任务 | 角色 | 估算 | 依赖 | 完成标准 |
 |---|---|---:|---:|---|---|
 | F01 | Export snapshot/options/media preflight/job API | BE | 3 | A06,B05 | 快照绑定 Attachment version/checksum；所有未排除的非 ready（含 failed）默认阻止，ready-only 明示遗漏 |
-| F02 | StaticMapProvider 与打印地图资产 | BE/FE | 5 | C07 | Marker/路线/图例/attribution 完整 |
+| F02 | StaticMapProvider 与在线瓦片打印地图资产 | BE/FE | 5 | C07 | dev/qa/prod 只访问 allowlisted tile host；Marker/路线/图例/attribution 完整；公共瓦片不批量预取 |
 | F03 | 专用 print template 与章节 | FE | 6 | D03,D05,F01 | 全部必需模块可开关 |
 | F04 | CJK 字体、分页、精确目录、页眉页脚 | FE/BE | 5 | A11,F03 | 中文提取/渲染通过；每个目录条目页码等于最终章节锚点物理页 |
 | F05 | Playwright Worker、资源等待和沙箱 | BE/PLAT | 5 | A11,F01,F02 | 可与模板并行开发；失败/取消不暴露假下载 |
@@ -1035,7 +1042,7 @@ async function renderPdf(jobId) {
 |---|---|---|---|
 | QG-01 | 同/不同源并发 insert/update、换幂等键、清 staging 后不重复；override 成功/skip ledger 均带 decision+reason | Import DRI | owner-aware barrier + one-time decision/replay + DDL CHECK integration |
 | QG-02 | Job 空闲/活跃阶段取消、上传竞争、cancelled→新 Job 续跑、Redis 丢失调和 | Worker DRI | CAS + resume/ledger + orphan-cleanup failure-injection suite |
-| QG-03 | 无 Key 时 fixture/显式搜索/中性地图/PDF 降级真实可用 | Map + Export DRI | offline E2E |
+| QG-03 | 在线配置缺失时 fixture/显式搜索/中性地图/PDF 降级真实可用 | Map + Export DRI | offline E2E |
 | QG-04 | Attachment 经 upload/scan/process；ready 必有 immutable version/checksum且 key 不可覆盖 | Media DRI | ClamAV + conditional-put + corrupt fixture |
 | QG-05 | 每 URL durable/fenced task 经批准/SSRF 防护后关联；可调和聚合；PDF 不静默漏图 | Media + Import DRI | expired-lease race + DB reconciliation + fetch/export preflight suite |
 | QG-06 | 旅行内自定义 Mode 可 CRUD、可绘制、可导出 | Itinerary + Map DRI | settings + route/PDF E2E |
@@ -1083,13 +1090,13 @@ async function renderPdf(jobId) {
 
 | 风险 | 概率/影响 | 早期信号 | 缓解 | Owner |
 |---|---|---|---|---|
-| 公共 Nominatim 被误作自动补全 | 高/高 | 429、阻断、政策不符 | capability flag；生产 Provider；1 req/s + 缓存 | BE/PM |
+| 公共 Nominatim 被误作自动补全或批量 provider | 高/高 | 429、阻断、政策不符 | explicit-search UX；capability flag；全应用 1 req/s + 缓存；CI 不访问公网 | BE/PM |
 | 中国/国际坐标系混用 | 中/高 | Marker 偏移、路线不对齐 | WGS84 领域标准；adapter 转换；golden 点测试 | Map owner |
 | PDF 中文缺字或分页失控 | 中/高 | CI golden 差异、大文档空白 | Sprint 0 Spike；固定字体；分页 suite | FE/PDF |
 | Excel 恶意/畸形文件耗尽资源 | 中/高 | Worker OOM、队列阻塞 | 限额、隔离 Worker、流式解析、超时 | BE/Sec |
 | 模糊去重覆盖用户数据 | 中/高 | 导入后内容丢失 | MVP 只新增/跳过；更新需外部 ID | PM/BE |
 | 图片 URL 导致 SSRF | 中/高 | 私网请求/异常重定向 | 默认关闭；受控下载和网络 allowlist | Sec |
-| 地图/路线成本超预算 | 中/中 | cache miss、日配额增长 | 缓存、Provider dashboard、直线降级 | PM/PLAT |
+| 在线地图/路线不可用或成本超预算 | 中/高 | tile/Directions timeout、429、cache miss | 独立 endpoint、缓存、Provider dashboard、明确几何降级；不静默改为 fixture | PM/PLAT |
 | 拖拽与地图在移动端冲突 | 中/中 | 误拖、页面无法滚动 | 手机分段视图、拖拽手柄、键盘/按钮替代 | UX/FE |
 | Job 状态只存在 Redis | 低/高 | Redis 故障后任务消失 | PostgreSQL 状态 + outbox + reconciliation | BE |
 | 导出时数据继续修改 | 中/中 | PDF 前后页版本不一致 | 完整 Export snapshot + snapshotHash + templateVersion | BE |
@@ -1101,10 +1108,10 @@ async function renderPdf(jobId) {
 
 ### 13.1 环境
 
-- Local：默认 Native Track + fixture Provider，不要求 Docker；需要排查 Linux/网络差异时可显式运行 Compose Track。
-- CI：短生命周期 Compose/Testcontainers，复用与 Native Track 相同的 migration、环境变量和 readiness 探针；不依赖公共地图服务。
-- Staging：与生产同类托管资源，使用独立 Provider Key/配额。
-- Production：Web/API/Worker 分开伸缩，PDF 独立节点池。
+- Local/dev：默认 Native Track；在线 Nominatim、在线瓦片和独立 Directions endpoint 通过环境配置访问。fixture 只由离线/回归模式显式选择。
+- QA：Native、Compose 或 remote dependency track 均使用在线地图配置；在线 smoke 与 fixture required-case 分离，不能让 CI 并发请求公共地图服务。
+- Production：Web/API/Worker 分开伸缩，PDF 独立节点池；Nominatim 通过 API proxy/cache/rate-limit 访问，瓦片和 Directions 使用独立 endpoint。
+- Release：只表示针对 `prod` 的发布验证，不作为第四个运行环境。
 
 ### 13.2 上线顺序
 
@@ -1151,7 +1158,7 @@ G08 已标记为 Deprecated，不再设 cohort Owner、测试账号池或真实�
   - 孤儿对象清理；
   - PostgreSQL 恢复；
   - 泄露 Provider Key 的轮换。
-- 合成监控每天运行一次“fixture Trip → 导出 PDF”，但不得对公共 Nominatim 做周期批量请求。
+- 合成监控每天运行一次“fixture Trip → 导出 PDF”；在线 Nominatim 只做受控人工/低频 smoke，不做周期批量请求。
 
 ---
 
@@ -1161,7 +1168,7 @@ G08 已标记为 Deprecated，不再设 cohort Owner、测试账号池或真实�
 
 1. 建立 ADR-001：日期范围权威，TotalDays 由日期派生。
 2. 建立 ADR-002：WGS84 为领域坐标，Provider Adapter 负责转换。
-3. 建立 ADR-003：公共 Nominatim 仅显式搜索，不做自动补全。
+3. 采用 ADR-003：公共 Nominatim 仅显式搜索，不做自动补全；瓦片和 Directions 独立配置。
 4. 建立 monorepo、CI 和原生开发 + Compose 验证双轨依赖栈。
 5. 固化 OpenAPI 错误格式、ID/时间/并发/幂等约定。
 6. 实现 Trip/Day migration 和日期属性测试。

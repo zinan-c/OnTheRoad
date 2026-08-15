@@ -104,3 +104,10 @@ M4 is **Done for the Dev Track**. M5–M6 remain planned. Production release is
 not approved by this report: A02 Linux/Compose parity, A05 staging IdP,
 real-provider checks, capacity evidence, and the remaining release checklist
 items remain separate release gates.
+
+The M4 result does not close the post-M4 online map workstream. The accepted
+M4 run used deterministic provider/fixture paths; the current architecture now
+targets public Nominatim for online geocoding, online tiles, and an independent
+non-HERE Directions endpoint in `dev`/`qa`/`prod`. See
+[`ADR-003`](../adr/003-online-nominatim-map-runtime.md) and
+[`nominatim-online-plan.md`](./nominatim-online-plan.md).

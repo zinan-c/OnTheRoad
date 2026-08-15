@@ -27,6 +27,7 @@ import {
 } from "@nestjs/platform-fastify";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { acceptRequestContext, injectTraceHeaders } from "@on-the-road/observability";
+import { GeocoderError } from "@on-the-road/providers/geocoding";
 
 import { toProblemDetails, ProblemDetailsError } from "./common/problem-details/index.mjs";
 import type { ApiRuntime } from "./runtime.js";
@@ -66,27 +67,74 @@ function version(value: string | undefined): number {
   return parsed;
 }
 
+function countryContext(value: string | undefined): string[] | undefined {
+  if (!value?.trim()) return undefined;
+  const values = value.split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+  if (values.length === 0 || values.length > 10 || values.some((entry) => !/^[a-z]{2,3}$/u.test(entry))) {
+    throw new ProblemDetailsError({
+      status: 400,
+      code: "MAP_COUNTRY_CONTEXT_INVALID",
+      title: "countrycodes must be comma-separated ISO country codes",
+    });
+  }
+  return [...new Set(values)];
+}
+
+function viewboxContext(value: string | undefined): readonly [number, number, number, number] | undefined {
+  if (!value?.trim()) return undefined;
+  const values = value.split(",").map((entry) => Number(entry.trim()));
+  if (
+    values.length !== 4
+    || values.some((entry) => !Number.isFinite(entry))
+    || values[0]! < -180
+    || values[2]! > 180
+    || values[1]! < -90
+    || values[3]! > 90
+    || values[0]! > values[2]!
+    || values[1]! > values[3]!
+  ) {
+    throw new ProblemDetailsError({
+      status: 400,
+      code: "MAP_VIEWBOX_INVALID",
+      title: "viewbox must be west,south,east,north",
+    });
+  }
+  return [values[0]!, values[1]!, values[2]!, values[3]!];
+}
+
 @Catch()
 class ApiExceptionFilter implements ExceptionFilter {
   catch(error: unknown, host: import("@nestjs/common").ArgumentsHost) {
     const response = host.switchToHttp().getResponse<FastifyReply>();
     const request = host.switchToHttp().getRequest<FastifyRequest>();
     const candidate = error && typeof error === "object"
-      ? error as { status?: number; code?: string; message?: string }
+      ? error as { status?: number; code?: string; message?: string; retryAfterSeconds?: number }
       : {};
+    const providerStatus = candidate.code === "PROVIDER_RATE_LIMITED"
+      ? 429
+      : candidate.code === "PROVIDER_TIMEOUT"
+        ? 504
+        : candidate.code === "PROVIDER_UNAVAILABLE"
+          ? 503
+          : candidate.code === "PROVIDER_RESPONSE_INVALID"
+            ? 502
+            : candidate.code === "PROVIDER_TRIGGER_UNSUPPORTED"
+              ? 400
+              : undefined;
+    const status = candidate.status && candidate.status >= 400 && candidate.status < 600
+      ? candidate.status
+      : providerStatus;
     const safe = error instanceof ProblemDetailsError
       ? error
       : new ProblemDetailsError({
-        status: candidate.status && candidate.status >= 400 && candidate.status < 600
-          ? candidate.status
-          : 500,
+        status: status ?? 500,
         code: candidate.code?.match(/^[A-Z][A-Z0-9_]*$/u)
           ? candidate.code
           : "INTERNAL_ERROR",
-        title: candidate.status && candidate.status < 500
+        title: status !== undefined && status < 500
           ? candidate.message || "Request rejected"
           : "Internal server error",
-        ...(candidate.status && candidate.status < 500 && candidate.message
+        ...(status !== undefined && status < 500 && candidate.message
           ? { detail: candidate.message }
           : {}),
         instance: request.url,
@@ -95,6 +143,9 @@ class ApiExceptionFilter implements ExceptionFilter {
       safe,
       String(request.headers["x-request-id"] ?? randomUUID()),
     );
+    if (error instanceof GeocoderError && error.retryAfterSeconds !== undefined) {
+      response.header("retry-after", String(error.retryAfterSeconds));
+    }
     void response
       .status(problem.status)
       .type("application/problem+json")
@@ -594,13 +645,23 @@ class ApiController {
     @Param("tripId") tripId: string,
     @Query("q") query: string,
     @Query("limit") limit?: string,
+    @Query("countrycodes") countryCodes?: string,
+    @Query("viewbox") viewbox?: string,
   ) {
     const ownerId = await owner(this.runtime, request);
     const trip = await this.runtime.trips.getTrip(ownerId, tripId) as unknown as { mapProfile?: string };
+    const countries = countryContext(countryCodes);
+    const box = viewboxContext(viewbox);
     return this.runtime.locationSearch.search({
       query,
       ...(limit ? { limit: Number(limit) } : {}),
-      ...(trip.mapProfile ? { context: { mapProfile: trip.mapProfile } } : {}),
+      ...((trip.mapProfile || countries || box) ? {
+        context: {
+          ...(trip.mapProfile ? { mapProfile: trip.mapProfile } : {}),
+          ...(countries ? { countryCodes: countries } : {}),
+          ...(box ? { viewbox: box } : {}),
+        },
+      } : {}),
       trigger: "explicit",
     });
   }
@@ -718,7 +779,17 @@ class ApiController {
     const point = { latitude: body.latitude, longitude: body.longitude, crs: "WGS84" as const };
     const headers = { ifMatch: `"${version(ifMatch)}"` };
     const result = body.adjustmentKind === "map-pick"
-      ? await this.runtime.locationCoordinates.pick(ownerId, locationId, { point }, headers)
+      ? await this.runtime.locationCoordinates.pick(ownerId, locationId, {
+        point,
+        reverse: async (reversePoint) => {
+          const candidate = await this.runtime.locationSearch.reverse(reversePoint);
+          if (!candidate) throw new Error("REVERSE_GEOCODING_EMPTY");
+          return {
+            label: candidate.label,
+            ...(candidate.formattedAddress ? { formattedAddress: candidate.formattedAddress } : {}),
+          };
+        },
+      }, headers)
       : body.adjustmentKind === "marker-drag"
         ? await this.runtime.locationCoordinates.drag(ownerId, locationId, { point, inputMode: body.inputMode ?? "mouse" }, headers)
         : await this.runtime.locationCoordinates.manual(ownerId, locationId, { point }, headers);

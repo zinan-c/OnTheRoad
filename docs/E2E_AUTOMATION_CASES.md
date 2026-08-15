@@ -12,6 +12,12 @@
 >
 > Boundary: this result closes the M0–M3 browser acceptance cases defined here. M4–M6 features and production release gates remain outside the completion claim.
 
+> Online map boundary: `dev`、`qa`、`prod` use online Nominatim search/reverse,
+> online tiles and an independent online Directions endpoint by default after
+> the post-M4 map workstream is implemented. The deterministic browser suite
+> in this document remains fixture-backed; online provider checks are separate
+> controlled smoke cases and do not change the historical 22/22 result.
+
 ## 1. Purpose
 
 This document defines the happy-path automation baseline for On The Road, covering clean startup, identity, Trips, Days, Itinerary Items, Locations, map routes, images, expenses, and Excel staging. Cases primarily verify that a user can complete an operation in the real product UI, then confirm the business facts through public APIs, persisted results, and observable evidence.
@@ -76,7 +82,7 @@ Every case archives at least:
 - All 22 cases are `Passed`, with zero failures and zero skips in the accepted run.
 - Former `Partial` product entry-point gaps are closed by real UI workflows; no accepted business write is API-seeded.
 - E2E-016 and E2E-017 passed as mandatory route/map re-acceptance cases.
-- Automation may use fixture Providers, but Staging/Release still requires a separate smoke test against a real external Provider.
+- Automation may use fixture Providers, but Staging/Release still requires separate smoke tests against real Nominatim, tile and non-HERE Directions endpoints. CI must never call public map services.
 
 ---
 

@@ -6,6 +6,8 @@
 > 验收基线：[DEVELOPMENT_MILESTONE.md](./DEVELOPMENT_MILESTONE.md)
 > 当前 Gate：`test-manifests/m0-m4.required.json` 定义 156 个 M0–M4 required Cases；M3 历史 Dev Gate 在精确 closure SHA 上 129/129 通过，M4 当前实现与 Gate 状态详见 [M4 Gate](./reports/m4-gate.md)。
 
+> 在线地图迁移是 post-M4 workstream，不计入当前 156 个 required Cases。本地开发使用 `dev` profile；`dev`、`qa`、`prod` 的在线 smoke 使用公共 Nominatim、在线瓦片和独立 Directions endpoint；CI required-case 继续使用 `fixture`，不得访问公共地图服务。用例定义见本文件的 Online Map Workstream。
+
 ## 0. 用例执行规范
 
 ### 0.1 用例层级
@@ -20,7 +22,7 @@
 - PostgreSQL/PostGIS、Redis/BullMQ、MinIO、ClamAV 使用双轨测试：本机原生轨覆盖日常启动和快速集成，Compose/Testcontainers 轨在 CI/staging 覆盖 Linux、网络、资源和故障恢复；不以纯 mock 证明持久化不变量。
 - 身份使用双轨测试：开发身份/Mock OIDC 轨覆盖日常登录、会话和 owner 安全门禁，真实 Staging IdP 轨在发布前覆盖登记回调、HTTPS Cookie、登出和真实密钥轮换；mock OIDC 不得作为发布身份凭据。
 - 并发测试使用 barrier/latch 控制提交顺序；时间相关测试使用 fake clock；故障使用显式 fault injection。
-- Provider contract 使用本地 mock server；CI 不访问公共地图服务。
+- Provider contract 使用本地 mock server；CI 不访问公共地图服务。真实在线 smoke 只在受控 dev/qa/prod 环境运行，并遵守 Nominatim 速率、User-Agent、缓存、attribution 和无 autocomplete 约束。
 - PDF 必须由独立 parser 打开，并逐页渲染验证；“页面出现下载按钮”不是 PDF 成功测试。
 - 每个 Case 的测试名称必须包含完整 Case ID，例如 `test("TC-C06-02 late geocode cannot overwrite manual point", ...)`。
 - Case 代码落点可按框架调整扩展名，但 ID、测试层级和断言不得丢失。
@@ -65,7 +67,7 @@
 ### A08
 
 - `TC-A08-01` — Provider golden points；代码：`spikes/provider/provider-golden.spec.ts`。对 10+ 中外点执行搜索/反查/转换；断言领域输出 WGS84 且误差在 ADR 阈值内。
-- `TC-A08-02` — Ambiguity/429/no-key；代码：`spikes/provider/provider-failure.spec.ts`。返回跨国同名、429、超时和无 Key；断言不静默切换/选中，错误与 Retry-After 被规范化。
+- `TC-A08-02` — Ambiguity/429/missing-config；代码：`spikes/provider/provider-failure.spec.ts`。覆盖跨国同名、429、超时和 AMAP key/在线 endpoint 缺失；断言不静默切换/选中，错误与 Retry-After 被规范化。
 - `TC-A08-03` — Repeatable spike report；代码：`spikes/provider/provider-spike.e2e.spec.ts`。两次运行同 fixture；断言候选/坐标/attribution 稳定，并生成 Go/No-Go 数据。
 
 ### A09
@@ -196,9 +198,9 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 
 ### C02
 
-- `TC-C02-01` — Geocoder adapter contract；代码：`packages/providers/test/geocoding/adapter-contract.spec.ts`。中文/英文/context 搜索与反查；断言 normalized candidate/capability/attribution。
+- `TC-C02-01` — AMAP/Nominatim geocoder adapter contract；代码：`packages/providers/test/geocoding/adapter-contract.spec.ts`。中文/英文/context 搜索与反查；断言 normalized candidate/capability/attribution。
 - `TC-C02-02` — Rate/cache/policy faults；代码：`packages/providers/test/geocoding/rate-cache.spec.ts`。fake clock 429/Retry-After、5xx、相同 query 不同 context；断言限流、退避、cache 隔离，不对 Nominatim autocomplete。
-- `TC-C02-03` — API + controlled smoke；代码：`apps/api/test/locations/search.e2e-spec.ts`。fixture adapter 全跑、配置时少量 staging smoke；断言不静默切 Provider且日志脱敏。
+- `TC-C02-03` — API + controlled online smoke；代码：`apps/api/test/locations/search.e2e-spec.ts`。fixture adapter 全跑、配置时少量 Nominatim/AMAP smoke；断言不静默切 Provider、无 autocomplete 请求且日志脱敏。
 
 ### C04
 
@@ -301,7 +303,7 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 ### E06
 
 - `TC-E06-01` — Batch scheduling/progress；代码：`apps/worker/test/geocoding/batch-scheduling.integration.spec.ts`。为缺坐标行建 Job；断言 cache hit、总/完成单位和 Provider 分桶。
-- `TC-E06-02` — 429/partial failure/cancel；代码：`apps/worker/test/geocoding/batch-failure.integration.spec.ts`。fake clock 注入 Retry-After、5xx、永久失败、取消/Redis 清空；断言单行失败隔离和可调和。
+- `TC-E06-02` — 429/partial failure/cancel；代码：`apps/worker/test/geocoding/batch-failure.integration.spec.ts`。fake clock 注入 Retry-After、5xx、永久失败、取消/Redis 清空；断言单行失败隔离和可调和，且公共 Nominatim 不被当作常规批量 provider。
 - `TC-E06-03` — Staging geocode E2E；代码：`apps/web/e2e/import-batch-geocode.spec.ts`。启动批量解析并刷新；断言 resolving/ambiguous/failed/ready 真实且无正式 Location。
 
 ### E07
@@ -444,6 +446,34 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 - `TC-M4-INT-01` — Geocode-confirm-commit-route；代码：`tests/milestones/m4/import-commit.e2e.spec.ts`。批量解析、人工确认、commit、重复 commit；断言正式事实、ledger/claim 和路线可对账且不重复。
 - `TC-M4-INT-02` — Import concurrency/media recovery；代码：`tests/milestones/m4/import-media-race.e2e.spec.ts`。并发 Job、SSRF、lease expiry、Redis 清空、取消续跑；断言无重复/越界请求/旧 lease 写回，父状态正确。
 - `TC-M4-INT-03` — Frozen snapshot PDF rehearsal；代码：`tests/milestones/m4/export-rehearsal.e2e.spec.ts`。创建 Job 后编辑 Trip，打印地图/章节并在各阶段取消；断言使用旧快照、无假下载。
+
+## Post-M4 Online Map Workstream
+
+以下 Cases 是新增的在线地图迁移计划，当前不属于 `m0-m4.required.json`，直到代码和环境实现完成后再纳入 required manifest。
+
+### MAP-01 — Nominatim contract and policy
+
+- `TC-MAP-01-01` — Nominatim search/reverse contract；断言 WGS84、中文/英文、country context、viewbox、candidate normalization、attribution 和错误映射。
+- `TC-MAP-01-02` — Public policy boundary；注入逐键输入、429、Retry-After、重复 query 和敏感字段；断言不发 autocomplete、不超过全应用令牌桶、命中 cache 且日志脱敏。
+- `TC-MAP-01-03` — Profile routing；断言 `international_primary` → Nominatim、`hybrid` 中国 → AMAP/海外 → Nominatim，Provider 失败不改写 `mapProfile`。
+
+### MAP-02 — Online tile runtime
+
+- `TC-MAP-02-01` — dev/qa/prod tile configuration；断言 URL、attribution、User-Agent/Referer 和 readiness 配置均存在，Web 不接收 secret。
+- `TC-MAP-02-02` — Tile failure/cache/degraded state；阻断 tile host 或返回 5xx，断言中性网格、Marker、Route、Legend 和明确降级状态。
+- `TC-MAP-02-03` — PDF tile allowlist；断言只访问 allowlisted host，不批量预取公共瓦片，资源失败不会生成假成功 PDF。
+
+### MAP-03 — Online Directions runtime
+
+- `TC-MAP-03-01` — Non-HERE Directions contract；断言 Worker/API/RouteSegment/MapLibre 使用独立在线 Directions endpoint，不把 Nominatim 当路线服务。
+- `TC-MAP-03-02` — Directions timeout/429/unsupported mode；断言进入 pending/manual/approximate，直线/弧线带示意标识，不能伪装真实导航。
+- `TC-MAP-03-03` — Route persistence smoke；真实在线路线从 Worker 写入 RouteSegment，经 API 返回并在 MapLibre 渲染，sourceVersion/generation 正确。
+
+### MAP-04 — Environment and release integration
+
+- `TC-MAP-04-01` — dev/qa/prod online smoke；每个环境各执行一次 search、reverse、tile、Directions 健康检查。
+- `TC-MAP-04-02` — CI isolation；required-case 和合成监控运行时断言不访问公共 Nominatim、在线瓦片或在线 Directions。
+- `TC-MAP-04-03` — HERE removal and rollback；配置、secret、当前 ADR、运行手册和 provider registry 不再选择 HERE；endpoint 可通过配置切换并有审计记录。
 
 ### M5
 

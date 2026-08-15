@@ -18,13 +18,14 @@ function parseExample(source) {
   );
 }
 
-test("TC-A03-03 .env.example boots with explicit no-key capabilities", async () => {
+test("TC-A03-03 .env.example boots with explicit fixture capabilities", async () => {
   const source = await readFile(new URL("../../.env.example", import.meta.url), "utf8");
   const environment = parseExample(source);
   const config = loadProcessConfig("api", environment);
 
   assert.equal(environment.AMAP_API_KEY, "");
-  assert.equal(environment.OTR_HERE_API_KEY, "");
+  assert.equal(environment.MAP_PROFILE, "fixture");
+  assert.equal(environment.OTR_NOMINATIM_BASE_URL, "https://nominatim.openstreetmap.org");
   assert.deepEqual(config.map.capabilities, {
     autocomplete: false,
     batchGeocoding: false,

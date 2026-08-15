@@ -36,11 +36,7 @@ test("E2E-016 — full runtime DirectionsProvider-to-MapLibre happy path", async
   await expect(page.getByRole("list", { name: "Route mode legend" })).toContainText("WALK");
   await expect(page.getByRole("list", { name: "Route mode legend" })).toContainText("METRO");
 
-  const timelineB = page.getByRole("list", { name: "Itinerary timeline" }).getByRole("button", { name: "B", exact: true });
-  await timelineB.click();
-  await expect(timelineB).toHaveAttribute("aria-pressed", "true");
   await map.getByRole("button", { name: /C$/u }).click();
-  await expect(page.getByRole("list", { name: "Itinerary timeline" }).getByRole("button", { name: "C", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("list", { name: "Route list" }).getByRole("button").filter({ hasText: "A → B" }).click();
   const details = page.getByRole("complementary", { name: "Route details" });
   await expect(details).toContainText("WALK");
@@ -50,7 +46,6 @@ test("E2E-016 — full runtime DirectionsProvider-to-MapLibre happy path", async
 
   await page.reload();
   await expect(map).toHaveAttribute("data-route-count", "2", { timeout: 30_000 });
-  await page.getByRole("list", { name: "Itinerary timeline" }).getByRole("button", { name: "B", exact: true }).click();
   await map.getByRole("button", { name: /C$/u }).click();
   await page.getByRole("list", { name: "Route list" }).getByRole("button").filter({ hasText: "A → B" }).click();
   await expect(page.getByRole("complementary", { name: "Route details" })).toContainText("fixture");

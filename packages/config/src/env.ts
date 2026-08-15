@@ -22,6 +22,7 @@ export interface ConfigIssue {
     | "INVALID_BOOLEAN"
     | "INVALID_ENUM"
     | "INVALID_INTEGER"
+    | "INVALID_NUMBER"
     | "INVALID_URL"
     | "INSECURE_PRODUCTION_VALUE"
     | "CONFLICTING_CAPABILITY";
@@ -64,6 +65,14 @@ export interface ProcessConfig {
   };
   readonly map: {
     readonly profile: MapProfile;
+    readonly nominatim: {
+      readonly baseUrl: URL;
+      readonly userAgentConfigured: boolean;
+      readonly contactConfigured: boolean;
+      readonly timeoutMs: number;
+      readonly rateLimitRps: number;
+      readonly cacheTtlSeconds: number;
+    };
     readonly here: {
       readonly geocodeEndpoint: URL;
       readonly discoverEndpoint: URL;
@@ -71,6 +80,7 @@ export interface ProcessConfig {
     };
     readonly providerCredentialsConfigured: {
       readonly amap: boolean;
+      readonly nominatim: boolean;
       readonly here: boolean;
     };
     readonly capabilities: {
@@ -105,7 +115,7 @@ type EnvironmentInput = Readonly<Record<string, string | undefined>>;
 type MutableEnvironment = Record<string, string | undefined>;
 
 const SECRET_FIELD =
-  /(?:KEY|SECRET|PASSWORD|TOKEN|CREDENTIAL|DATABASE_URL|REDIS_URL)/iu;
+  /(?:KEY|SECRET|PASSWORD|TOKEN|CREDENTIAL|CONTACT|DATABASE_URL|REDIS_URL)/iu;
 const DEVELOPMENT_CREDENTIAL = /(?:change[-_]?me|local|development|dev-only)/iu;
 const VALID_ENVIRONMENTS = new Set<RuntimeEnvironment>([
   "development",
@@ -183,6 +193,29 @@ function optionalInteger(
       field,
       "INVALID_INTEGER",
       `${field} must be an integer between ${minimum} and ${maximum}`,
+    );
+    return fallback;
+  }
+  return value;
+}
+
+function optionalNumber(
+  input: EnvironmentInput,
+  issues: ConfigIssue[],
+  field: string,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const raw = input[field]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    issue(
+      issues,
+      field,
+      "INVALID_NUMBER",
+      `${field} must be a number between ${minimum} and ${maximum}`,
     );
     return fallback;
   }
@@ -380,12 +413,47 @@ export function loadProcessConfig(
     environment,
     issues,
     "MAP_EXPLICIT_SEARCH_ENABLED",
-    false,
+    mapProfile !== "fixture",
   );
   const amapKey = environment.AMAP_API_KEY?.trim() ?? "";
   const hereKey = environment.OTR_HERE_API_KEY?.trim() ?? "";
+  const nominatimUserAgent = environment.OTR_NOMINATIM_USER_AGENT?.trim() ?? "";
+  const nominatimContact = environment.OTR_NOMINATIM_CONTACT?.trim() ?? "";
+  const nominatimTimeoutMs = optionalInteger(
+    environment,
+    issues,
+    "OTR_NOMINATIM_TIMEOUT_MS",
+    5_000,
+    250,
+    30_000,
+  );
+  const nominatimRateLimitRps = optionalNumber(
+    environment,
+    issues,
+    "OTR_NOMINATIM_RATE_LIMIT_RPS",
+    1,
+    0.001,
+    1,
+  );
+  const nominatimCacheTtlSeconds = optionalInteger(
+    environment,
+    issues,
+    "OTR_NOMINATIM_CACHE_TTL_SECONDS",
+    86_400,
+    1,
+    604_800,
+  );
 
-  if (mapProfile === "fixture" && (autocomplete || explicitSearch)) {
+  if (autocomplete) {
+    issue(
+      issues,
+      "MAP_AUTOCOMPLETE_ENABLED",
+      "CONFLICTING_CAPABILITY",
+      "Nominatim autocomplete is disabled; use explicit search",
+    );
+  }
+
+  if (mapProfile === "fixture" && explicitSearch) {
     issue(
       issues,
       autocomplete ? "MAP_AUTOCOMPLETE_ENABLED" : "MAP_EXPLICIT_SEARCH_ENABLED",
@@ -405,24 +473,43 @@ export function loadProcessConfig(
     );
   }
   if (
-    mapProfile === "international_primary"
-    && !hereKey
+    (mapProfile === "international_primary" || mapProfile === "hybrid")
+    && !nominatimUserAgent
   ) {
     issue(
       issues,
-      "OTR_HERE_API_KEY",
-      "CONFLICTING_CAPABILITY",
-      "international online search requires OTR_HERE_API_KEY",
+      "OTR_NOMINATIM_USER_AGENT",
+      "REQUIRED",
+      "online Nominatim search requires OTR_NOMINATIM_USER_AGENT",
     );
   }
-  if (mapProfile === "hybrid" && (!amapKey || !hereKey)) {
+  if (
+    (mapProfile === "international_primary" || mapProfile === "hybrid")
+    && !nominatimContact
+  ) {
     issue(
       issues,
-      "MAP_PROFILE",
-      "CONFLICTING_CAPABILITY",
-      "hybrid profile requires both provider credentials",
+      "OTR_NOMINATIM_CONTACT",
+      "REQUIRED",
+      "online Nominatim search requires OTR_NOMINATIM_CONTACT",
     );
   }
+  if (mapProfile === "hybrid" && !amapKey) {
+    issue(
+      issues,
+      "AMAP_API_KEY",
+      "CONFLICTING_CAPABILITY",
+      "hybrid profile requires AMAP_API_KEY for China",
+    );
+  }
+
+  const nominatimBaseUrl = parsedUrl(
+    environment.OTR_NOMINATIM_BASE_URL?.trim()
+      || "https://nominatim.openstreetmap.org",
+    issues,
+    "OTR_NOMINATIM_BASE_URL",
+    ["https:"],
+  );
 
   const hereGeocodeEndpoint = parsedUrl(
     environment.OTR_HERE_GEOCODE_ENDPOINT?.trim()
@@ -568,6 +655,14 @@ export function loadProcessConfig(
     },
     map: {
       profile: mapProfile,
+      nominatim: {
+        baseUrl: nominatimBaseUrl,
+        userAgentConfigured: Boolean(nominatimUserAgent),
+        contactConfigured: Boolean(nominatimContact),
+        timeoutMs: nominatimTimeoutMs,
+        rateLimitRps: nominatimRateLimitRps,
+        cacheTtlSeconds: nominatimCacheTtlSeconds,
+      },
       here: {
         geocodeEndpoint: hereGeocodeEndpoint,
         discoverEndpoint: hereDiscoverEndpoint,
@@ -575,6 +670,7 @@ export function loadProcessConfig(
       },
       providerCredentialsConfigured: {
         amap: Boolean(amapKey),
+        nominatim: Boolean(nominatimUserAgent && nominatimContact),
         here: Boolean(hereKey),
       },
       capabilities: {

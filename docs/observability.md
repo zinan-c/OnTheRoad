@@ -79,3 +79,26 @@ telemetry delivery.
 The database remains authoritative for route generation/status, Attachment
 processing state, Expense facts, and ImportJob/ImportRow state. Telemetry is
 diagnostic and never substitutes for those persisted facts.
+
+## Online map telemetry
+
+The post-M4 online map runtime adds bounded provider metrics and spans for
+`dev`, `qa`, and `prod`:
+
+- `geocoding.requests` / `geocoding.duration`: `provider`, `operation`,
+  `status`, `cache`, `outcome`;
+- `map.tiles`: `source`, `status`, `outcome`;
+- `directions.requests` / `directions.duration`: `provider`, `mode`, `status`,
+  `quality`, `outcome`;
+- `map.rate_limited`: `provider`, `operation`, `retry_after_bucket`;
+- `map.endpoint.health`: `capability`, `environment`, `status`.
+
+Do not use raw query, address, coordinates, tile URL query parameters, Trip
+ID, Location ID or request body as metric labels. Logs may retain only a
+normalized query hash, provider, operation, error code, latency and retry
+metadata. Public Nominatim User-Agent/contact configuration is observable as
+deployment metadata, never as a secret.
+
+Alerts must cover Nominatim 429/5xx/timeout, cache-hit collapse, tile source
+failure, Directions backlog/failure and stale endpoint health. CI fixture runs
+must be labeled separately and must not be counted as online provider health.

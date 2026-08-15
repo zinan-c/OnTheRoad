@@ -7,6 +7,8 @@
 > 文档用途：研发排期、TDD、里程碑评审、演示验收及 Go/No-Go 签署。
 > 执行状态：M0–M4 已完成 Dev Track Gate；M5–M6 尚未宣称完成。当前成熟度和 Gate 入口见 [文档状态索引](./README.md)。
 
+> Post-M4 地图决策：HERE 不再是当前 Provider。`international_primary` 使用公共在线 Nominatim，`hybrid` 使用中国高德/海外 Nominatim；本地开发使用 `dev` profile，`dev`、`qa`、`prod` 默认使用在线 geocoding、瓦片和独立 Directions endpoint，CI/离线回归使用显式 `fixture`。当前决策见 [`ADR-003`](./adr/003-online-nominatim-map-runtime.md)。
+
 ## 0. 需求理解、假设与执行口径
 
 ### 0.1 产品闭环
@@ -22,7 +24,7 @@ MVP 必须形成真实、可恢复、可验证的完整链路：
 1. 日期范围是权威事实，`TotalDays` 派生；缩短日期且受影响 Day 有内容时必须阻止或显式迁移/删除。
 2. MVP 为单所有者模型，但所有业务查询从第一天按 `owner_id` 约束。
 3. 领域坐标统一为 WGS84；GCJ-02/BD-09 转换只能存在于 Provider Adapter。
-4. 公共 Nominatim 仅用于低频显式搜索/反查，不用于自动补全或生产批量解析。
+4. 公共 Nominatim 用于 dev/qa/prod 的低频显式搜索/反查，不用于自动补全或常规批量解析；三环境的瓦片和 Directions 也必须走在线 endpoint。
 5. 地点可只保存文字；歧义地点不得静默选中，未确认坐标不得生成可用路线。
 6. 导入先进入 staging；无稳定 ExternalId 不更新既有 Item。
 7. ImageURLs 默认不下载，必须经用户批准和 SSRF-safe 媒体流水线。
@@ -49,6 +51,7 @@ MVP 必须形成真实、可恢复、可验证的完整链路：
 | M2 行程编辑与地点确认 | Sprint 2，2 周 | B05–B09、C02、C04–C06、D02、D04、E01–E02 | 55 | Dev Track Done | 可持久编辑的一天、地点确认、媒体安全底座、导入入口 |
 | M3 路线、图片、费用与导入 staging | Sprint 3，2 周 | C07–C09、D03、D05、E03–E05 | 36 | Dev Track Done | 地图路线联动、图片 UX、费用统计、Excel 校验预览 |
 | M4 Excel 闭环与 PDF 骨架 | Sprint 4，2 周 | E06–E09、F01–F03、F05 | 40 | Done for Dev Track / release gates separate | 幂等正式导入、媒体子任务、冻结快照、可运行打印 Worker |
+| Post-M4 在线地图运行时 | M4 后、生产发布前 | MAP-01–MAP-04 | 待估 | Planned | 公共 Nominatim、在线瓦片、独立 Directions、三环境 smoke 与 HERE 清理 |
 | M5 PDF 闭环与功能冻结 | Sprint 5，2 周 | F04、F06–F07、G01 | 15 | Planned | 中文完整 PDF、下载/取消/重试、完整五日样例 |
 | M6 稳定、灰度与 GA 门禁 | 稳定/灰度 2 周 | G02–G07 | 23 | Planned | E2E/安全/容量证据、监控 Runbook、发布签署 |
 
@@ -116,7 +119,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 - **异常情况**：缺变量、非法 URL/端口、相互冲突的 map profile、生产使用开发凭据；错误不得打印 Secret 值。
 - **测试要求**：合法最小配置、各必需变量缺失、格式错误、日志脱敏快照。
 - **验收标准**：四类进程使用同一 schema；缺必需配置在监听端口前退出并返回字段级错误。
-- **完成标准**：`.env.example` 无真实密钥且覆盖无 Key 降级；配置变更有类型和文档。
+- **完成标准**：`.env.example` 无真实密钥且覆盖在线配置缺失时的 fixture/降级；配置变更有类型和文档。
 
 ### A04 OpenAPI v1、Problem Details 与生成客户端（2 人日）
 
@@ -134,11 +137,11 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / Critical`
 - **目标**：验证候选搜索、反查、WGS84/GCJ-02/BD-09 边界和 attribution 路径。
-- **实现范围**：至少 10 个中外 golden 点、中文/英文/同名地点、Provider error mapping、确定性 `mapProfile`、转换精度测量和 ADR。
+- **实现范围**：至少 10 个中外 golden 点、中文/英文/同名地点、AMAP/Nominatim error mapping、确定性 `mapProfile`、转换精度测量和 ADR。
 - **不在范围内**：生产 SLA、自动故障切换、完整地点 UI。
-- **预计修改的文件**：`spikes/provider/*`、`packages/test-fixtures/src/geo/*`、`docs/adr/002-coordinate-provider.md`、`docs/reports/provider-spike.md`。
-- **异常情况**：无 Key、429、超时、跨国同名、来源坐标未声明、转换后越界；不得静默切换 Provider。
-- **测试要求**：fixture contract、转换 round-trip 容差、缓存键隔离、无 Key/429/反查失败测试。
+- **预计修改的文件**：`spikes/provider/*`、`packages/test-fixtures/src/geo/*`、`docs/adr/003-online-nominatim-map-runtime.md`、`docs/reports/nominatim-online-plan.md`；原 `docs/adr/002-coordinate-provider.md` 和 HERE spike 仅保留历史状态。
+- **异常情况**：AMAP key 或在线 endpoint 配置缺失、429、超时、跨国同名、来源坐标未声明、转换后越界；不得静默切换 Provider。
+- **测试要求**：fixture contract、转换 round-trip 容差、缓存键隔离、在线配置缺失/429/反查失败测试。
 - **验收标准**：每个 golden 点结果可重复；领域输出全部为 WGS84；Provider 能力和限制有量化结论。
 - **完成标准**：形成 Go/No-Go ADR、推荐 Provider 与降级方案；No-Go 时给出替代方案和重估。
 
@@ -146,9 +149,9 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / Critical`
 - **目标**：验证地图核心交互与外部底图失效时的可用降级。
-- **实现范围**：Marker、点选、拖动、fit bounds、飞机/步行/道路/船运线型、fixture tile、中性网格、图例与 attribution。
-- **不在范围内**：正式工作台、真实 Directions、聚类。
-- **预计修改的文件**：`spikes/maplibre/*`、`packages/test-fixtures/src/maps/*`、`docs/reports/maplibre-spike.md`。
+- **实现范围**：Marker、点选、拖动、fit bounds、在线 tile、飞机/步行/道路/船运线型、fixture tile、中性网格、图例与 attribution。
+- **不在范围内**：正式工作台、在线 Directions provider 的最终选型、聚类。
+- **预计修改的文件**：`spikes/maplibre/*`、`packages/test-fixtures/src/maps/*`、`docs/reports/a09-maplibre-spike.md`。
 - **异常情况**：WebGL 不可用、tile 超时、0/1 个坐标、相同坐标、越界坐标、移动端拖动与滚动冲突。
 - **测试要求**：组件交互、浏览器截图、tile 被阻断的离线测试、键盘可达性检查。
 - **验收标准**：两种底图模式均能显示 Marker/Route/Legend；拖动回调返回合法 WGS84。
@@ -444,19 +447,19 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / Critical`
 - **目标**：实现符合供应商能力/政策、可缓存限流重试的地点搜索与反查。
-- **实现范围**：至少一套正式 adapter、一套开发降级、capability discovery、context 排序、Redis 缓存、Provider token bucket、错误映射和 attribution。
-- **不在范围内**：自动 Provider 故障切换、公共 Nominatim 自动补全/常规批处理、Directions。
+- **实现范围**：AMAP 与公共 Nominatim adapter、capability discovery、context 排序、Redis 缓存、Provider token bucket、错误映射和 attribution。
+- **不在范围内**：自动 Provider 故障切换、公共 Nominatim 自动补全/常规批处理、Directions provider 实现。
 - **预计修改的文件**：`packages/providers/src/geocoding/*`、`apps/api/src/modules/locations/search.*`、`apps/worker/src/processors/geocoding/*`、`packages/config/src/map-profile.*`。
-- **异常情况**：无 Key、401/403、429/Retry-After、5xx、超时、同名跨国、无结果、Provider payload 变化。
+- **异常情况**：AMAP key 或在线 endpoint 配置缺失、401/403、429/Retry-After、5xx、超时、同名跨国、无结果、Provider payload 变化。
 - **测试要求**：provider contract、mock server 故障、缓存键 context 隔离、限流时间测试、少量 staging smoke。
 - **验收标准**：能力、限流、缓存和重试符合政策；Provider 不支持 autocomplete 时 API 明确拒绝该触发方式。
-- **完成标准**：不会因单次超时静默切换 Provider；日志不含 Key/敏感地址全文。
+- **完成标准**：不会因单次超时静默切换 Provider；公共 Nominatim 请求通过 API proxy 且不超过全应用政策速率；日志不含 Key/敏感地址全文。
 
 ### C04 地点输入、候选和失败恢复 UI（5 人日）
 
 - **优先级**：`P0 / High`
 - **目标**：让用户从文字输入可靠进入候选确认或可恢复失败状态。
-- **实现范围**：300–500ms 防抖、能力感知的自动补全/显式搜索、候选地理上下文、ambiguous/failed 状态、重搜/重定位/地图选点/手工坐标/暂存文字。
+- **实现范围**：显式搜索（Nominatim 不逐键请求）、未来可扩展的 capability-aware 输入、候选地理上下文、ambiguous/failed 状态、重搜/重定位/地图选点/手工坐标/暂存文字。
 - **不在范围内**：地图画面本身、批量导入地点审核。
 - **预计修改的文件**：`apps/web/features/locations/components/location-input.*`、`candidate-list.*`、`resolution-status.*`、`apps/web/features/locations/api.*`。
 - **异常情况**：输入过短、请求乱序、候选过期、同名高相似候选、无网络、Provider 不支持 autocomplete、零结果。
@@ -468,7 +471,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / High`
 - **目标**：在日/全局视图显示地点、Day/顺序信息和明确空态。
-- **实现范围**：MapLibre wrapper、GeoJSON source/layer、Day 色环+序号 Marker、tooltip、筛选骨架、fit bounds、图例、全屏、fixture/中性网格降级。
+- **实现范围**：MapLibre wrapper、在线 tile source、GeoJSON source/layer、Day 色环+序号 Marker、tooltip、筛选骨架、fit bounds、图例、全屏、fixture/中性网格降级。
 - **不在范围内**：真实路线、Marker 拖动保存、聚类优化。
 - **预计修改的文件**：`apps/web/features/map/*`、`apps/web/app/(workspace)/trips/[tripId]/map/*`、`packages/ui/src/map/*`。
 - **异常情况**：无坐标、单点、同点、非法点被过滤、WebGL/tile 失败、容器 resize、全屏退出。
@@ -480,7 +483,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / Critical`
 - **目标**：允许用户在地图上创建/修正地点，并保证晚到 Provider 响应不覆盖人工事实。
-- **实现范围**：click-to-pick、reverse、draggable Marker、手工经纬度、version/If-Match、`manuallyAdjusted=true`、审计和地图回中。
+- **实现范围**：click-to-pick、在线 Nominatim/AMAP reverse、draggable Marker、手工经纬度、version/If-Match、`manuallyAdjusted=true`、审计和地图回中。
 - **不在范围内**：手动画路线、离线地图编辑。
 - **预计修改的文件**：`apps/web/features/map/components/location-picker.*`、`apps/api/src/modules/locations/coordinates.*`、`packages/application/src/location/adjust-coordinates.*`、`apps/web/e2e/location-map.*`。
 - **异常情况**：反查失败、拖出合法范围、并发拖动、geocode 晚到、保存失败、地图点击误触、0 纬度/经度。
@@ -548,7 +551,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 ### M2 验收标准
 
 - 刷新后可完整编辑一天行程，保存/失败/冲突状态真实。
-- 地点确认链路可在正式 Provider 和无 Key 降级模式运行。
+- 地点确认链路可在正式在线 Provider 和显式 fixture/离线降级模式运行。
 - `manuallyAdjusted`、owner 隔离、附件 immutable 元数据和 Decimal 费用满足数据库不变量。
 - Excel 入口能真实上传与检查，但不宣称已导入正式 Item。
 
@@ -695,7 +698,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 - **优先级**：`P0 / Critical`
 - **目标**：对缺坐标 staging 行进行可观察、可限流、失败隔离的批量解析。
 - **实现范围**：GeocodingJob 批量创建、Provider token bucket、cache、并发/退避、进度单位、ambiguous/failed 候选快照和取消检查点。
-- **不在范围内**：公共 Nominatim 常规批处理、静默自动选候选、正式 Location 创建。
+- **不在范围内**：使用公共 Nominatim 做常规批处理、静默自动选候选、正式 Location 创建；在线地图的显式搜索/反查仍可在 dev/qa/prod 使用。
 - **预计修改的文件**：`apps/worker/src/processors/geocoding/batch.*`、`apps/api/src/modules/imports/geocode.*`、`packages/application/src/geocoding/*`、`packages/database/src/schema/geocoding-job.*`。
 - **异常情况**：429/Retry-After、配额耗尽、Provider 5xx、单行永久失败、Redis 丢失、Job 取消、缓存脏数据。
 - **测试要求**：fake clock 限流、mock Provider 429/5xx、部分失败、重启调和、进度计数 invariant、无正式 Location 副作用。
@@ -760,7 +763,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 - **异常情况**：tile/字体超时、空路线、单点、世界跨度、非法 geometry、无 WebGL、生成空白图、attribution 缺失。
 - **测试要求**：asset manifest、像素/空白检测、离线 fixture、视觉 diff、allowlist、降级说明。
 - **验收标准**：地图包含 Marker、路线、图例和 attribution；底图失败仍有可读中性地图并标注降级。
-- **完成标准**：输出资产有 checksum/尺寸/范围元数据，Worker 不访问未配置 tile host。
+- **完成标准**：输出资产有 checksum/尺寸/范围元数据，Worker 不访问未配置 tile host；公共瓦片不被批量预取。
 
 ### F03 专用 print template 与章节（6 人日）
 
@@ -800,7 +803,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - Excel 可从上传到正式 Item 完成幂等闭环，地点失败不阻断文字导入。
 - 重复、更新、override、取消、续跑和媒体最终一致性都有自动化证据。
-- ExportJob 原子拥有 snapshot；打印地图和模板在无 Key/离线 CI 可运行。
+- ExportJob 原子拥有 snapshot；打印地图和模板在在线配置缺失/离线 CI 下可运行。
 - PDF 状态真实但本里程碑不宣称最终排版/下载已完成。
 
 ### M4 完成标准与可演示场景
@@ -945,7 +948,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / High`
 - **目标**：让 API、Provider、Import、PDF、Storage 和 Queue 的用户影响可见且可处置。
-- **实现范围**：五类 Dashboard、核心 5xx/队列 age/Job failure/429/upload/outbox 告警、七类 Runbook、演练记录。
+- **实现范围**：五类 Dashboard、核心 5xx/队列 age/Job failure/Nominatim 429/tile/Directions failure/upload/outbox 告警、七类 Runbook、演练记录。
 - **不在范围内**：全自动修复、跨区域灾备编排。
 - **预计修改的文件**：`infra/monitoring/dashboards/*`、`infra/monitoring/alerts/*`、`docs/runbooks/*`、`docs/reports/operations-drill.md`。
 - **异常情况**：高基数标签、告警风暴、第三方短暂失败触发实例重启、Runbook 无权限/命令失效。
@@ -957,7 +960,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / Normal`
 - **目标**：让新成员在干净环境可启动、测试、切换 Provider 并排查导入/PDF。
-- **实现范围**：README、架构/目录、环境配置、无 Key 降级、seed、测试、migration、Provider、字体/Chromium、队列恢复、常见错误。
+- **实现范围**：README、架构/目录、dev/qa/prod 在线地图配置、Nominatim policy、tile attribution/cache、Directions endpoint、fixture/降级、seed、测试、migration、字体/Chromium、队列恢复、常见错误。
 - **不在范围内**：面向最终用户的完整帮助中心、多语言文档。
 - **预计修改的文件**：`README.md`、`.env.example`、`docs/configuration.md`、`docs/providers.md`、`docs/pdf-operations.md`、`docs/testing.md`。
 - **异常情况**：文档命令过期、隐藏前置依赖、示例密钥、不同 CPU 架构、无公网环境。
@@ -983,7 +986,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 ### M6 完成标准与可演示场景
 
 - **完成标准**：G02–G07、`TC-M6-INT-01`、`TC-M6-INT-02`、QG、发布审批和回滚准备度均有证据后，由产品、UX、工程、QA、安全和运维共同签署 Release Done；不要求 Beta cohort 或固定真实样本数。第 14 周只用于关闭有效门禁，不改变门禁。
-- **可演示**：从空账号完成完整五日闭环；展示桌面和手机；演示 Redis 丢失后 Job 恢复、Provider 无 Key 降级、导入续跑、PDF 取消/重试/过期；展示 Dashboard 与告警演练证据。
+- **可演示**：从空账号完成完整五日闭环；展示桌面和手机；演示 Redis 丢失后 Job 恢复、Provider 配置缺失/限流降级、导入续跑、PDF 取消/重试/过期；展示 Dashboard 与告警演练证据。
 
 ---
 
@@ -1014,7 +1017,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 | M3 | 路线 generation 正确；图库/费用闭环；Excel staging 可审核 | 旧路线 active、跨缺口偷连、staging 误写正式 Item | A→B→C 重排、不同路线样式、地图联动、图库、费用统计、导入预览 |
 | M4 | Excel 正式 commit 幂等可续跑；媒体子任务收敛；PDF snapshot/Worker 可预演 | 并发重复 Item、SSRF、父 Job 提前完成、queued 无 snapshot | 缺坐标导入→确认→正式路线；重复导入；批准图片；冻结快照 PDF 预演 |
 | M5 | 真实中文 PDF 可校验下载；五日 fixture 冻结；功能冻结 | 假成功、目录错页、缺字/失图、取消后孤儿下载 | A4 横纵完整攻略、模块开关、真实进度/取消/重试/过期、移动默认导出 |
-| M6 | AC/QG/安全/容量/恢复/灰度全部签署 | 数据丢失、越权、重复正式导入、不可打开 PDF、门禁伪造 | 端到端五日闭环、无 Key 降级、故障恢复、Dashboard/告警、灰度证据 |
+| M6 | AC/QG/安全/容量/恢复/灰度全部签署 | 数据丢失、越权、重复正式导入、不可打开 PDF、门禁伪造 | 端到端五日闭环、在线配置缺失时降级、故障恢复、Dashboard/告警、灰度证据 |
 
 ### 8.3 里程碑状态定义
 
@@ -1051,7 +1054,7 @@ stateDiagram-v2
 | R06 | Provider 候选同名导致静默误选 | 返回两个相近候选（跨城市/国家）；断言状态为 ambiguous、无正式坐标写入、UI 无默认选中 | 关闭自动 resolve；强制候选选择、地图点选或纯文字保存 |
 | R07 | 地理编码晚到覆盖 Marker 手调 | barrier：先启动 geocode，再保存手调坐标，最后释放 Provider；断言旧 response CAS 影响 0 行 | 暂停后台自动写回，仅展示候选；人工坐标作为最高优先级事实 |
 | R08 | 坐标系混用导致中国大陆 Marker 偏移 | 对 golden 点分别输入 WGS84/GCJ-02/BD-09，验证 adapter 输出 WGS84 误差阈值；业务 DTO 不接受未声明 CRS | 禁用有问题 Provider/profile；使用 fixture/手工点选并标示“坐标待复核” |
-| R09 | 无 Key、Provider 429 或政策限制 | 无凭据、429+Retry-After、capability=false；断言不自动补全、不静默切换、文本可保存且限流等待可见 | fixture/最近地点 + 显式搜索 + 地图点选 + 手工坐标；路线使用标注的示意线 |
+| R09 | Nominatim 429/政策限制或在线地图能力缺失 | 429+Retry-After、tile/Directions timeout、capability=false；断言不自动补全、不静默切换、文本可保存且限流等待可见 | 显式搜索 + 地图点选 + 手工坐标；路线进入 pending/manual 并标注示意线；fixture 仅用于 CI/离线 |
 | R10 | 缓存上下文污染匹配到错误国家 | 相同 query 在不同 trip country/city/bbox 下请求；断言 cache key/排序结果隔离 | 暂停共享搜索缓存，缩短 TTL；只缓存 provider 原始规范结果并逐请求重排 |
 | R11 | 无 Location/未确认 Location 被路线跨越 | 构造 A→缺地点 B→C；断言存在 blocker，绝不生成 A→C；未确认两端只允许 pending | 地图只显示已确认 Marker 和缺口清单，不显示连续假路线 |
 | R12 | 旧 rebuild 在新顺序后提交 | barrier 强制 generation N+1 先完成、N 后完成；断言 N 不产生 active/approximate 段 | 暂停 Directions，客户端仅按当前 confirmed 点画临时线；后台全量重建 |
@@ -1084,7 +1087,7 @@ stateDiagram-v2
 | R39 | S3/DB 对象不一致与清理误删 | 构造 DB 有记录无对象、版本不符、对象无记录、仍被 snapshot 引用；reconciler 只删精确无引用版本 | 清理进入 report-only 模式；人工复核后按 bucket/key/version 删除 |
 | R40 | migration/应用版本滚动不兼容 | 旧 API/Worker 与新 schema/message 同时运行；expand 阶段均可读写，未知 schemaVersion 进入隔离队列 | 暂停 contract migration；回滚应用镜像，不立即回滚 DB；隔离新消息等待兼容 Worker |
 | R41 | 高负载下队列饥饿或 Worker OOM | 5,000 行、100 页 PDF、媒体并发同时运行；测 RSS、oldest age、API p95，验证队列/资源隔离 | 降低并发、暂停低优先级队列、扩独立 Worker；Excel 超阈值转 Spring Batch/POI |
-| R42 | 地图底图/静态图服务完全不可用 | 阻断 tile/static host；Web/PDF 仍须显示中性网格、Marker、Route、Legend、范围和降级说明 | 启用本地 fixture/中性 renderer；关闭“真实路线”标识，保留行程编辑与导出 |
+| R42 | 在线瓦片/静态图/Directions 服务完全不可用 | 阻断 tile/static/Directions host；Web/PDF 仍须显示中性网格、Marker、Route、Legend、范围和降级说明 | 进入明确 degraded/pending/manual；CI 可启用 fixture；关闭“真实路线”标识，保留行程编辑与导出 |
 | R43 | 联系信息/地址/签名 URL 泄露日志 | 注入敏感字段触发 4xx/5xx/重试；日志、trace、metrics、错误平台不得出现原文/查询参数 | 立即关闭外发日志 sink、轮换 Key/URL、执行泄露响应；只保留 hash/脱敏摘要 |
 | R44 | Deprecated：Beta/灰度样本不足或重复计数 | G08 在实现前移出 M1/M6；本风险编号仅保留历史追踪，不参与发布判定 | 不执行原 Plan B；按 [`deprecated/G08-beta-cohort.md`](./deprecated/G08-beta-cohort.md) 的 M6 替代门禁处理 |
 
@@ -1113,7 +1116,7 @@ stateDiagram-v2
 
 - 用户能够在桌面和手机核心路径完成真实闭环，刷新或进程重启不丢已确认数据。
 - 所有异步任务有持久状态、幂等、取消、重试和 reconciliation；不存在“队列消息即事实”。
-- 地点歧义、未确认、Provider 无 Key/失败均有可继续的降级；路线不会跨缺口伪造。
+- 地点歧义、未确认、Provider 配置缺失/失败均有可继续的降级；路线不会跨缺口伪造。
 - Excel 的预览计数、正式 Item、ledger/claim 和媒体子任务可相互对账。
 - PDF 使用冻结快照，中文/目录/地图/图片/费用通过独立校验，成功状态与下载产物一一对应。
 - R01–R44 中适用于当前实现的测试全绿；所有 Plan B 均至少桌面演练一次。

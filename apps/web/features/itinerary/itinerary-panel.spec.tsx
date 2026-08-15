@@ -354,7 +354,8 @@ test("workspace global scope hides all-day itinerary cards until a day is select
   }));
 
   const { rerender } = render(<ItineraryPanel tripId="trip-1" selectedDayId={null} variant="workspace" />);
-  await screen.findByTestId("all-days-itinerary-hint");
+  expect(screen.queryByRole("region", { name: "Daily itinerary" })).toBeNull();
+  expect(screen.queryByTestId("all-days-itinerary-hint")).toBeNull();
   expect(screen.queryByTestId("itinerary-item")).toBeNull();
   expect(calls.some((url) => url.endsWith("/days/day-1/itinerary-items"))).toBe(false);
 

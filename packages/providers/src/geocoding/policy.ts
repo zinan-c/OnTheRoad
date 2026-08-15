@@ -11,6 +11,8 @@ export interface GeocodingPolicyOptions {
   readonly store: GeocodingStateStore;
   readonly cacheTtlSeconds: number;
   readonly bucket: TokenBucketPolicy;
+  /** Shared scope used when a public provider has one application-wide quota. */
+  readonly bucketKey?: string;
   readonly maxRetries?: number;
   readonly now?: () => number;
   readonly sleep?: (milliseconds: number) => Promise<void>;
@@ -60,7 +62,7 @@ export class PolicyGeocoder implements Geocoder {
 
   async #takeToken(): Promise<void> {
     const decision = await this.options.store.takeToken(
-      `geocoding:bucket:${this.provider}:${this.profile}`,
+      `geocoding:bucket:${this.options.bucketKey ?? `${this.provider}:${this.profile}`}`,
       this.options.bucket,
       this.#now(),
     );
@@ -69,6 +71,7 @@ export class PolicyGeocoder implements Geocoder {
         retryable: true,
         retryAfterSeconds: Math.ceil(decision.retryAfterMs / 1_000),
         source: "client",
+        provider: this.provider,
       });
     }
   }

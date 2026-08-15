@@ -93,13 +93,14 @@ export function currentRouteSegments(routes: readonly RouteSegment[], dayId: str
   return dayId ? routes.filter((route) => route.tripDayId === dayId) : [...routes];
 }
 
-export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, selectedDayId, onSelectGlobalMap, compact = false }: {
+export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, selectedDayId, onSelectGlobalMap, compact = false, showTimeline = false }: {
   readonly tripId: string;
   readonly transportModes: readonly TransportModeView[];
   readonly refreshVersion?: number;
   readonly selectedDayId: string | null;
   readonly onSelectGlobalMap: () => void;
   readonly compact?: boolean;
+  readonly showTimeline?: boolean;
 }) {
   const [days, setDays] = useState<ProductDay[]>([]);
   const [items, setItems] = useState<ProductItem[]>([]);
@@ -118,6 +119,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
     () => selectionStore.state,
   );
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const previousSelectedDayId = useRef(selectedDayId);
   const selectMapItem = useCallback((id: string) => {
     selectionStore.selectFromMarker(id.split(":", 1)[0]!);
     setSelectedRouteId(null);
@@ -195,6 +197,14 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
   const selectedItemId = selection.selected?.itemId ?? null;
   const selectedRoute = routes.find(({ id }) => id === selectedRouteId) ?? null;
   const isGenerating = routeStatus?.status === "loading";
+  const hasDayScope = selectedDayId !== null;
+
+  useEffect(() => {
+    if (previousSelectedDayId.current === selectedDayId) return;
+    previousSelectedDayId.current = selectedDayId;
+    selectionStore.clear("filtered");
+    setSelectedRouteId(null);
+  }, [selectedDayId, selectionStore]);
 
   function itemLabel(id: string | null): string {
     if (!id) return "Unknown endpoint";
@@ -225,7 +235,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
       routes={visibleRoutes}
       transportModes={transportModes}
       selectedRouteId={selectedRouteId}
-      selectedItemId={selectedItemId}
+      selectedItemId={showTimeline ? selectedItemId : null}
       onSelect={selectMapItem}
       onRouteSelect={selectRoute}
     /> : <p role="status">No valid coordinates. Confirm a location to show it on the map.</p>}
@@ -239,19 +249,19 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
         return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}: {blockers}</li>;
       })}</ul></aside> : null}
     </> : null}
-    <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
+    {showTimeline && hasDayScope ? <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
         type="button"
         aria-pressed={selectedItemId === item.id}
         data-selected={selectedItemId === item.id}
         onClick={() => { selectionStore.selectFromTimeline(item.id, item.tripDayId); setSelectedRouteId(null); }}
-      >{item.target ?? "Untitled item"}</button></li>)}</ol>
-    {selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
-    {visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
+      >{item.target ?? "Untitled item"}</button></li>)}</ol> : null}
+    {showTimeline && hasDayScope && selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
+    {hasDayScope && visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
         const customMode = transportModes.find(({ code }) => code === route.transportModeCode);
         const style = routeStyle({ modeCode: route.transportModeCode, quality: route.quality ?? "unknown", ...(customMode ? { customMode } : {}) });
         return <li key={route.id}><button type="button" onClick={() => setSelectedRouteId(route.id)}>{route.kind === "item_transport" ? "Transport route" : "Connection route"}: {itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)} · {style.label} · {style.qualityLabel}</button></li>;
       })}</ol> : null}
-    {selectedRoute ? <aside aria-label="Route details">
+    {hasDayScope && selectedRoute ? <aside aria-label="Route details">
         <h3>{itemLabel(selectedRoute.fromItineraryItemId)} → {itemLabel(selectedRoute.toItineraryItemId)}</h3>
         <dl>
           <div><dt>Transport mode</dt><dd>{routeStyle({ modeCode: selectedRoute.transportModeCode, quality: selectedRoute.quality ?? "unknown", ...(transportModes.find(({ code }) => code === selectedRoute.transportModeCode) ? { customMode: transportModes.find(({ code }) => code === selectedRoute.transportModeCode)! } : {}) }).label}</dd></div>

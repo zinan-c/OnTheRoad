@@ -10,5 +10,6 @@ dist/
 **/.next/
 *.tsbuildinfo
 .DS_Store
+/.env
 infra/local-stack.env
 infra/native/.runtime/

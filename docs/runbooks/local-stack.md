@@ -40,6 +40,33 @@ the same migration entrypoint, and bucket creation uses the same initializer.
 No application code may depend on a Homebrew path, Unix socket, PID file,
 Docker socket, or Compose service name.
 
+## Online map runtime
+
+The local dependency stack does not run a Nominatim database. Normal local
+development uses the `dev` profile and accesses the public online Nominatim
+endpoint through the same API/Provider proxy used by production; it also uses
+configured online tiles and an independent Directions endpoint. QA and `prod`
+use the same capability contract with their environment-specific endpoint
+values.
+
+- `OTR_NOMINATIM_BASE_URL` defaults to the public endpoint only when the
+  environment explicitly enables the online map profile.
+- `OTR_NOMINATIM_USER_AGENT` and `OTR_NOMINATIM_CONTACT` must identify the
+  application; requests are cached and limited by the application-wide token
+  bucket.
+- `OTR_MAP_TILE_URL` and `OTR_MAP_TILE_ATTRIBUTION` are required for online
+  interactive maps.
+- `OTR_DIRECTIONS_BASE_URL` is independent of `MAP_PROFILE`; it must point to
+  a non-HERE online Directions service once route runtime is enabled.
+- CI, offline regression and deterministic local test cases explicitly use
+  `fixture`; ordinary local application sessions use online Nominatim and must
+  not be confused with those deterministic cases.
+
+Online map readiness is separate from PostgreSQL/Redis/MinIO/ClamAV readiness.
+The shared application readiness output must report geocoding, tile and
+Directions capability states without logging query text, address content or
+provider credentials.
+
 All endpoints bind to loopback in Native Track. Example credentials are
 non-default, local-only values and must never be reused in staging or
 production.

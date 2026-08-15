@@ -6,9 +6,9 @@ PostGIS, Redis, S3-compatible object storage, and ClamAV.
 
 ## Project status
 
-M0 through M3 are complete for the **Dev Track**. M4 implementation is complete
-for its current E06–E09, F01–F03, F05 scope, while the M4 Dev Track Gate remains
-open pending the real-stack required-case run. The repository currently
+M0 through M3 are complete for the **Dev Track**. M4 is complete for its
+current E06–E09, F01–F03, F05 scope and its Dev Track Gate is closed; production
+release gates remain separate. The repository currently
 includes:
 
 - runnable Web, API, Worker, and PDF Worker processes;
@@ -30,6 +30,14 @@ documented Dev maturity level. Dev Track completion is not production approval:
 full Compose/Linux parity, a real Staging IdP, and the remaining protected
 release checks remain mandatory release gates.
 
+The current post-M4 map decision removes HERE from the active architecture:
+`international_primary` uses public online Nominatim through the API proxy,
+`hybrid` uses AMAP in China and Nominatim overseas, and `dev`/`qa`/`prod` use
+online map runtime by default. CI keeps the explicit `fixture` profile for
+deterministic tests. The current decision and remaining online Directions gate
+are recorded in [`ADR-003`](./docs/adr/003-online-nominatim-map-runtime.md) and
+the [online map migration plan](./docs/reports/nominatim-online-plan.md).
+
 Use the [documentation status index](./docs/README.md) as the canonical current
 status entry point. Detailed evidence is in [CODE_REVIEW](./docs/CODE_REVIEW.md),
 the [M3 Gate report](./docs/reports/m3-gate.md), the
@@ -48,7 +56,7 @@ the [M3 Gate report](./docs/reports/m3-gate.md), the
 | `packages/contracts` | OpenAPI contract and generated client |
 | `packages/database` | Pooled PostgreSQL access, migrations, status, and seed |
 | `packages/domain` | Domain invariants and value models |
-| `packages/providers` | HERE, AMAP, hybrid, and fixture Provider adapters |
+| `packages/providers` | Nominatim, AMAP, hybrid, and fixture Provider adapters (target architecture) |
 | `docs` | Design, development plan, Test Cases, reports, ADRs, and runbooks |
 
 ## Toolchain
@@ -90,6 +98,10 @@ compatibility, writes the generated `config/profiles/dev.env`, and only then
 starts the API, Web, and Worker. It retries dependency startup three times and
 stops on any failed prerequisite. It never installs missing system software
 automatically.
+
+本地开发属于 `dev` 运行时：应用默认通过 API proxy 使用公共在线 Nominatim，
+不启动本地 Nominatim 数据库。只有 CI、离线回归或确定性测试才显式设置
+`MAP_PROFILE=fixture`；瓦片和 Directions 仍按独立在线 endpoint 配置。
 
 To run only the dependency and database preparation checks:
 
@@ -186,26 +198,35 @@ GitHub runs:
 
 ## Map profiles
 
-`MAP_PROFILE=fixture` is the key-free default and never calls a public map
-service. Online profiles are constructed during API startup and fail closed
-when required credentials are absent:
+`MAP_PROFILE=fixture` is the explicit offline/CI profile and never calls a
+public map service. Local development uses the `dev` online map runtime;
+`dev`/`qa`/`prod` use online map runtime by default;
+online profiles are constructed during API startup and fail closed when the
+required endpoint/configuration is absent:
 
 - `cn_primary` — AMAP with `AMAP_API_KEY`;
-- `international_primary` — HERE with `OTR_HERE_API_KEY`;
-- `hybrid` — both keys, with deterministic Provider selection.
+- `international_primary` — public Nominatim through the API proxy;
+- `hybrid` — AMAP in China and public Nominatim overseas.
 
 AMAP coordinates are converted from GCJ-02 to the WGS84 domain model. Provider
 failures never trigger silent fallback or rewrite a Trip's selected profile.
-Keys remain server-side. No HERE App ID is used.
+Nominatim requests use a stable application User-Agent/contact, cache and
+application-wide rate limit; its public API is explicit-search only. Tiles and
+Directions are independently configured online capabilities, not Nominatim
+capabilities. Keys and endpoint details remain server-side.
 
 ## Release boundary
 
 Dev and release verification intentionally use separate tracks:
 
-- **Dev Gate:** native macOS services, fixture Providers, development
-  identity/Mock OIDC, required Cases, and real local runtime smoke.
-- **Release Gate:** Linux/Compose parity, persistence and recovery, resource
-  limits, malware fail-closed behavior, HTTPS cookies, and a real Staging IdP.
+- **Dev/QA runtime:** native/Compose/remote dependencies with online
+  Nominatim, tiles and independent Directions configured; controlled online
+  smoke is separate from deterministic fixture tests.
+- **CI/Dev Gate:** explicit fixture Providers, development identity/Mock OIDC,
+  required Cases, and real local runtime smoke; CI never calls public maps.
+- **Release Gate:** Linux/Compose parity, persistence and recovery, online map
+  smoke/attribution/rate-limit checks, resource limits, malware fail-closed
+  behavior, HTTPS cookies, and a real Staging IdP.
 
 Open items in [the release checklist](./docs/runbooks/release-checklist.md)
 cannot be waived by a green Dev Gate.

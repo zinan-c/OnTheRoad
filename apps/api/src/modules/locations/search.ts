@@ -1,13 +1,16 @@
 import {
   createAmapGeocoder,
   createFixtureGeocoder,
-  createHereGeocoder,
   createHybridGeocoder,
+  createNominatimGeocoder,
   GeocoderError,
+  PolicyGeocoder,
   type Geocoder,
   type GeocodingFetch,
   type GeocodingContext,
+  type GeocodingPolicyOptions,
 } from "@on-the-road/providers/geocoding";
+import type { Wgs84Point } from "@on-the-road/providers";
 
 export interface LocationSearchLogger {
   info(event: string, fields: Readonly<Record<string, unknown>>): void;
@@ -30,7 +33,7 @@ export type ExternalMapProfile =
 /**
  * Deliberately excludes the upstream provider place ID. Provider candidates are
  * internal inputs to C03's owner/trip/location-bound candidate signer; a UI must
- * submit that signed token, never a raw HERE or fixture identifier.
+ * submit that signed token, never a raw upstream or fixture identifier.
  */
 export interface LocationSearchCandidateView {
   readonly label: string;
@@ -46,7 +49,7 @@ export interface LocationSearchCandidateView {
   readonly confidence: number;
   readonly attribution: string;
   readonly selected: false;
-  readonly provider: "here" | "amap" | "fixture";
+  readonly provider: "here" | "amap" | "nominatim" | "fixture";
   readonly mapProfile: ExternalMapProfile | string;
 }
 
@@ -63,8 +66,12 @@ export function createLocationSearchApi(options: {
   readonly geocoder: Geocoder;
   readonly mapProfile?: ExternalMapProfile;
   readonly logger?: LocationSearchLogger;
+  readonly policy?: GeocodingPolicyOptions;
 }) {
-  const { geocoder, logger } = options;
+  const geocoder = options.policy
+    ? new PolicyGeocoder(options.geocoder, options.policy)
+    : options.geocoder;
+  const { logger } = options;
   const reportedMapProfile = options.mapProfile ?? geocoder.profile;
   async function searchForResolution(input: LocationSearchInput) {
     const trigger = input.trigger ?? "explicit";
@@ -72,6 +79,7 @@ export function createLocationSearchApi(options: {
       throw new GeocoderError(
         "PROVIDER_TRIGGER_UNSUPPORTED",
         `${trigger} geocoding is disabled by provider policy`,
+        { provider: geocoder.provider, source: "client" },
       );
     }
     logger?.info("location.search.started", {
@@ -89,8 +97,10 @@ export function createLocationSearchApi(options: {
           ? "© 高德地图"
           : geocoder.provider === "here"
             ? "© HERE"
+            : geocoder.provider === "nominatim"
+              ? "© OpenStreetMap contributors"
             : geocoder.provider === "hybrid"
-              ? "© HERE / © 高德地图"
+              ? "© OpenStreetMap contributors / © 高德地图"
               : "On The Road fixture"),
       candidates,
     };
@@ -104,6 +114,9 @@ export function createLocationSearchApi(options: {
       };
     },
     searchForResolution,
+    reverse(point: Wgs84Point, locale?: string) {
+      return geocoder.reverse(point, locale);
+    },
     async search(input: LocationSearchInput) {
       const result = await searchForResolution(input);
       const { candidates } = result;
@@ -134,9 +147,22 @@ export function createConfiguredLocationSearchApi(
   options: {
     readonly logger?: LocationSearchLogger;
     readonly fetch?: GeocodingFetch;
+    readonly policy?: GeocodingPolicyOptions;
   } = {},
 ) {
   const profile = environment.MAP_PROFILE;
+  const applyPolicy = (geocoder: Geocoder): Geocoder => options.policy
+    ? new PolicyGeocoder(geocoder, options.policy)
+    : geocoder;
+  const nominatimOptions = {
+    profile: "public-online" as const,
+    baseUrl: environment.OTR_NOMINATIM_BASE_URL ?? "https://nominatim.openstreetmap.org",
+    userAgent: environment.OTR_NOMINATIM_USER_AGENT ?? "",
+    contact: environment.OTR_NOMINATIM_CONTACT ?? "",
+    language: environment.MAP_LANGUAGE ?? "en",
+    timeoutMs: Number(environment.OTR_NOMINATIM_TIMEOUT_MS ?? "5000"),
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  };
   if (profile === "fixture") {
     return createLocationSearchApi({
       geocoder: createFixtureGeocoder({ profile: "fixture-global" }),
@@ -146,24 +172,19 @@ export function createConfiguredLocationSearchApi(
   }
   if (profile === "international_primary") {
     return createLocationSearchApi({
-      geocoder: createHereGeocoder({
-        profile: "commercial-required",
-        apiKey: environment.OTR_HERE_API_KEY ?? "",
-        language: environment.MAP_LANGUAGE ?? "en",
-        ...(options.fetch ? { fetch: options.fetch } : {}),
-      }),
+      geocoder: applyPolicy(createNominatimGeocoder(nominatimOptions)),
       mapProfile: profile,
       ...(options.logger ? { logger: options.logger } : {}),
     });
   }
   if (profile === "cn_primary") {
     return createLocationSearchApi({
-      geocoder: createAmapGeocoder({
+      geocoder: applyPolicy(createAmapGeocoder({
         profile: "cn-primary",
         apiKey: environment.AMAP_API_KEY ?? "",
         language: environment.MAP_LANGUAGE ?? "zh-CN",
         ...(options.fetch ? { fetch: options.fetch } : {}),
-      }),
+      })),
       mapProfile: profile,
       ...(options.logger ? { logger: options.logger } : {}),
     });
@@ -171,20 +192,15 @@ export function createConfiguredLocationSearchApi(
   if (profile === "hybrid") {
     const fetchOption = options.fetch ? { fetch: options.fetch } : {};
     return createLocationSearchApi({
-      geocoder: createHybridGeocoder({
+      geocoder: applyPolicy(createHybridGeocoder({
         amap: createAmapGeocoder({
           profile: "cn-primary",
           apiKey: environment.AMAP_API_KEY ?? "",
           language: environment.MAP_LANGUAGE ?? "zh-CN",
           ...fetchOption,
         }),
-        here: createHereGeocoder({
-          profile: "commercial-required",
-          apiKey: environment.OTR_HERE_API_KEY ?? "",
-          language: environment.MAP_LANGUAGE ?? "en",
-          ...fetchOption,
-        }),
-      }),
+        nominatim: createNominatimGeocoder({ ...nominatimOptions, ...fetchOption }),
+      })),
       mapProfile: profile,
       ...(options.logger ? { logger: options.logger } : {}),
     });

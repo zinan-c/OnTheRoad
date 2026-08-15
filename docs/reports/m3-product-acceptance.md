@@ -1,5 +1,9 @@
 # M3 product acceptance and demonstration record
 
+> Historical provider note: this acceptance record preserves the M3 HERE
+> routing evidence. It is not the current Provider selection; the post-M4
+> online map decision is recorded in [`ADR-003`](../adr/003-online-nominatim-map-runtime.md).
+
 - Milestone: **M3 — Routing, gallery, expenses, and Excel staging**
 - Decision: **Accepted for the Dev Track**
 - Review date: **2026-08-08 (Asia/Shanghai)**
@@ -83,8 +87,10 @@ the stated M3 product boundary: routing, gallery, and expenses form usable
 loops, while Excel remains an auditable staging preview and does not claim to
 have committed formal itinerary facts.
 
-This acceptance does not approve a production release. Real HERE Routing,
-Staging IdP, and Compose/Linux parity remain governed by the release checklist.
+This acceptance does not approve a production release. At the M3 checkpoint,
+real HERE Routing, Staging IdP, and Compose/Linux parity remained governed by
+the release checklist; the HERE reference is historical and is superseded by
+the post-M4 online map decision.
 
 **Product Owner signature:** `PROD-M3-ACCEPTED-2026-08-08-565365a`
 

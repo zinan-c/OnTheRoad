@@ -14,6 +14,19 @@ This report preserves the findings as they existed at the review point. Current
 closure evidence is recorded alongside the original evidence so that historical
 observations are not mistaken for the repository's present state.
 
+## Current provider addendum — 2026-08-14
+
+The original P0-03 evidence remains valid for the AMAP/hybrid implementation
+that was reviewed at that time, but HERE is no longer the current international
+Provider decision. The post-M4 target is public online Nominatim through the API
+proxy for `international_primary` and the overseas branch of `hybrid`, with
+online tiles and an independent non-HERE Directions endpoint in `dev`/`qa`/`prod`.
+The migration is not code-closed by this historical review; its implementation,
+online smoke and release criteria are tracked by
+[`ADR-003`](./adr/003-online-nominatim-map-runtime.md),
+[`nominatim-online-plan.md`](./reports/nominatim-online-plan.md), and the
+[release checklist](./runbooks/release-checklist.md).
+
 | Finding | Dev status | Remediation commit | Closure evidence / residual scope |
 |---|---|---|---|
 | P0-01 | Closed | `5be8017` | `tests/runtime/real-stack.e2e.spec.ts` starts the real API composition root against migrated PostgreSQL and Redis, persists Trip/Item/Location/upload-entry changes over HTTP, sends the reorder outbox event through BullMQ, and proves the Worker writes the inbox receipt and handled timestamp. The production Worker rejects `runtime.noop` and uses an explicit PostgreSQL event processor. Compose and production release checks remain governed by the release checklist. |

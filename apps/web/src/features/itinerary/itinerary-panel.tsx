@@ -825,6 +825,7 @@ export function ItineraryPanel({
   </div> : null;
 
   if (workspaceMode) {
+    if (selectedDayId === null) return null;
     const dayById = new Map(days.map((day) => [day.id, day]));
     return <section className="workspaceCard itineraryWorkspace" aria-label="Daily itinerary">
       <header className="workspaceItineraryHeader">
@@ -845,7 +846,7 @@ export function ItineraryPanel({
       </header>
       {error ? <p role="alert" className="formError">{error}</p> : null}
       {status === "loading" ? <p role="status">Loading itinerary…</p> : null}
-      {selectedDayId === null ? <p className="workspaceEmptyState" data-testid="all-days-itinerary-hint">Select a day to view itinerary details.</p> : items.length > 0 ? <ProductSortableTimeline
+      {items.length > 0 ? <ProductSortableTimeline
         entries={items.map((item) => ({ id: item.id, label: itemLabel(item) }))}
         disabled={!workspaceEditing || status === "saving"}
         showDragHandle={workspaceEditing}

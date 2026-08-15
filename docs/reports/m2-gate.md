@@ -1,5 +1,9 @@
 # M2 development gate
 
+> Historical provider note: this Gate records the HERE-based M2 implementation
+> and deterministic fixture evidence as it existed at closure. HERE is not the
+> current Provider decision; see [`ADR-003`](../adr/003-online-nominatim-map-runtime.md).
+
 - Status: **M2 Complete for the Dev Track**
 - Date: 2026-07-30
 - Baseline: macOS arm64, Node 24.14.0, pnpm 9.15.4
@@ -47,7 +51,8 @@ repository. It connected C02, C03, C04, C05, and C06 and verified:
 
 The HERE response in this deterministic development gate was supplied through
 the injected provider transport. No external HERE request or credential was
-used, and the production adapter still requires only `OTR_HERE_API_KEY`.
+used; at that historical checkpoint, the production adapter still required
+only `OTR_HERE_API_KEY`.
 
 `TC-M2-INT-03` passed through the real media/import job entry points. It
 verified:
@@ -74,7 +79,8 @@ verified:
 
 ### Provider, file, and network attack surface
 
-- HERE remains the only production geocoder. It uses an API key, applies
+- At the M2 checkpoint, HERE was the only production geocoder. It used an API
+  key, applied
   timeout/response limits, redacts secrets and full addresses, and does not
   silently switch provider. Provider identifiers cross the client boundary
   only in signed confirmation tokens.
@@ -144,8 +150,8 @@ security exception is being carried from M2.
 This result allows M3 work to begin on the Dev Track. It is not formal release
 approval:
 
-- a controlled real HERE staging smoke still requires the deployment
-  credential and explicit network approval;
+- at the M2 checkpoint, a controlled real HERE staging smoke still required the
+  deployment credential and explicit network approval;
 - the A05 Staging IdP Track remains a pre-release requirement;
 - A02 Compose parity remains a pre-release checklist item rather than a
   development gate; see

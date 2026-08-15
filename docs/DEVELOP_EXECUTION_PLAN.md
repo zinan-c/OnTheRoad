@@ -47,6 +47,7 @@ A05 同样使用双轨状态：Dev Identity/Mock OIDC Track 的登录、会话�
 | `LOCK-FIXTURE` | 五日 seed、Excel/PDF golden、共享图片/地图资产 | 测试可读并行；更新 golden/seed 必须串行且附原因 |
 | `LOCK-WEB-SHELL` | Trip workspace layout、全局 Query/store/provider、路由骨架 | feature 组件可并行；共享 shell 合并串行 |
 | `LOCK-MAP-CORE` | MapLibre wrapper、统一选中 store、route layer source | Location picker、route style、print map 只在接口冻结后并行 |
+| `LOCK-MAP-ONLINE` | Nominatim/tile/Directions runtime config、provider routing、online smoke | Provider adapter、环境配置和真实 smoke 契约必须串行冻结；fixture 测试可并行 |
 | `LOCK-IMPORT-SCHEMA` | ImportJob/Row/Ledger/Claim/MediaTask 状态与 migration | E04 冻结核心 schema 后，E06–E09 可分模块并行；状态字段变更串行 |
 | `LOCK-PDF-TEMPLATE` | print route、print CSS、分页锚点、字体 | F03/F04 接口先后执行；F05 可并行改 Worker，不直接改模板 |
 | `LOCK-CI` | `.github/workflows/*`、全局 required checks | 测试文件可并行；workflow 合并由一个 agent 串行处理 |
@@ -221,6 +222,23 @@ Next tasks unblocked:
 ### M4 Gate
 
 执行：`TC-M4-INT-01`、`TC-M4-INT-02`、`TC-M4-INT-03`。并发导入、SSRF/lease、snapshot 竞争任一测试失败均阻止 M5。
+
+---
+
+## Post-M4 Online Map Workstream：在线地图运行时迁移
+
+该工作流不回写 M0–M4 历史 Gate 结果。它以 [`ADR-003`](./adr/003-online-nominatim-map-runtime.md) 为当前决策，必须在生产发布前完成；CI required-case 继续使用 `fixture`。
+
+| Task | 依赖 | 实现前 Case | 完成后必须补齐 | 并行与修改冲突 |
+|---|---|---|---|---|
+| MAP-01 | ADR-003、现有 Provider contracts | `TC-MAP-01-01`、`TC-MAP-01-02` | `TC-MAP-01-03` | 先冻结 Nominatim policy、profile capability 和配置 schema；独占 `LOCK-MAP-ONLINE` |
+| MAP-02 | MAP-01、C05/F02 | `TC-MAP-02-01`、`TC-MAP-02-02` | `TC-MAP-02-03` | dev/qa/prod tile URL、attribution、cache、PDF allowlist；不得批量预取 |
+| MAP-03 | MAP-01、C07 | `TC-MAP-03-01`、`TC-MAP-03-02` | `TC-MAP-03-03` | 选择并接入非 HERE 的在线 Directions provider；与 MAP-02 并行，路线 contract 统一汇合 |
+| MAP-04 | MAP-01–MAP-03、G06/G07 | `TC-MAP-04-01`、`TC-MAP-04-02` | `TC-MAP-04-03` | dev/qa/prod real smoke、限流/故障/attribution/回滚证据；发布前串行签署 |
+
+### Online Map Gate
+
+执行 `TC-MAP-04-01`、`TC-MAP-04-02`、`TC-MAP-04-03`：三环境在线 search/reverse、tile、Directions 与故障降级；验证 CI 不访问公共地图服务；确认当前文档/配置/secret 不再把 HERE 作为可用 Provider。Directions provider 未通过真实 smoke 时，生产发布保持 No-Go。
 
 ---
 

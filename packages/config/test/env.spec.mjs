@@ -54,6 +54,7 @@ describe("TC-A03-01 minimal config schema", () => {
       expect(config.urls.api.href).toBe("http://localhost:3001/api/v1");
       expect(config.map.providerCredentialsConfigured).toEqual({
         amap: false,
+        nominatim: false,
         here: false,
       });
       if (config.role === "web") {
@@ -83,26 +84,27 @@ describe("TC-A03-01 minimal config schema", () => {
     });
   });
 
-  test("HERE credentials stay server-side while capabilities remain shared", () => {
+  test("Nominatim identity stays server-side while capabilities remain shared", () => {
     const environment = {
       ...minimalEnvironment,
       MAP_PROFILE: "international_primary",
-      MAP_AUTOCOMPLETE_ENABLED: "true",
+      MAP_AUTOCOMPLETE_ENABLED: "false",
       MAP_EXPLICIT_SEARCH_ENABLED: "true",
-      OTR_HERE_API_KEY: "fixture-here-key",
+      OTR_NOMINATIM_USER_AGENT: "on-the-road-test/1.0",
+      OTR_NOMINATIM_CONTACT: "test@example.com",
     };
     const web = loadProcessConfig("web", environment);
     const api = loadProcessConfig("api", environment);
 
-    expect(web.map.providerCredentialsConfigured.here).toBe(true);
+    expect(web.map.providerCredentialsConfigured.nominatim).toBe(true);
     expect(web.map.capabilities).toMatchObject({
-      autocomplete: true,
+      autocomplete: false,
       explicitSearch: true,
     });
-    expect(JSON.stringify(web)).not.toContain("fixture-here-key");
-    expect(api.server.providerCredentials.hereApiKey).toBe("fixture-here-key");
-    expect(api.map.here.geocodeEndpoint.href).toBe(
-      "https://geocode.search.hereapi.com/v1/geocode",
+    expect(JSON.stringify(web)).not.toContain("test@example.com");
+    expect(api.server.providerCredentials.hereApiKey).toBeUndefined();
+    expect(api.map.nominatim.baseUrl.href).toBe(
+      "https://nominatim.openstreetmap.org/",
     );
   });
 });

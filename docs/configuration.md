@@ -8,23 +8,42 @@ database, object-storage or session secrets.
 ## Local setup
 
 Copy `.env.example` to an ignored local environment file and replace values
-only when required. The checked-in example deliberately uses development-only
-credentials and the offline `fixture` map profile:
+only when required. The checked-in example stays fixture-backed so CI and
+offline tests never access public map services; local `.env` should override it
+to an online Nominatim profile:
 
 ```sh
 cp .env.example .env
 pnpm run toolchain:check
 ```
 
-Runtime configuration has three explicit profiles:
+For local online-map development, the target profile is for example:
 
+```dotenv
+MAP_PROFILE=international_primary
+OTR_NOMINATIM_BASE_URL=https://nominatim.openstreetmap.org
+OTR_NOMINATIM_USER_AGENT=on-the-road-dev/1.0
+OTR_NOMINATIM_CONTACT=you@example.com
+```
+
+Use a real contact value for an actual run. Configure the online tile and
+Directions endpoints as well when exercising the complete map/runtime path.
+
+Runtime configuration has three deployment environments and one explicit
+offline/fixture mode:
+
+- local `dev`: native or Compose Postgres, Redis, MinIO, ClamAV and local Node
+  processes; it does not start a local Nominatim database and uses the online
+  map runtime by default.
 - `dev`: native/local Postgres, Redis, MinIO, ClamAV and local Node processes;
-  Docker is not checked.
+  Docker is not checked. The map runtime is online by default.
 - `qa`: native, container or remote can be selected independently per service.
   Copy `config/profiles/qa.env.example` to `config/profiles/qa.env`, then run
-  commands with `bash scripts/run-profile.sh qa -- ...`.
-- `release`: production-shaped configuration. Docker/Compose and real Staging
-  IdP checks are release gates, not development checks.
+  commands with `bash scripts/run-profile.sh qa -- ...`. The map runtime is
+  online by default.
+- `prod`: production configuration. The map runtime is online by default;
+  release validation is a workflow against `prod`, not a fourth runtime
+  environment.
 
 Examples:
 
@@ -41,18 +60,33 @@ In QA, `OTR_QA_<SERVICE>_MODE` accepts `native`, `container` or `remote` for
 the selected endpoints must still be supplied and reachable. This keeps QA
 flexible without moving the A02 Docker gate into ordinary development runs.
 
-The default capability response is:
+The default capability response for local `dev`, `dev`, `qa`, and `prod` is:
 
-- offline map and local fixtures: enabled;
-- explicit online search: disabled;
-- autocomplete: disabled;
-- batch geocoding: disabled.
+- online geocoding and reverse geocoding: enabled when the endpoint readiness
+  check passes;
+- online interactive tiles: enabled when the configured tile URL and
+  attribution are valid;
+- online Directions: enabled only when its independent endpoint is configured
+  and the real-provider gate has passed;
+- autocomplete: disabled for Nominatim;
+- public Nominatim batch geocoding: disabled;
+- fixture geocoding, Directions, tiles and static-map assets: enabled only for
+  the explicit `fixture`/offline profile and CI.
 
-Provider keys remain empty in no-key development mode. To enable the
-`international_primary` profile, configure `OTR_HERE_API_KEY` at runtime;
-the key is returned only to server process configurations. HERE Geocoding,
-Discover and Reverse Geocoding endpoints are separately configurable and
-default to the official API v7 hosts.
+The active geocoder configuration is public online Nominatim, not HERE:
+
+- `OTR_NOMINATIM_BASE_URL` (default target:
+  `https://nominatim.openstreetmap.org`);
+- `OTR_NOMINATIM_USER_AGENT` and `OTR_NOMINATIM_CONTACT`;
+- `OTR_NOMINATIM_TIMEOUT_MS`, `OTR_NOMINATIM_RATE_LIMIT_RPS` and
+  `OTR_NOMINATIM_CACHE_TTL_SECONDS`;
+- `OTR_MAP_TILE_URL` and `OTR_MAP_TILE_ATTRIBUTION`;
+- `OTR_DIRECTIONS_BASE_URL` and `OTR_DIRECTIONS_ATTRIBUTION`.
+
+All online map requests go through the API/Provider boundary so the product
+can enforce the public Nominatim policy, cache repeated queries, and keep a
+configuration-only endpoint switch. Nominatim does not provide tiles or
+Directions; those capabilities are independently configured.
 
 ## Validation and redaction
 
@@ -63,9 +97,15 @@ default to the official API v7 hosts.
 free-form nested messages.
 
 Production startup rejects secrets containing development patterns such as
-`local`, `change-me`, or `dev-only`. The `hybrid` map profile requires both
-`AMAP_API_KEY` and `OTR_HERE_API_KEY`; a single Provider
-failure never silently changes the configured profile.
+`local`, `change-me`, or `dev-only`. The `hybrid` map profile requires
+`AMAP_API_KEY` and a valid online Nominatim/tile/Directions configuration; it
+does not require a HERE key. A single Provider failure never silently changes
+the configured profile or changes online results to fixture results.
+
+The public Nominatim endpoint must receive a stable identifying User-Agent and
+contact information. The application must not send personal or confidential
+address data, must not implement autocomplete, and must keep the aggregate
+request rate within the current public-service policy.
 
 ## Required server variables
 
@@ -79,7 +119,9 @@ files. API, Worker and PDF Worker require:
 - `OTR_ENV_CLAMAV_HOST` and optional `OTR_ENV_CLAMAV_PORT`;
 - `OTR_ENV_SESSION_SECRET` (exported to the process as `SESSION_SECRET`).
 
-Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities.
+Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities;
+it receives tile URL/attribution and provider capability information, never
+database credentials or Provider secrets.
 For `pnpm run dev`, the launcher defaults to the Native dependency track. Pass
 `pnpm run dev -- -native` or `pnpm run dev -- -compose` to select the track;
 the accepted `-componse` spelling is retained as an alias. The launcher

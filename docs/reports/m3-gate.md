@@ -1,5 +1,10 @@
 # M3 development gate
 
+> Historical provider note: this Gate records the HERE Routing/geocoding
+> boundary used at M3 closure. The current post-M4 target is public Nominatim
+> for online geocoding, online tiles and an independent non-HERE Directions
+> endpoint; see [`ADR-003`](../adr/003-online-nominatim-map-runtime.md).
+
 - Status: **M3 Done for the Dev Track**
 - Gate execution date: 2026-08-03
 - Final closure review date: 2026-08-08
@@ -174,8 +179,9 @@ evidence sign-off. The complete ten-rule decision is archived in
 
 This closes M3 only for the Dev Track. It is not production release approval:
 
-- real HERE Routing remains a controlled staging check requiring explicit
-  network approval;
+- at the M3 checkpoint, real HERE Routing remained a controlled staging check
+  requiring explicit network approval; this is historical evidence and is
+  superseded by the post-M4 non-HERE Directions workstream;
 - the A05 real Staging IdP checklist remains mandatory before release;
 - A02 development is now closed with local Native and Compose evidence; the
   separate A02 Compose/Linux release parity checklist remains mandatory before

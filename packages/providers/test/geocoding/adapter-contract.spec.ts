@@ -5,6 +5,7 @@ import {
   createFixtureGeocoder,
   createHereGeocoder,
   createHybridGeocoder,
+  createNominatimGeocoder,
   gcj02ToWgs84,
   wgs84ToGcj02,
   type GeocodingFetch,
@@ -35,6 +36,44 @@ const hereFetch: GeocodingFetch = async (url) => {
       scoring: { queryScore: 0.99 },
     },
   ] });
+};
+
+const nominatimFetch: GeocodingFetch = async (url) => {
+  if (url.pathname.endsWith("/reverse")) {
+    return Response.json({
+      osm_type: "node",
+      osm_id: 4242,
+      lat: "31.24001",
+      lon: "121.49002",
+      display_name: "The Bund, Shanghai, China",
+      address: { country_code: "cn", city: "Shanghai", city_district: "Huangpu" },
+      licence: "Data © OpenStreetMap contributors, ODbL 1.0.",
+    });
+  }
+  return Response.json([
+    {
+      osm_type: "node",
+      osm_id: 1001,
+      lat: "31.2304",
+      lon: "121.4737",
+      name: "上海市",
+      display_name: "上海市, 中国",
+      type: "city",
+      class: "place",
+      importance: 0.91,
+      address: { country_code: "cn", city: "上海市", city_district: "黄浦区" },
+      licence: "Data © OpenStreetMap contributors, ODbL 1.0.",
+    },
+    {
+      osm_type: "way",
+      osm_id: 1002,
+      lat: "40.1",
+      lon: "-89.1",
+      display_name: "Shanghai, United States",
+      address: { country_code: "us", city: "Shanghai" },
+      licence: "Data © OpenStreetMap contributors, ODbL 1.0.",
+    },
+  ]);
 };
 
 describe("TC-C02-01 Geocoder adapter contract", () => {
@@ -90,6 +129,60 @@ describe("TC-C02-01 Geocoder adapter contract", () => {
         mapProfile: "fixture-cn",
       })]),
     );
+  });
+
+  test("normalizes Nominatim OSM identity, WGS84, context, attribution and reverse", async () => {
+    const requested: URL[] = [];
+    const adapter = createNominatimGeocoder({
+      profile: "public-online",
+      baseUrl: "https://nominatim.test/proxy",
+      userAgent: "on-the-road-test/1.0",
+      contact: "test@example.com",
+      language: "en",
+      fetch: async (url, init) => {
+        requested.push(url);
+        expect(init?.headers).toMatchObject({ "user-agent": "on-the-road-test/1.0" });
+        return nominatimFetch(url, init);
+      },
+    });
+    const candidates = await adapter.search({
+      query: " 上海 ",
+      locale: "zh-CN",
+      context: {
+        countryCodes: ["CHN"],
+        viewbox: [120, 30, 122, 32],
+      },
+      limit: 5,
+    });
+    expect(candidates[0]).toMatchObject({
+        id: "osm:node:1001",
+        label: "上海市",
+        point: { longitude: 121.4737, latitude: 31.2304, crs: "WGS84" },
+        countryCode: "cn",
+        city: "上海市",
+        district: "黄浦区",
+        provider: "nominatim",
+        attribution: "Data © OpenStreetMap contributors, ODbL 1.0.",
+    });
+    expect(requested[0]?.searchParams.get("format")).toBe("jsonv2");
+    expect(requested[0]?.pathname).toBe("/proxy/search");
+    expect(requested[0]?.searchParams.get("countrycodes")).toBe("cn");
+    expect(requested[0]?.searchParams.get("viewbox")).toBe("120,32,122,30");
+    expect(requested[0]?.searchParams.get("email")).toBe("test@example.com");
+    await expect(adapter.search({ query: "Shanghai", trigger: "autocomplete" })).rejects.toMatchObject({
+      code: "PROVIDER_TRIGGER_UNSUPPORTED",
+      provider: "nominatim",
+    });
+    await expect(adapter.reverse({
+      longitude: 121.49002,
+      latitude: 31.24001,
+      crs: "WGS84",
+    }, "zh-CN")).resolves.toMatchObject({
+      id: "osm:node:4242",
+      label: "The Bund, Shanghai, China",
+      point: { longitude: 121.49002, latitude: 31.24001, crs: "WGS84" },
+      provider: "nominatim",
+    });
   });
 
   test("normalizes AMAP GCJ-02 search/reverse coordinates to the WGS84 domain", async () => {
@@ -168,13 +261,14 @@ describe("TC-C02-01 Geocoder adapter contract", () => {
           pois: [{ id: "amap:cn", name: "上海", location: "121.478223,31.228457" }],
         }),
     });
-    const here = createHereGeocoder({
-      profile: "commercial-required",
-      apiKey: "here-key",
+    const nominatim = createNominatimGeocoder({
+      profile: "public-online",
+      userAgent: "on-the-road-test/1.0",
+      contact: "test@example.com",
       language: "en",
-      fetch: hereFetch,
+      fetch: nominatimFetch,
     });
-    const hybrid = createHybridGeocoder({ amap, here });
+    const hybrid = createHybridGeocoder({ amap, nominatim });
 
     await expect(hybrid.search({
       query: "Shanghai",
@@ -186,7 +280,7 @@ describe("TC-C02-01 Geocoder adapter contract", () => {
       query: "Shanghai",
       context: { countryCodes: ["USA"] },
     })).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({ provider: "here" }),
+      expect.objectContaining({ provider: "nominatim" }),
     ]));
     await expect(hybrid.reverse({
       longitude: 121.4737,
@@ -197,6 +291,6 @@ describe("TC-C02-01 Geocoder adapter contract", () => {
       longitude: -73.9857,
       latitude: 40.7484,
       crs: "WGS84",
-    })).resolves.toMatchObject({ provider: "here" });
+    })).resolves.toMatchObject({ provider: "nominatim" });
   });
 });

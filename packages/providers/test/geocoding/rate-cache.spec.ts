@@ -4,6 +4,7 @@ import {
   createAmapGeocoder,
   createHereGeocoder,
   createHybridGeocoder,
+  createNominatimGeocoder,
   GeocoderError,
   InMemoryGeocodingStateStore,
   PolicyGeocoder,
@@ -11,20 +12,51 @@ import {
 } from "../../src/geocoding/index.js";
 
 describe("TC-C02-02 rate, cache and policy faults", () => {
+  test("shares the public Nominatim bucket across policy wrappers", async () => {
+    const store = new InMemoryGeocodingStateStore();
+    const make = () => new PolicyGeocoder(createNominatimGeocoder({
+      profile: "public-online",
+      userAgent: "on-the-road-test/1.0",
+      contact: "test@example.com",
+      language: "en",
+      fetch: async () => Response.json([{
+        osm_type: "node",
+        osm_id: 7001,
+        display_name: "One result",
+        lat: "1",
+        lon: "1",
+      }]),
+    }), {
+      store,
+      cacheTtlSeconds: 60,
+      bucket: { capacity: 1, refillPerSecond: 0 },
+      bucketKey: "nominatim",
+    });
+    await make().search({ query: "first" });
+    await expect(make().search({ query: "second" })).rejects.toMatchObject({
+      code: "PROVIDER_RATE_LIMITED",
+      provider: "nominatim",
+      source: "client",
+    });
+  });
+
   test("isolates cache by normalized query, language and geographic context", async () => {
     let calls = 0;
     const fetch: GeocodingFetch = async () => {
       calls += 1;
-      return Response.json({ items: [{
-        id: "here:cached",
-        title: "Shanghai",
-        position: { lat: 31.23, lng: 121.47 },
-        address: { countryCode: "CHN" },
-      }] });
+      return Response.json([{
+        osm_type: "node",
+        osm_id: 5001,
+        display_name: "Shanghai",
+        lat: "31.23",
+        lon: "121.47",
+        address: { country_code: "cn" },
+      }]);
     };
-    const provider = new PolicyGeocoder(createHereGeocoder({
-      profile: "commercial-required",
-      apiKey: "test-key",
+    const provider = new PolicyGeocoder(createNominatimGeocoder({
+      profile: "public-online",
+      userAgent: "on-the-road-test/1.0",
+      contact: "test@example.com",
       language: "en",
       fetch,
     }), {
@@ -50,11 +82,12 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
       if (attempts === 3) {
         return Response.json({}, { status: 429, headers: { "retry-after": "7" } });
       }
-      return Response.json({ items: [] });
+      return Response.json([]);
     };
-    const provider = new PolicyGeocoder(createHereGeocoder({
-      profile: "commercial-required",
-      apiKey: "test-key",
+    const provider = new PolicyGeocoder(createNominatimGeocoder({
+      profile: "public-online",
+      userAgent: "on-the-road-test/1.0",
+      contact: "test@example.com",
       language: "en",
       fetch,
     }), {
@@ -128,7 +161,7 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
     });
   });
 
-  test("normalizes AMAP failures and hybrid never falls back to HERE", async () => {
+  test("normalizes AMAP failures and hybrid never falls back to Nominatim", async () => {
     expect(() => createAmapGeocoder({
       profile: "cn-primary",
       apiKey: "",
@@ -148,17 +181,18 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
         infocode: "10001",
       }),
     });
-    let hereCalls = 0;
-    const here = createHereGeocoder({
-      profile: "commercial-required",
-      apiKey: "here-key",
+    let nominatimCalls = 0;
+    const nominatim = createNominatimGeocoder({
+      profile: "public-online",
+      userAgent: "on-the-road-test/1.0",
+      contact: "test@example.com",
       language: "en",
       fetch: async () => {
-        hereCalls += 1;
-        return Response.json({ items: [] });
+        nominatimCalls += 1;
+        return Response.json([]);
       },
     });
-    const hybrid = createHybridGeocoder({ amap, here });
+    const hybrid = createHybridGeocoder({ amap, nominatim });
 
     await expect(hybrid.search({
       query: "上海",
@@ -168,12 +202,12 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
       provider: "amap",
       retryable: false,
     });
-    expect(hereCalls).toBe(0);
+    expect(nominatimCalls).toBe(0);
   });
 
-  test("hybrid cache keys isolate deterministic AMAP and HERE routing contexts", async () => {
+  test("hybrid cache keys isolate deterministic AMAP and Nominatim routing contexts", async () => {
     let amapCalls = 0;
-    let hereCalls = 0;
+    let nominatimCalls = 0;
     const hybrid = createHybridGeocoder({
       amap: createAmapGeocoder({
         profile: "cn-primary",
@@ -184,13 +218,14 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
           return Response.json({ status: "1", pois: [] });
         },
       }),
-      here: createHereGeocoder({
-        profile: "commercial-required",
-        apiKey: "here-key",
+      nominatim: createNominatimGeocoder({
+        profile: "public-online",
+        userAgent: "on-the-road-test/1.0",
+        contact: "test@example.com",
         language: "en",
         fetch: async () => {
-          hereCalls += 1;
-          return Response.json({ items: [] });
+          nominatimCalls += 1;
+          return Response.json([]);
         },
       }),
     });
@@ -204,6 +239,6 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
     await cached.search({ query: "Central", context: { countryCodes: ["chn"] } });
     await cached.search({ query: "Central", context: { countryCodes: ["USA"] } });
     await cached.search({ query: "Central", context: { countryCodes: ["usa"] } });
-    expect({ amapCalls, hereCalls }).toEqual({ amapCalls: 1, hereCalls: 1 });
+    expect({ amapCalls, nominatimCalls }).toEqual({ amapCalls: 1, nominatimCalls: 1 });
   });
 });

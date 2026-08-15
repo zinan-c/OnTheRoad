@@ -14,6 +14,39 @@ Archive the full SHA, workflow run, environment, image versions, timestamps,
 approvers, and machine-readable results. A skipped, blocked, stale-SHA, or
 partially completed workflow is not release evidence.
 
+## Online map runtime gate
+
+This gate applies to the current post-M4 architecture. HERE is not an accepted
+Provider. `dev`, `qa`, and `prod` use online map runtime by default; CI
+required-case runs remain fixture-backed and do not replace this gate.
+
+- [ ] `international_primary` resolves search/reverse through public Nominatim;
+      `hybrid` uses AMAP in China and Nominatim overseas.
+- [ ] `dev`, `qa`, and `prod` each have an endpoint smoke record for search,
+      reverse, tile readiness and Directions readiness.
+- [ ] Nominatim requests go through the API proxy with a stable User-Agent,
+      contact information, application-wide rate limit and cache.
+- [ ] No autocomplete request is generated; public Nominatim is not used for
+      regular batch geocoding or periodic synthetic traffic.
+- [ ] Online tile URL, attribution, User-Agent/Referer and cache behavior are
+      validated; no public tile prefetch or offline archive is enabled.
+- [ ] Directions uses an independent non-HERE endpoint and a real Worker →
+      Route API → MapLibre smoke has passed. Nominatim is not treated as a
+      routing service.
+- [ ] Tile/Directions/Nominatim failure produces an explicit degraded,
+      pending or manual state and never silently rewrites `mapProfile` or
+      claims a real route.
+- [ ] PDF/static-map tile hosts are allowlisted and the renderer does not
+      bulk-prefetch public tiles.
+- [ ] Provider logs, metrics and release artifacts contain no address text,
+      query parameters, credentials or signed URLs.
+- [ ] HERE configuration, secrets and active provider registry entries are
+      absent; historical HERE mentions are labeled as historical evidence.
+
+Any unchecked item blocks production release. The detailed decision and
+implementation sequence are in [`ADR-003`](../adr/003-online-nominatim-map-runtime.md)
+and [`nominatim-online-plan.md`](../reports/nominatim-online-plan.md).
+
 ## A02 Compose parity gate
 
 This section is mandatory before the first production release whenever the

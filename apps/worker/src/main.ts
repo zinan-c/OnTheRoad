@@ -28,18 +28,36 @@ import { createFixtureProvider } from "@on-the-road/providers";
 import { PostgresGeocodingBatchProcessor } from "./processors/geocoding/postgres-batch-processor.js";
 import {
   createFixtureGeocoder,
+  GeocoderError,
   PolicyGeocoder,
   RedisGeocodingStateStore,
+  type Geocoder,
 } from "@on-the-road/providers/geocoding";
+
+function disabledOnlineBatchGeocoder(
+  provider: "amap" | "nominatim" | "hybrid",
+): Geocoder {
+  const blocked = () => {
+    throw new GeocoderError(
+      "PROVIDER_TRIGGER_UNSUPPORTED",
+      "Online map profiles do not support batch geocoding",
+      { provider, source: "client" },
+    );
+  };
+  return {
+    provider,
+    profile: "online-batch-disabled",
+    capabilities: () => ({ search: true, reverse: true, autocomplete: false, fuzzy: false }),
+    async search() { blocked(); return []; },
+    async reverse() { blocked(); return null; },
+  };
+}
 
 export async function startWorker(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
   const config = loadProcessConfig("worker", environment);
   if (!config.server) throw new Error("Worker server configuration is required.");
-  if (config.map.profile !== "fixture") {
-    throw new Error(`DIRECTIONS_PROVIDER_UNAVAILABLE:${config.map.profile}`);
-  }
   const provider = createFixtureProvider();
   const eventProcessor = new PostgresEventProcessor(
     config.server.databaseUrl.href,
@@ -52,9 +70,17 @@ export async function startWorker(
   const workRedis = new Redis(config.server.redisUrl.href, {
     maxRetriesPerRequest: null,
   });
-  const geocoder = new PolicyGeocoder(
-    createFixtureGeocoder({ profile: "fixture-cn" }),
-    {
+  const rawGeocoder = config.map.profile === "fixture"
+    ? createFixtureGeocoder({ profile: "fixture-cn" })
+    : disabledOnlineBatchGeocoder(
+      config.map.profile === "cn_primary"
+        ? "amap"
+        : config.map.profile === "hybrid"
+          ? "hybrid"
+          : "nominatim",
+    );
+  const geocoder = config.map.profile === "fixture"
+    ? new PolicyGeocoder(rawGeocoder, {
       store: new RedisGeocodingStateStore({
         get: (key) => workRedis.get(key),
         set: (key, value, options) => workRedis.set(key, value, "EX", options.EX),
@@ -68,8 +94,8 @@ export async function startWorker(
       cacheTtlSeconds: 86_400,
       bucket: { capacity: 10, refillPerSecond: 2 },
       maxRetries: 2,
-    },
-  );
+    })
+    : rawGeocoder;
   const controlRedis = new Redis(config.server.redisUrl.href);
   const importRepository = new PostgresImportInspectRepository(config.server.databaseUrl.href);
   const staging = new PostgresImportStagingProcessor(config.server.databaseUrl.href, {
@@ -131,7 +157,7 @@ export async function startWorker(
   const geocoding = new PostgresGeocodingBatchProcessor({
     databaseUrl: config.server.databaseUrl.href,
     geocoder: {
-      provider: "fixture",
+      provider: geocoder.provider,
       profile: "fixture-cn",
       capabilities: () => geocoder.capabilities(),
       search: (request) => geocoder.search(request),

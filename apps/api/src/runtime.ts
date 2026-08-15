@@ -10,6 +10,7 @@ import { PostgresExecutor } from "@on-the-road/database/postgres";
 import { CandidateTokenSigner } from "@on-the-road/domain/location";
 import { CoordinateAdjustmentService } from "@on-the-road/application/location";
 import { IMPORT_CONTENT_TYPES, S3ObjectStorage } from "@on-the-road/storage";
+import { RedisGeocodingStateStore } from "@on-the-road/providers/geocoding";
 
 import { AttachmentGalleryService, AttachmentUploadService, PostgresAttachmentRepository } from "./modules/attachments/index.mjs";
 import { ExpenseService, PostgresExpenseRepository } from "./modules/expenses/index.mjs";
@@ -186,7 +187,32 @@ export function createProductionRuntime(
       new PostgresCoordinateRepository({ locationRepository }),
     ),
   );
-  const locationSearch = createConfiguredLocationSearchApi(environment);
+  const geocodingStore = new RedisGeocodingStateStore({
+    get: (key) => redis.get(key),
+    set: (key, value, options) => redis.set(key, value, "EX", options.EX),
+    eval: (script, options) => redis.eval(
+      script,
+      options.keys.length,
+      ...options.keys,
+      ...options.arguments,
+    ),
+  });
+  const onlineProfile = config.map.profile !== "fixture";
+  const publicProvider = config.map.profile === "cn_primary" ? "amap" : "nominatim";
+  const locationSearch = createConfiguredLocationSearchApi(environment, {
+    ...(onlineProfile ? {
+      policy: {
+        store: geocodingStore,
+        cacheTtlSeconds: config.map.nominatim.cacheTtlSeconds,
+        bucket: {
+          capacity: 1,
+          refillPerSecond: config.map.nominatim.rateLimitRps,
+        },
+        bucketKey: publicProvider,
+        maxRetries: 1,
+      },
+    } : {}),
+  });
   const expenses = new ExpenseService(new PostgresExpenseRepository({ executor: database }));
   const storage = new S3ObjectStorage({
     endpoint: server.storage.endpoint.href,
@@ -222,6 +248,7 @@ export function createProductionRuntime(
     database,
     queue: redis,
     provider: locationSearch.capabilities().provider,
+    batchEnabled: config.map.profile === "fixture",
   });
   const importUnresolved = new PostgresImportUnresolvedLocationService({
     database,

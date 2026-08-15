@@ -4,7 +4,7 @@ import type { Geocoder, GeocodingSearchRequest } from "./types.js";
 
 export interface HybridGeocoderOptions {
   readonly amap: Geocoder;
-  readonly here: Geocoder;
+  readonly nominatim: Geocoder;
 }
 
 function isChinaCountryCode(code: string): boolean {
@@ -13,7 +13,7 @@ function isChinaCountryCode(code: string): boolean {
 
 function searchProvider(options: HybridGeocoderOptions, request: GeocodingSearchRequest): Geocoder {
   const countries = request.context?.countryCodes ?? [];
-  return countries.some(isChinaCountryCode) ? options.amap : options.here;
+  return countries.some(isChinaCountryCode) ? options.amap : options.nominatim;
 }
 
 function reverseProvider(options: HybridGeocoderOptions, point: Wgs84Point): Geocoder {
@@ -21,14 +21,14 @@ function reverseProvider(options: HybridGeocoderOptions, point: Wgs84Point): Geo
     && point.longitude <= 137.8347
     && point.latitude >= 0.8293
     && point.latitude <= 55.8271;
-  return inChinaBounds ? options.amap : options.here;
+  return inChinaBounds ? options.amap : options.nominatim;
 }
 
 export function createHybridGeocoder(options: HybridGeocoderOptions): Geocoder {
-  if (options.amap.provider !== "amap" || options.here.provider !== "here") {
+  if (options.amap.provider !== "amap" || options.nominatim.provider !== "nominatim") {
     throw new GeocoderError(
       "PROVIDER_PROFILE_UNSUPPORTED",
-      "Hybrid profile requires explicit AMAP and HERE adapters",
+      "Hybrid profile requires explicit AMAP and Nominatim adapters",
       { provider: "hybrid" },
     );
   }

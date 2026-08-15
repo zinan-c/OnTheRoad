@@ -1,5 +1,9 @@
 # M3 R&D final closure review
 
+> Historical provider note: the real HERE Routing credential/network statement
+> below belongs to the M3 release boundary. It is retained as evidence and is
+> superseded as a current choice by [`ADR-003`](../adr/003-online-nominatim-map-runtime.md).
+
 - Review date: **2026-08-08 (Asia/Shanghai)**
 - Review role: **M3 R&D / Milestone DRI and automated QA evidence reviewer**
 - Product acceptance: `docs/reports/m3-product-acceptance.md`
@@ -50,8 +54,10 @@ refer to an older or dirty source tree.
 
 No open Critical or High security/privacy finding was identified in the M3
 scope. This is a Dev Track threat review, not production release authorization.
-Real HERE Routing credentials/network behavior, Staging IdP, and Compose/Linux
-parity remain release checklist requirements.
+At the M3 checkpoint, real HERE Routing credentials/network behavior, Staging
+IdP, and Compose/Linux parity remained release checklist requirements. The HERE
+reference is historical; current online Directions selection is governed by
+ADR-003.
 
 ## Observability review
 

@@ -1,10 +1,12 @@
 # A09 MapLibre Spike Go/No-Go 报告
 
+> 历史范围说明：本报告只证明本地 fixture tile、MapLibre 交互和无底图降级。它不证明 dev/qa/prod 的在线瓦片、公共 Nominatim 或在线 Directions 已接通；post-M4 在线地图目标见 [`ADR-003`](../adr/003-online-nominatim-map-runtime.md)。
+
 ## 结论
 
 **GO：MapLibre 6.0.0 在当前 macOS 固定环境中完成点选、Marker 移动、fit bounds、四种路线样式及无底图/WebGL 降级验证。**
 
-本结论仅覆盖 M0 本地 Spike，不包含生产底图、真实路线、外部 tile SLA 或其他操作系统兼容性。
+本结论仅覆盖 M0 本地 Spike，不包含生产底图、真实路线、外部 tile SLA 或其他操作系统兼容性。在线瓦片仍需执行 allowlist、attribution、cache、超时和不预取的环境 smoke。
 
 ## Gate 证据
 

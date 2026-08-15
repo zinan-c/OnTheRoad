@@ -15,15 +15,23 @@ export class ImportGeocodeError extends Error {
  * import-location staging records, so a retry never creates a formal Location.
  */
 export class PostgresImportGeocodeService {
-  /** @param {{database: import("@on-the-road/database/postgres").PostgresExecutor, queue?: any, provider?: string}} options */
-  constructor({ database, queue, provider = "fixture" }) {
+  /** @param {{database: import("@on-the-road/database/postgres").PostgresExecutor, queue?: any, provider?: string, batchEnabled?: boolean}} options */
+  constructor({ database, queue, provider = "fixture", batchEnabled = true }) {
     this.database = database;
     this.queue = queue;
     this.provider = provider;
+    this.batchEnabled = batchEnabled;
   }
 
   /** @param {string} ownerId @param {string} jobId */
   async start(ownerId, jobId) {
+    if (!this.batchEnabled) {
+      throw new ImportGeocodeError(
+        "IMPORT_GEOCODE_DISABLED",
+        "Batch geocoding is disabled for the online map profile.",
+        409,
+      );
+    }
     const batch = await this.database.transaction(async (client) => {
       const job = (await client.query(
         `SELECT j.id, j.trip_id, j.owner_id, j.status, t.map_profile

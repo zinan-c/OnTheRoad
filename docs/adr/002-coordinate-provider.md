@@ -1,8 +1,10 @@
-# ADR-002：坐标系与地理编码 Provider
+# ADR-002：坐标系与地理编码 Provider（历史决策）
 
-- 状态：Accepted for M0
+- 状态：Superseded by [`ADR-003`](./003-online-nominatim-map-runtime.md) on 2026-08-14
 - 日期：2026-07-26
 - Task：A08
+
+> 本文保留 M0 期间实际评估和验证过的 HERE 决策，作为历史证据；它不再定义当前生产 Provider。当前实现目标、环境和地图运行时以 ADR-003 为准。
 
 ## 决策
 
@@ -29,7 +31,7 @@
 
 3 m 是契约/转换误差门槛，不代表上游测绘数据本身的定位精度。
 
-## HERE 行为
+## 历史 HERE 行为（M0）
 
 - 无 bbox 的正向查询使用 `/v1/geocode`；严格 bbox 查询使用 `/v1/discover`；反查使用 `/v1/revgeocode`。adapter 不猜测或重写主机；
 - API Key 必填，只从运行时机密配置读取，禁止写入仓库、日志、报告或缓存键；
@@ -43,10 +45,14 @@
 
 缓存键包含 provider、profile、language、规范化 query、country codes 和 viewbox，避免不同策略/上下文串用。
 
-## 离线与 Plan B
+## 离线与 Plan B（历史 M0 口径）
 
 CI 仅使用进程内 HERE Fetch contract fixture，其响应来自 A12 `minimal-five-day@1`，不打开 socket、不访问公共地图服务。底图/搜索不可用时启用 fixture Provider、显式地图点选或手工 WGS84 坐标，并显示降级说明；路线只能标为示意。不得静默切换或静默选中。
 
 真实 HERE smoke 必须单独获得网络批准并通过 `OTR_HERE_API_KEY` 注入凭据，且只执行一个 `limit=1` 的显式查询。它不是 CI required check。
 
 合规审查入口：[HERE General Content Supplier Terms and Notices](https://www.here.com/en-us/terms/general-content-supplier-terms-and-notices)。M0 的静态来源标识只证明 adapter 不丢失 Provider 身份，不替代上线前针对实际账户、地区和展示方式的法律审查。
+
+## 当前决策边界
+
+HERE 不再作为 `cn_primary`、`international_primary`、`hybrid` 或 Directions 的当前候选。迁移后的在线搜索/反查、瓦片、路径规划、dev/qa/prod 运行逻辑和公共 Nominatim 政策见 [`ADR-003`](./003-online-nominatim-map-runtime.md)。

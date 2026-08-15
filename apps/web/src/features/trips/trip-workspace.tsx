@@ -86,7 +86,11 @@ function TripDayRail({
   </aside>;
 }
 
-export function TripWorkspace({ tripId }: { readonly tripId: string }) {
+export function TripWorkspace({ tripId, showMapTimeline = false, showItineraryPanel = false }: {
+  readonly tripId: string;
+  readonly showMapTimeline?: boolean;
+  readonly showItineraryPanel?: boolean;
+}) {
   const [days, setDays] = useState<Day[]>([]);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [tripTransportModes, setTripTransportModes] = useState<TransportModeView[]>([]);
@@ -130,17 +134,18 @@ export function TripWorkspace({ tripId }: { readonly tripId: string }) {
           refreshVersion={routeRefreshVersion}
           selectedDayId={selectedDayId}
           onSelectGlobalMap={() => setSelectedDayId(null)}
+          showTimeline={showMapTimeline}
           compact
         />
-        <ItineraryPanel
-          tripId={tripId}
-          selectedDayId={selectedDayId}
-          onSelectedDayChange={setSelectedDayId}
-          onTransportModesChange={setTripTransportModes}
-          onItemsChange={handleItemsChange}
-          onRoutesInvalidated={() => setRouteRefreshVersion((version) => version + 1)}
-          variant="workspace"
-        />
+        {showItineraryPanel && selectedDayId !== null ? <ItineraryPanel
+            tripId={tripId}
+            selectedDayId={selectedDayId}
+            onSelectedDayChange={setSelectedDayId}
+            onTransportModesChange={setTripTransportModes}
+            onItemsChange={handleItemsChange}
+            onRoutesInvalidated={() => setRouteRefreshVersion((version) => version + 1)}
+            variant="workspace"
+          /> : null}
       </div>
     </section>
     <ExpenseWorkspace
