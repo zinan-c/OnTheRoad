@@ -239,6 +239,14 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "Worker" "\$\{WORKER_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "PDF Worker" "\$\{PDF_WORKER_PID\}"/);
+  assert.match(localCi, /run-profile\.sh dev -- node apps\/api\/dist\/main\.js/);
+  assert.match(localCi, /run-profile\.sh dev -- node apps\/worker\/dist\/main\.js/);
+  assert.match(localCi, /run-profile\.sh dev -- node apps\/pdf-worker\/dist\/main\.js/);
+  assert.doesNotMatch(
+    localCi,
+    /profile:dev -- pnpm --filter @on-the-road\/(?:api|worker|pdf-worker) start/,
+  );
+  assert.match(localCi, /wait "\$\{runtime_pid\}"/);
   assert.match(localCi, /otr:pdf-worker:heartbeat:\*/);
   assert.match(
     testWorkflow,

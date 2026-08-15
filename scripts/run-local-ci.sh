@@ -9,16 +9,19 @@ API_PID=""
 WORKER_PID=""
 PDF_WORKER_PID=""
 
+stop_runtime() {
+  local runtime_pid="$1"
+  if [[ -z "${runtime_pid}" ]]; then
+    return
+  fi
+  kill "${runtime_pid}" 2>/dev/null || true
+  wait "${runtime_pid}" 2>/dev/null || true
+}
+
 cleanup() {
-  if [[ -n "${API_PID}" ]]; then
-    kill "${API_PID}" 2>/dev/null || true
-  fi
-  if [[ -n "${WORKER_PID}" ]]; then
-    kill "${WORKER_PID}" 2>/dev/null || true
-  fi
-  if [[ -n "${PDF_WORKER_PID}" ]]; then
-    kill "${PDF_WORKER_PID}" 2>/dev/null || true
-  fi
+  stop_runtime "${API_PID}"
+  stop_runtime "${WORKER_PID}"
+  stop_runtime "${PDF_WORKER_PID}"
   if [[ "${STACK_STARTED}" -eq 1 ]]; then
     bash "${SCRIPT_DIR}/dev-down.sh" --track compose
   fi
@@ -112,13 +115,13 @@ pnpm exec turbo run build \
   --filter=@on-the-road/api \
   --filter=@on-the-road/worker \
   --filter=@on-the-road/pdf-worker
-pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
+bash scripts/run-profile.sh dev -- node apps/api/dist/main.js \
   > test-results/m4-api.log 2>&1 &
 API_PID=$!
-pnpm run profile:dev -- pnpm --filter @on-the-road/worker start \
+bash scripts/run-profile.sh dev -- node apps/worker/dist/main.js \
   > test-results/m4-worker.log 2>&1 &
 WORKER_PID=$!
-pnpm run profile:dev -- pnpm --filter @on-the-road/pdf-worker start \
+bash scripts/run-profile.sh dev -- node apps/pdf-worker/dist/main.js \
   > test-results/m4-pdf-worker.log 2>&1 &
 PDF_WORKER_PID=$!
 API_ORIGIN="$(bash scripts/run-profile.sh dev -- node -e \
