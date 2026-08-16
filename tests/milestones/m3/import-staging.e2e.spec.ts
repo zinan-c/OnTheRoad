@@ -77,88 +77,91 @@ async function seedImport(db: PostgresExecutor) {
   const itemId = randomUUID();
   const attachmentId = randomUUID();
   const jobId = randomUUID();
-  await db.query(
-    `INSERT INTO trip (
-       id, owner_id, name, start_date, end_date, default_currency, timezone
-     ) VALUES (
-       $1::uuid, $2, 'M3 import isolation',
-       '2026-10-01', '2026-10-01', 'CNY', 'Asia/Shanghai'
-     )`,
-    [tripId, ownerId],
-  );
-  const dayId = (await db.query<{ id: string }>(
-    "SELECT id FROM trip_day WHERE trip_id = $1::uuid",
-    [tripId],
-  )).rows[0]!.id;
-  await db.query(
-    `INSERT INTO location (
-       id, trip_id, owner_id, input_text, name, geom,
-       provider, source_crs, geocoding_status
-     ) VALUES (
-       $1::uuid, $2::uuid, $3, 'Formal item', 'Formal item',
-       ST_SetSRID(ST_MakePoint(121.47, 31.23), 4326),
-       'fixture', 'EPSG:4326', 'resolved'
-     )`,
-    [locationId, tripId, ownerId],
-  );
-  await db.query(
-    `INSERT INTO itinerary_item (
-       id, trip_id, owner_id, trip_day_id, item_type, time_kind,
-       target, location_id, sort_order
-     ) VALUES (
-       $1::uuid, $2::uuid, $3, $4::uuid, 'attraction', 'unscheduled',
-       'Formal item', $5::uuid, 1024
-     )`,
-    [itemId, tripId, ownerId, dayId, locationId],
-  );
-  await db.query(
-    `INSERT INTO attachment (
-       id, trip_id, owner_id, object_key, expected_content_type,
-       expected_content_length, expected_checksum_sha256, expires_at,
-       purpose, source_filename
-     ) VALUES (
-       $1::uuid, $2::uuid, $3, $4,
-       'text/csv', 1, $5, now() + interval '1 hour',
-       'import_source', 'm3.csv'
-     )`,
-    [
-      attachmentId,
-      tripId,
-      ownerId,
-      `attachments/${"b".repeat(32)}/${attachmentId.replaceAll("-", "")}`,
-      `${"A".repeat(43)}=`,
-    ],
-  );
-  await db.query(
-    `INSERT INTO import_job (
-       id, trip_id, owner_id, source_attachment_id, source_sha256,
-       importer_type, importer_version, mapping, mapping_hash,
-       mapping_version, status, stage
-     ) VALUES (
-       $1::uuid, $2::uuid, $3, $4::uuid,
-       repeat('a', 64), 'csv', '1.0.0',
-       '{"Day":"Day","Target":"Target"}'::jsonb,
-       repeat('b', 64), 1, 'validating', 'validating'
-     )`,
-    [jobId, tripId, ownerId, attachmentId],
-  );
-  await db.query(
-    `INSERT INTO import_row (
-       import_job_id, sheet_name, row_number, source_row_key, raw_data
-     )
-     SELECT $1::uuid, 'Itinerary', source.index + 1,
-            'Itinerary:' || (source.index + 1),
-            CASE WHEN source.index = 5000
-              THEN '{"Day":"0"}'::jsonb
-              ELSE jsonb_build_object(
-                'Day', '1',
-                'Target', 'Item ' || source.index
-              )
-            END
-     FROM generate_series(1, 5000) AS source(index)`,
-    [jobId],
-  );
-  return { tripId, jobId };
+  // The live Worker must not observe a stageable job before all source rows exist.
+  return db.transaction(async (client) => {
+    await client.query(
+      `INSERT INTO trip (
+         id, owner_id, name, start_date, end_date, default_currency, timezone
+       ) VALUES (
+         $1::uuid, $2, 'M3 import isolation',
+         '2026-10-01', '2026-10-01', 'CNY', 'Asia/Shanghai'
+       )`,
+      [tripId, ownerId],
+    );
+    const dayId = (await client.query<{ id: string }>(
+      "SELECT id FROM trip_day WHERE trip_id = $1::uuid",
+      [tripId],
+    )).rows[0]!.id;
+    await client.query(
+      `INSERT INTO location (
+         id, trip_id, owner_id, input_text, name, geom,
+         provider, source_crs, geocoding_status
+       ) VALUES (
+         $1::uuid, $2::uuid, $3, 'Formal item', 'Formal item',
+         ST_SetSRID(ST_MakePoint(121.47, 31.23), 4326),
+         'fixture', 'EPSG:4326', 'resolved'
+       )`,
+      [locationId, tripId, ownerId],
+    );
+    await client.query(
+      `INSERT INTO itinerary_item (
+         id, trip_id, owner_id, trip_day_id, item_type, time_kind,
+         target, location_id, sort_order
+       ) VALUES (
+         $1::uuid, $2::uuid, $3, $4::uuid, 'attraction', 'unscheduled',
+         'Formal item', $5::uuid, 1024
+       )`,
+      [itemId, tripId, ownerId, dayId, locationId],
+    );
+    await client.query(
+      `INSERT INTO attachment (
+         id, trip_id, owner_id, object_key, expected_content_type,
+         expected_content_length, expected_checksum_sha256, expires_at,
+         purpose, source_filename
+       ) VALUES (
+         $1::uuid, $2::uuid, $3, $4,
+         'text/csv', 1, $5, now() + interval '1 hour',
+         'import_source', 'm3.csv'
+       )`,
+      [
+        attachmentId,
+        tripId,
+        ownerId,
+        `attachments/${"b".repeat(32)}/${attachmentId.replaceAll("-", "")}`,
+        `${"A".repeat(43)}=`,
+      ],
+    );
+    await client.query(
+      `INSERT INTO import_job (
+         id, trip_id, owner_id, source_attachment_id, source_sha256,
+         importer_type, importer_version, mapping, mapping_hash,
+         mapping_version, status, stage
+       ) VALUES (
+         $1::uuid, $2::uuid, $3, $4::uuid,
+         repeat('a', 64), 'csv', '1.0.0',
+         '{"Day":"Day","Target":"Target"}'::jsonb,
+         repeat('b', 64), 1, 'validating', 'validating'
+       )`,
+      [jobId, tripId, ownerId, attachmentId],
+    );
+    await client.query(
+      `INSERT INTO import_row (
+         import_job_id, sheet_name, row_number, source_row_key, raw_data
+       )
+       SELECT $1::uuid, 'Itinerary', source.index + 1,
+              'Itinerary:' || (source.index + 1),
+              CASE WHEN source.index = 5000
+                THEN '{"Day":"0"}'::jsonb
+                ELSE jsonb_build_object(
+                  'Day', '1',
+                  'Target', 'Item ' || source.index
+                )
+              END
+       FROM generate_series(1, 5000) AS source(index)`,
+      [jobId],
+    );
+    return { tripId, jobId };
+  });
 }
 
 async function formalCounts(db: PostgresExecutor, tripId: string) {
