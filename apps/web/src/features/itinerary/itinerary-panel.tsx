@@ -769,6 +769,7 @@ export function ItineraryPanel({
 
   const editorForm = editorOpen ? <form className="itemEditorForm" aria-label={editing ? "Edit item" : "Add item"} data-testid="item-editor" onSubmit={(event) => { event.preventDefault(); void save(); }}>
     <header><h3>{editing ? "Edit item" : `Add ${draft.kind}`}</h3><button type="button" data-testid="item-editor-close" onClick={closeEditor}>Cancel</button></header>
+    <footer><button className="primary" type="submit" data-testid="save-item-button" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" data-testid="item-editor-cancel" disabled={status === "saving"} onClick={closeEditor}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
     <label>Item type<select aria-label="Item type" value={draft.kind} onChange={(event) => {
       const kind = event.target.value as ItemKind;
       update("kind", kind);
@@ -806,7 +807,6 @@ export function ItineraryPanel({
     <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
     <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input id="item-expense-amount" inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<select id="item-expense-currency" value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value)}>{currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select></label></div><label>Expense remark<input id="item-expense-remark" value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
     <label className="itemNotesField"><span>Notes</span><textarea rows={6} value={draft.notes} onChange={(event) => update("notes", event.target.value)} /></label>
-    <footer><button className="primary" type="submit" data-testid="save-item-button" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Save item"}</button><button className="secondary" type="button" data-testid="item-editor-cancel" disabled={status === "saving"} onClick={closeEditor}>Cancel</button><span role="status">{status === "dirty" ? "Unsaved changes" : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Save failed" : ""}</span></footer>
   </form> : null;
 
   const deleteDialog = deleteCandidate ? <div className="workspaceDialogBackdrop" role="presentation">
