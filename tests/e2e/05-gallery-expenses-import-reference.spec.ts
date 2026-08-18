@@ -160,8 +160,8 @@ test("E2E-020 — Three-format import, mapping and staging preview", async ({ pa
     };
     page.on("request", onRequest);
     await fileInput.setInputFiles(fixture);
-    await expect(workspace.getByRole("status")).toContainText(/正在创建上传会话|正在上传文件|正在扫描并检查文件/u, { timeout: 15_000 });
-    await expect(workspace.getByRole("status")).toContainText("已生成真实 ImportJob", { timeout: 120_000 });
+    await expect(workspace.getByRole("status").filter({ hasText: /正在创建上传会话|正在上传文件|正在扫描并检查文件/u })).toBeVisible({ timeout: 15_000 });
+    await expect(workspace.getByRole("status").filter({ hasText: "已生成真实 ImportJob" })).toBeVisible({ timeout: 120_000 });
     page.off("request", onRequest);
     expect(observed).toEqual({ session: true, objectUpload: true, inspection: true });
 

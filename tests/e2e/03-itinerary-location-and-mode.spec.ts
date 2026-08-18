@@ -82,7 +82,7 @@ test("E2E-009 — Complete Itinerary Item type and field matrix", async ({ page 
 test("E2E-010 — Item edit, autosave and reload", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-010", "autosave") });
   const itemId = await createSimpleItem(page, "待编辑景点", { kind: "attraction" });
-  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary", exact: true }).count() > 0;
   let editor = await openItem(page, itemId);
   await editor.getByLabel("Item name").fill("外滩日出");
   await expect(editor.locator("footer").getByRole("status")).toHaveText("Unsaved changes");
@@ -132,8 +132,8 @@ test("E2E-010 — Item edit, autosave and reload", async ({ page }) => {
 test("E2E-011 — Copy, edit copied Item and soft delete", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-011", "copy-delete") });
   const breakfastId = await createSimpleItem(page, "早餐", { kind: "dining", day: 1 });
-  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
-  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary", exact: true }).count() > 0;
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();
   const copyResponse = page.waitForResponse((response) => response.request().method() === "POST"
     && response.url().endsWith(`/itinerary-items/${breakfastId}/copy`));
   await page.locator(`#itinerary-item-copy-${breakfastId}`).selectOption({ label: "Day 2" });
@@ -151,7 +151,7 @@ test("E2E-011 — Copy, edit copied Item and soft delete", async ({ page }) => {
 
   await selectDay(page, 1);
   if (workspaceMode) {
-    await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+    await page.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();
     await page.locator(`#itinerary-item-delete-${breakfastId}`).click();
     await page.getByRole("dialog", { name: "Delete item?" }).getByRole("button", { name: "Confirm delete" }).click();
     await expect(page.locator(`[data-item-id="${breakfastId}"]`)).toHaveCount(0);
@@ -172,8 +172,8 @@ test("E2E-011 — Copy, edit copied Item and soft delete", async ({ page }) => {
 test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ page, browser }) => {
   const tripId = await createTrip(page, { name: caseName("E2E-012", "reorder") });
   for (const target of ["A", "B", "C", "D"]) await createSimpleItem(page, target, { kind: "attraction" });
-  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
-  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary", exact: true }).count() > 0;
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();
   await dragBefore(page, "B", "A");
   await dragBefore(page, "D", "C");
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["B", "A", "D", "C"]);
@@ -185,7 +185,7 @@ test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ p
   }
   await page.reload();
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["B", "A", "D", "C"]);
-  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();
   const keyboardReorder = workspaceMode ? undefined : page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/itinerary-items/reorder"));
   await page.getByRole("button", { name: "Move D up" }).click();
@@ -206,7 +206,7 @@ test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ p
   await mobile.getByRole("button", { name: "Sign in again" }).click();
   if (workspaceMode) {
     await selectDay(mobile, 1);
-    await mobile.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+    await mobile.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();
   } else {
     await expect(mobile.getByRole("button", { name: "Edit B" })).toBeVisible();
   }

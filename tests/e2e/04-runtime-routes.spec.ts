@@ -86,8 +86,8 @@ test("E2E-017 — Cross-day and transport-internal route matrix", async ({ page 
   await expect(routeList).toContainText("B → C");
   await expect(routeList).toContainText("D → D");
   await selectDay(page, 1);
-  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
-  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary", exact: true }).count() > 0;
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Move B up" }).click();
   await expect(page.getByRole("status").filter({ hasText: "B moved to position 1" })).toBeVisible();
   if (workspaceMode) {

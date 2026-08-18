@@ -32,7 +32,7 @@ export async function createTrip(page: Page, input: TripInput): Promise<string> 
 }
 
 export async function selectDay(page: Page, dayNumber: number): Promise<void> {
-  let workspace = page.getByRole("region", { name: "Daily itinerary" });
+  let workspace = page.getByRole("region", { name: "Daily itinerary", exact: true });
   let loaded: Promise<import("@playwright/test").Response> | undefined;
   const railDay = page.getByRole("complementary", { name: "Trip days" })
     .getByRole("button", { name: new RegExp(`^Day ${dayNumber},`, "u") });
@@ -40,7 +40,7 @@ export async function selectDay(page: Page, dayNumber: number): Promise<void> {
     loaded = page.waitForResponse((response) => response.request().method() === "GET"
       && /\/days\/[0-9a-f-]+\/itinerary-items$/u.test(new URL(response.url()).pathname));
     await railDay.click();
-    workspace = page.getByRole("region", { name: "Daily itinerary" });
+    workspace = page.getByRole("region", { name: "Daily itinerary", exact: true });
   } else if (await railDay.getAttribute("aria-pressed") !== "true") {
     loaded = page.waitForResponse((response) => response.request().method() === "GET"
       && /\/days\/[0-9a-f-]+\/itinerary-items$/u.test(new URL(response.url()).pathname));
@@ -158,7 +158,7 @@ export async function openItem(page: Page, itemId: string): Promise<Locator> {
     await expect(card).toBeVisible();
     const itemEdit = card.getByRole("button", { name: /^Item edit /u });
     if (await itemEdit.count() === 0) {
-      const workspace = page.getByRole("region", { name: "Daily itinerary" });
+      const workspace = page.getByRole("region", { name: "Daily itinerary", exact: true });
       await workspace.getByRole("button", { name: "Edit", exact: true }).click();
     }
     await card.getByRole("button", { name: /^Item edit /u }).click();
@@ -171,7 +171,7 @@ export async function openItem(page: Page, itemId: string): Promise<Locator> {
 export async function waitForAutosave(editor: Locator): Promise<void> {
   await expect(editor.locator("footer").getByRole("status")).toHaveText("Unsaved changes");
   await editor.getByRole("button", { name: "Save item" }).click();
-  if (await editor.page().getByRole("region", { name: "Daily itinerary" }).count() > 0) {
+  if (await editor.page().getByRole("region", { name: "Daily itinerary", exact: true }).count() > 0) {
     await expect(editor).toHaveCount(0);
   } else {
     await expect(editor.locator("footer").getByRole("status")).toHaveText("Saved");
@@ -179,7 +179,7 @@ export async function waitForAutosave(editor: Locator): Promise<void> {
 }
 
 export async function timelineLabels(page: Page, dayNumber: number): Promise<string[]> {
-  const workspace = page.getByRole("region", { name: "Daily itinerary" });
+  const workspace = page.getByRole("region", { name: "Daily itinerary", exact: true });
   let workspaceTimeline = workspace
     .getByRole("list", { name: `Day ${dayNumber} itinerary` });
   if (await workspace.count() === 0 && await page.getByRole("complementary", { name: "Trip days" }).count() > 0) {
