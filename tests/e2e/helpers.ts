@@ -108,9 +108,13 @@ export async function saveNewItem(editor: Locator): Promise<string> {
   expect(savedResponse.ok()).toBe(true);
   const saved = await savedResponse.json() as { id: string };
   const savedEditor = editor.page().getByRole("form", { name: "Edit item" });
-  await expect(savedEditor.locator("footer").getByRole("status")).toHaveText("Saved");
-  await savedEditor.getByRole("button", { name: "Cancel" }).first().click();
-  await expect(editor.page().locator(`#itinerary-item-edit-${saved.id}`)).toBeVisible();
+  if (await savedEditor.count() > 0 && await savedEditor.isVisible()) {
+    await expect(savedEditor.locator("footer").getByRole("status")).toHaveText("Saved");
+    await savedEditor.getByRole("button", { name: "Cancel" }).first().click();
+    await expect(editor.page().locator(`#itinerary-item-edit-${saved.id}`)).toBeVisible();
+  } else {
+    await expect(editor.page().locator(`[data-item-id="${saved.id}"]`)).toBeVisible();
+  }
   return saved.id;
 }
 
@@ -142,7 +146,23 @@ export async function createSimpleItem(
 }
 
 export async function openItem(page: Page, itemId: string): Promise<Locator> {
-  await page.locator(`#itinerary-item-edit-${itemId}`).click();
+  const legacyEdit = page.locator(`#itinerary-item-edit-${itemId}`);
+  if (await legacyEdit.count() > 0) {
+    await legacyEdit.click();
+  } else {
+    let card = page.locator(`[data-item-id="${itemId}"]`);
+    if (await card.count() === 0 && await page.getByRole("complementary", { name: "Trip days" }).count() > 0) {
+      await selectDay(page, 1);
+      card = page.locator(`[data-item-id="${itemId}"]`);
+    }
+    await expect(card).toBeVisible();
+    const itemEdit = card.getByRole("button", { name: /^Item edit /u });
+    if (await itemEdit.count() === 0) {
+      const workspace = page.getByRole("region", { name: "Daily itinerary" });
+      await workspace.getByRole("button", { name: "Edit", exact: true }).click();
+    }
+    await card.getByRole("button", { name: /^Item edit /u }).click();
+  }
   const editor = page.getByRole("form", { name: "Edit item" });
   await expect(editor).toBeVisible();
   return editor;
@@ -151,10 +171,24 @@ export async function openItem(page: Page, itemId: string): Promise<Locator> {
 export async function waitForAutosave(editor: Locator): Promise<void> {
   await expect(editor.locator("footer").getByRole("status")).toHaveText("Unsaved changes");
   await editor.getByRole("button", { name: "Save item" }).click();
-  await expect(editor.locator("footer").getByRole("status")).toHaveText("Saved");
+  if (await editor.page().getByRole("region", { name: "Daily itinerary" }).count() > 0) {
+    await expect(editor).toHaveCount(0);
+  } else {
+    await expect(editor.locator("footer").getByRole("status")).toHaveText("Saved");
+  }
 }
 
 export async function timelineLabels(page: Page, dayNumber: number): Promise<string[]> {
+  const workspace = page.getByRole("region", { name: "Daily itinerary" });
+  let workspaceTimeline = workspace
+    .getByRole("list", { name: `Day ${dayNumber} itinerary` });
+  if (await workspace.count() === 0 && await page.getByRole("complementary", { name: "Trip days" }).count() > 0) {
+    await selectDay(page, dayNumber);
+    workspaceTimeline = workspace.getByRole("list", { name: `Day ${dayNumber} itinerary` });
+  }
+  if (await workspaceTimeline.count() > 0) {
+    return workspaceTimeline.locator("article[data-item-id] h3").allTextContents();
+  }
   const timeline = page.getByRole("list", { name: `Day ${dayNumber} timeline` });
   return timeline.locator(".timelineEditButton strong").allTextContents();
 }

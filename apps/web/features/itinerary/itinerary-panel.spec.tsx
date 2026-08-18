@@ -212,7 +212,7 @@ test("E2E-011 exposes copy and confirmed soft-delete operations", async () => {
   await waitFor(() => expect(screen.queryByText("早餐")).toBeNull());
 });
 
-test("workspace edit keeps drag handles, hides arrow controls, and confirms item delete", async () => {
+test("workspace edit keeps drag handles, arrow controls, and confirms item delete", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const items = [
     {
@@ -248,8 +248,8 @@ test("workspace edit keeps drag handles, hides arrow controls, and confirms item
   const firstCard = screen.getAllByTestId("itinerary-item").find((card) => card.textContent?.includes("外滩"));
   expect(firstCard).toBeTruthy();
   expect(screen.getByRole("button", { name: "Drag 外滩" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Move 外滩 up" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Move 外滩 down" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Move 外滩 up" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Move 外滩 down" })).toBeTruthy();
   expect(within(firstCard!).getByRole("button", { name: "Item edit 外滩" })).toBeTruthy();
   expect(within(firstCard!).getByRole("button", { name: "Item delete 外滩" })).toBeTruthy();
   expect(within(firstCard!).getAllByRole("button").map(({ textContent }) => textContent)).toEqual(["Item edit", "Item delete"]);

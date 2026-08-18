@@ -25,7 +25,7 @@ test("E2E-007 — Trip date extension and empty-Day contraction", async ({ page 
   await expect(page.getByRole("status")).toContainText("5 days");
   await page.getByRole("link", { name: "Back to itinerary" }).click();
   await page.reload();
-  await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
+  await expect(page.getByRole("complementary", { name: "Trip days" }).getByRole("button", { name: /^Day \d+,/u })).toHaveCount(5);
   await selectDay(page, 1);
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["Day 1 保留事项"]);
   await selectDay(page, 2);
@@ -44,7 +44,7 @@ test("E2E-007 — Trip date extension and empty-Day contraction", async ({ page 
   await expect(page.getByRole("status")).toContainText("3 days");
   await page.getByRole("link", { name: "Back to itinerary" }).click();
   await page.reload();
-  await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(3);
+  await expect(page.getByRole("complementary", { name: "Trip days" }).getByRole("button", { name: /^Day \d+,/u })).toHaveCount(3);
   await selectDay(page, 1);
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["Day 1 保留事项"]);
   await selectDay(page, 2);
@@ -93,6 +93,7 @@ test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page
   await page.locator(`#trip-card-${tripId}`).getByRole("link", { name: "Open trip" }).click();
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`, "u"));
   await page.reload();
-  await expect(page.locator(`#itinerary-item-edit-${retainedItemId}`)).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
+  await selectDay(page, 1);
+  await expect(page.locator(`[data-item-id="${retainedItemId}"]`)).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Trip days" }).getByRole("button", { name: /^Day \d+,/u })).toHaveCount(5);
 });

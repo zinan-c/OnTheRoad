@@ -66,7 +66,7 @@ function TripDayRail({
 }) {
   return <aside className="tripDayRail" aria-label="Trip days">
     <p className="eyebrow">Days</p>
-    <nav aria-label="Select itinerary scope">
+      <nav aria-label="Select day">
       <button className="tripDayAll" type="button" aria-pressed={selectedDayId === null} onClick={() => onSelect(null)}>
         <span>ALL</span>
         <small>Global map</small>

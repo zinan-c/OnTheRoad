@@ -82,7 +82,8 @@ test("E2E-009 — Complete Itinerary Item type and field matrix", async ({ page 
 test("E2E-010 — Item edit, autosave and reload", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-010", "autosave") });
   const itemId = await createSimpleItem(page, "待编辑景点", { kind: "attraction" });
-  const editor = await openItem(page, itemId);
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
+  let editor = await openItem(page, itemId);
   await editor.getByLabel("Item name").fill("外滩日出");
   await expect(editor.locator("footer").getByRole("status")).toHaveText("Unsaved changes");
   await editor.getByLabel("Description").fill("描述一");
@@ -99,6 +100,8 @@ test("E2E-010 — Item edit, autosave and reload", async ({ page }) => {
   await editor.getByLabel("Notes").fill("最终备注");
   await waitForAutosave(editor);
 
+  if (workspaceMode) editor = await openItem(page, itemId);
+
   await editor.getByLabel("Description").fill("触发离开提醒");
   let promptMessage = "";
   page.once("dialog", async (prompt) => {
@@ -109,7 +112,12 @@ test("E2E-010 — Item edit, autosave and reload", async ({ page }) => {
   expect(promptMessage).toContain("unsaved changes");
   await expect(editor).toBeVisible();
   await editor.getByLabel("Description").fill("最终描述");
-  await expect(editor.locator("footer").getByRole("status")).toHaveText("Saved");
+  if (workspaceMode) {
+    await editor.getByRole("button", { name: "Save item" }).click();
+    await expect(editor).toHaveCount(0);
+  } else {
+    await expect(editor.locator("footer").getByRole("status")).toHaveText("Saved");
+  }
   await page.reload();
   const reloaded = await openItem(page, itemId);
   await expect(reloaded.getByLabel("Description")).toHaveValue("最终描述");
@@ -124,22 +132,34 @@ test("E2E-010 — Item edit, autosave and reload", async ({ page }) => {
 test("E2E-011 — Copy, edit copied Item and soft delete", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-011", "copy-delete") });
   const breakfastId = await createSimpleItem(page, "早餐", { kind: "dining", day: 1 });
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
   const copyResponse = page.waitForResponse((response) => response.request().method() === "POST"
     && response.url().endsWith(`/itinerary-items/${breakfastId}/copy`));
   await page.locator(`#itinerary-item-copy-${breakfastId}`).selectOption({ label: "Day 2" });
   const copiedItem = await (await copyResponse).json() as { id: string };
   await selectDay(page, 2);
-  await expect(page.locator(`#itinerary-item-edit-${copiedItem.id}`)).toBeVisible();
+  if (workspaceMode) {
+    await expect(page.locator(`[data-item-id="${copiedItem.id}"]`)).toBeVisible();
+  } else {
+    await expect(page.locator(`#itinerary-item-edit-${copiedItem.id}`)).toBeVisible();
+  }
   let editor = await openItem(page, copiedItem.id);
   await editor.getByLabel("Item name").fill("早餐（复制后修改）");
   await editor.getByLabel("Notes").fill("副本已修改");
   await waitForAutosave(editor);
-  await editor.getByRole("button", { name: "Cancel" }).first().click();
 
   await selectDay(page, 1);
-  page.once("dialog", (dialog) => void dialog.accept());
-  await page.locator(`#itinerary-item-delete-${breakfastId}`).click();
-  await expect(page.locator(`#itinerary-item-edit-${breakfastId}`)).toHaveCount(0);
+  if (workspaceMode) {
+    await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+    await page.locator(`#itinerary-item-delete-${breakfastId}`).click();
+    await page.getByRole("dialog", { name: "Delete item?" }).getByRole("button", { name: "Confirm delete" }).click();
+    await expect(page.locator(`[data-item-id="${breakfastId}"]`)).toHaveCount(0);
+  } else {
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page.locator(`#itinerary-item-delete-${breakfastId}`).click();
+    await expect(page.locator(`#itinerary-item-edit-${breakfastId}`)).toHaveCount(0);
+  }
   await page.reload();
   await selectDay(page, 1);
   await expect.poll(() => timelineLabels(page, 1)).toEqual([]);
@@ -152,29 +172,58 @@ test("E2E-011 — Copy, edit copied Item and soft delete", async ({ page }) => {
 test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ page, browser }) => {
   const tripId = await createTrip(page, { name: caseName("E2E-012", "reorder") });
   for (const target of ["A", "B", "C", "D"]) await createSimpleItem(page, target, { kind: "attraction" });
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
   await dragBefore(page, "B", "A");
   await dragBefore(page, "D", "C");
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["B", "A", "D", "C"]);
+  if (workspaceMode) {
+    const savedOrder = page.waitForResponse((response) => response.request().method() === "POST"
+      && response.url().endsWith("/itinerary-items/reorder"));
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await savedOrder).ok()).toBe(true);
+  }
   await page.reload();
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["B", "A", "D", "C"]);
-  const keyboardReorder = page.waitForResponse((response) =>
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+  const keyboardReorder = workspaceMode ? undefined : page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/itinerary-items/reorder"));
   await page.getByRole("button", { name: "Move D up" }).click();
   await expect(page.getByRole("status").filter({ hasText: "D moved to position 2" })).toBeVisible();
-  expect((await keyboardReorder).ok()).toBe(true);
+  if (workspaceMode) {
+    const savedKeyboardOrder = page.waitForResponse((response) => response.request().method() === "POST"
+      && response.url().endsWith("/itinerary-items/reorder"));
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await savedKeyboardOrder).ok()).toBe(true);
+  } else {
+    expect((await keyboardReorder!).ok()).toBe(true);
+  }
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["B", "D", "A", "C"]);
 
   const mobileContext = await browser.newContext({ ...devices["Pixel 7"] });
   const mobile = await mobileContext.newPage();
   await mobile.goto(`/trips/${tripId}`);
   await mobile.getByRole("button", { name: "Sign in again" }).click();
-  await expect(mobile.getByRole("button", { name: "Edit B" })).toBeVisible();
-  const touchReorder = mobile.waitForResponse((response) =>
+  if (workspaceMode) {
+    await selectDay(mobile, 1);
+    await mobile.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
+  } else {
+    await expect(mobile.getByRole("button", { name: "Edit B" })).toBeVisible();
+  }
+  const touchReorder = workspaceMode ? undefined : mobile.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/itinerary-items/reorder"));
   await mobile.getByRole("button", { name: "Move B down" }).click();
   await expect(mobile.getByRole("status").filter({ hasText: "B moved to position 2" })).toBeVisible();
-  expect((await touchReorder).ok()).toBe(true);
+  if (workspaceMode) {
+    const savedTouchOrder = mobile.waitForResponse((response) => response.request().method() === "POST"
+      && response.url().endsWith("/itinerary-items/reorder"));
+    await mobile.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await savedTouchOrder).ok()).toBe(true);
+  } else {
+    expect((await touchReorder!).ok()).toBe(true);
+  }
   await mobile.reload();
+  if (workspaceMode) await selectDay(mobile, 1);
   await expect.poll(() => timelineLabels(mobile, 1)).toEqual(["D", "B", "A", "C"]);
   await mobileContext.close();
 });

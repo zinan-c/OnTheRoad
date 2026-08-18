@@ -110,10 +110,10 @@ test("E2E-003 — Standard five-day multi-destination Trip creation", async ({ p
   });
   expect(body.destinations.map(({ name: destination }) => destination)).toEqual(["上海", "舟山"]);
   expect(body.destinations.every(({ countryCode }) => countryCode === "CN")).toBe(true);
-  await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
+  await expect(page.getByRole("complementary", { name: "Trip days" }).getByRole("button", { name: /^Day \d+,/u })).toHaveCount(5);
   await page.reload();
   await expect(page.locator("#trip-title")).toHaveText(name);
-  await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
+  await expect(page.getByRole("complementary", { name: "Trip days" }).getByRole("button", { name: /^Day \d+,/u })).toHaveCount(5);
 });
 
 test("E2E-004 — Single-day minimum-value Trip", async ({ page }) => {
@@ -136,7 +136,7 @@ test("E2E-004 — Single-day minimum-value Trip", async ({ page }) => {
   await page.reload();
   await expect(page.locator("#trip-title")).toHaveText(name);
   expect(page.url()).toContain(body.id);
-  await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(1);
+  await expect(page.getByRole("complementary", { name: "Trip days" }).getByRole("button", { name: /^Day \d+,/u })).toHaveCount(1);
   await page.getByRole("link", { name: "Trip settings" }).click();
   await page.getByRole("button", { name: "Edit trip" }).click();
   const settings = page.getByRole("form", { name: "Trip details" });
@@ -172,7 +172,7 @@ test("E2E-005 — Leap-date, mixed destination delimiters and maximum form value
   expect(body.destinations.map(({ name: destination }) => destination)).toEqual(["上海", "杭州", "舟山", "南京"]);
   await expect(page).toHaveURL(/\/trips\/[0-9a-f-]+$/u);
   await page.reload();
-  await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(3);
+  await expect(page.getByRole("complementary", { name: "Trip days" }).getByRole("button", { name: /^Day \d+,/u })).toHaveCount(3);
   await expect(page.getByText("2028-02-28 — 2028-03-01")).toBeVisible();
 });
 

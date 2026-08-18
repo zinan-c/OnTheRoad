@@ -866,7 +866,7 @@ export function ItineraryPanel({
         entries={items.map((item) => ({ id: item.id, label: itemLabel(item) }))}
         disabled={!workspaceEditing || status === "saving"}
         showDragHandle={workspaceEditing}
-        showOrderControls={false}
+        showOrderControls={workspaceEditing}
         label={selectedDayId ? `Day ${selectedDay?.dayNumber ?? ""} itinerary` : "All days itinerary"}
         onReorder={(orderedIds, input) => void reorderItems(orderedIds, input)}
       >{(id) => {
@@ -906,6 +906,16 @@ export function ItineraryPanel({
             {expense ? <span className="workspaceItemExpense">Expense · {displayAmount(expense.originalAmount)} {expense.currency}</span> : null}
           </div>
           {workspaceEditing ? <div className="workspaceItemActions">
+            <label>Copy to<select
+              id={`itinerary-item-copy-${item.id}`}
+              aria-label={`Copy ${itemLabel(item)} to`}
+              defaultValue=""
+              onChange={(event) => {
+                const target = event.target.value;
+                event.target.value = "";
+                void copyItem(item, target);
+              }}
+            ><option value="">Select day</option>{days.map((day) => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}</select></label>
             <button className="workspaceItemAction" type="button" data-testid="edit-itinerary-item" disabled={status === "saving"} aria-label={`Item edit ${itemLabel(item)}`} onClick={() => beginEdit(item)}>
               Item edit
             </button>

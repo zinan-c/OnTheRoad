@@ -222,10 +222,10 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
 
   return <section aria-label="Route map" className={`workspaceCard routeWorkspace${compact ? " routeWorkspaceCompact" : ""}`}>
     <header><h2>{compact ? (selectedDay ? `Day ${selectedDay.dayNumber} map` : "Global map") : (selectedDay ? `Day ${selectedDay.dayNumber} route` : "Route map")}</h2>{compact ? null : <p>The map uses persisted WGS84 geometry returned by the Route API.</p>}</header>
-    {!compact ? <nav className="mapScopeActions" aria-label="Map scope">
+    <nav className="mapScopeActions" aria-label="Map scope">
       <button id="map-scope-global" type="button" aria-pressed={selectedDayId === null} onClick={onSelectGlobalMap}>Global map</button>
       {selectedDay ? <span role="status">Showing Day {selectedDay.dayNumber}</span> : <span role="status">Showing all days</span>}
-    </nav> : null}
+    </nav>
     {routeStatus === null ? <p role="status">Checking route status…</p> : isGenerating ? <p role="status">Generating routes…</p> : null}
     {routeStatusError ? <p role="alert">{routeStatusError}</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
@@ -249,7 +249,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
         data-line-style={style.lineStyle}
         style={{ color: style.color }}
       ><span aria-hidden="true">{style.icon}</span> {style.label} ({code}){code === "OTHER" ? " (transport mode not specified)" : ""}</li>)}</ul> : null}
-    {!compact && gaps.length > 0 ? <aside aria-label="Route gaps"><h3>Route gaps</h3><ul>{gaps.map((route) => {
+    {gaps.length > 0 ? <aside aria-label="Route gaps"><h3>Route gaps</h3><ul>{gaps.map((route) => {
         const blockers = Array.isArray(route.sourceContext.blockers)
           ? route.sourceContext.blockers.map((blocker) => ROUTE_BLOCKER_LABELS[String(blocker)] ?? String(blocker)).join(", ")
           : "Location not confirmed";
@@ -262,12 +262,12 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
         onClick={() => { selectionStore.selectFromTimeline(item.id, item.tripDayId); setSelectedRouteId(null); }}
       >{item.target ?? "Untitled item"}</button></li>)}</ol> : null}
     {showTimeline && hasDayScope && selectedItemId ? <p role="status">Selected: {itemLabel(selectedItemId)}</p> : null}
-    {hasDayScope && visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
+    {visibleRoutes.length > 0 ? <ol aria-label="Route list">{visibleRoutes.map((route) => {
         const customMode = transportModes.find(({ code }) => code === route.transportModeCode);
         const style = routeStyle({ modeCode: route.transportModeCode, quality: route.quality ?? "unknown", ...(customMode ? { customMode } : {}) });
         return <li key={route.id}><button type="button" onClick={() => setSelectedRouteId(route.id)}>{route.kind === "item_transport" ? "Transport route" : "Connection route"}: {itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)} · {style.label} · {style.qualityLabel}</button></li>;
       })}</ol> : null}
-    {hasDayScope && selectedRoute ? <aside aria-label="Route details">
+    {selectedRoute ? <aside aria-label="Route details">
         <h3>{itemLabel(selectedRoute.fromItineraryItemId)} → {itemLabel(selectedRoute.toItineraryItemId)}</h3>
         <dl>
           <div><dt>Transport mode</dt><dd>{routeStyle({ modeCode: selectedRoute.transportModeCode, quality: selectedRoute.quality ?? "unknown", ...(transportModes.find(({ code }) => code === selectedRoute.transportModeCode) ? { customMode: transportModes.find(({ code }) => code === selectedRoute.transportModeCode)! } : {}) }).label}</dd></div>

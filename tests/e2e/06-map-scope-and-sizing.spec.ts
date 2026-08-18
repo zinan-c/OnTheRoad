@@ -17,7 +17,7 @@ test("E2E-022 — Global/Day map scope and stable MapLibre sizing", async ({ pag
   const routeMap = page.locator("#route-map-canvas");
   const globalScope = page.locator("#map-scope-global");
   await expect(globalScope).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("heading", { name: "Route map", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Global map", exact: true })).toBeVisible();
   await expect(routeMap).toHaveAttribute("data-marker-count", "2", { timeout: 30_000 });
   await expect(routeMap.locator(`[data-item-id="${dayOneItemId}"]`)).toBeVisible();
   await expect(routeMap.locator(`[data-item-id="${dayTwoItemId}"]`)).toBeVisible();

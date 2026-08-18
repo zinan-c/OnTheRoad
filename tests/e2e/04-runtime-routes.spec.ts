@@ -86,12 +86,20 @@ test("E2E-017 — Cross-day and transport-internal route matrix", async ({ page 
   await expect(routeList).toContainText("B → C");
   await expect(routeList).toContainText("D → D");
   await selectDay(page, 1);
+  const workspaceMode = await page.getByRole("region", { name: "Daily itinerary" }).count() > 0;
+  if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary" }).getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Move B up" }).click();
   await expect(page.getByRole("status").filter({ hasText: "B moved to position 1" })).toBeVisible();
+  if (workspaceMode) {
+    const savedOrder = page.waitForResponse((response) => response.request().method() === "POST"
+      && response.url().endsWith("/itinerary-items/reorder"));
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await savedOrder).ok()).toBe(true);
+  }
   editor = await openItem(page, itemAId!);
   await editor.getByLabel("Inbound transport mode").selectOption("PUBLIC_BUS");
   await waitForAutosave(editor);
-  await editor.getByRole("button", { name: "Cancel" }).first().click();
+  if (!workspaceMode) await editor.getByRole("button", { name: "Cancel" }).first().click();
   await expect(page.getByRole("status").filter({ hasText: "Generating routes" })).toBeVisible();
   await expect(routeList).toContainText("B → A", { timeout: 30_000 });
   await selectDay(page, 2);
