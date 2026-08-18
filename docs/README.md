@@ -62,7 +62,8 @@ and the [migration plan](./reports/nominatim-online-plan.md).
 | Task ordering, locks, and handoff protocol | [`DEVELOP_EXECUTION_PLAN.md`](./DEVELOP_EXECUTION_PLAN.md) |
 | Executable Case IDs and Gate rules | [`TEST_CASES.md`](./TEST_CASES.md) |
 | M0–M3 product-browser acceptance cases and current status | [`E2E_AUTOMATION_CASES.md`](./E2E_AUTOMATION_CASES.md) |
-| Post-M2 findings and remediation history | [`CODE_REVIEW.md`](./CODE_REVIEW.md) |
+| Current full-project review (2026-08-18) | [`reviewer/CODE_REVIEW_0818.md`](./reviewer/CODE_REVIEW_0818.md) |
+| Post-M2 findings and remediation history | [`reviewer/CODE_REVIEW.md`](./reviewer/CODE_REVIEW.md) |
 | Runtime configuration and telemetry | [`configuration.md`](./configuration.md) and [`observability.md`](./observability.md) |
 | Local operation and release-only checks | [`runbooks/local-stack.md`](./runbooks/local-stack.md) and [`runbooks/release-checklist.md`](./runbooks/release-checklist.md) |
 

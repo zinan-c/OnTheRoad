@@ -39,7 +39,8 @@ are recorded in [`ADR-003`](./docs/adr/003-online-nominatim-map-runtime.md) and
 the [online map migration plan](./docs/reports/nominatim-online-plan.md).
 
 Use the [documentation status index](./docs/README.md) as the canonical current
-status entry point. Detailed evidence is in [CODE_REVIEW](./docs/CODE_REVIEW.md),
+status entry point. Detailed evidence is in the [current code review](./docs/reviewer/CODE_REVIEW_0818.md),
+the [historical remediation ledger](./docs/reviewer/CODE_REVIEW.md),
 the [M3 Gate report](./docs/reports/m3-gate.md), the
 [M4 Gate report](./docs/reports/m4-gate.md), the
 [Product acceptance record](./docs/reports/m3-product-acceptance.md), and the
@@ -239,7 +240,8 @@ cannot be waived by a green Dev Gate.
 - [Milestone acceptance plan](./docs/DEVELOPMENT_MILESTONE.md)
 - [Execution and handoff plan](./docs/DEVELOP_EXECUTION_PLAN.md)
 - [Test Cases and Gate rules](./docs/TEST_CASES.md)
-- [Code review and remediation ledger](./docs/CODE_REVIEW.md)
+- [Current code review (2026-08-18)](./docs/reviewer/CODE_REVIEW_0818.md)
+- [Post-M2 code review and remediation ledger](./docs/reviewer/CODE_REVIEW.md)
 - [Configuration reference](./docs/configuration.md)
 - [Observability baseline](./docs/observability.md)
 - [Local dependency runbook](./docs/runbooks/local-stack.md)

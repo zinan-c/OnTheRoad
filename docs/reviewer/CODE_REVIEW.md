@@ -7,6 +7,8 @@
 > Review type: historical assessment plus a living remediation ledger. Findings
 > retain their original review-point evidence; the remediation sections identify
 > what has since been implemented and verified.
+>
+> Current review: [`CODE_REVIEW_0818.md`](./CODE_REVIEW_0818.md)
 
 ## Remediation status
 
@@ -23,9 +25,9 @@ proxy for `international_primary` and the overseas branch of `hybrid`, with
 online tiles and an independent non-HERE Directions endpoint in `dev`/`qa`/`prod`.
 The migration is not code-closed by this historical review; its implementation,
 online smoke and release criteria are tracked by
-[`ADR-003`](./adr/003-online-nominatim-map-runtime.md),
-[`nominatim-online-plan.md`](./reports/nominatim-online-plan.md), and the
-[release checklist](./runbooks/release-checklist.md).
+[`ADR-003`](../adr/003-online-nominatim-map-runtime.md),
+[`nominatim-online-plan.md`](../reports/nominatim-online-plan.md), and the
+[release checklist](../runbooks/release-checklist.md).
 
 | Finding | Dev status | Remediation commit | Closure evidence / residual scope |
 |---|---|---|---|
@@ -60,7 +62,7 @@ expanding the M3 feature scope. All P0/P1 findings are now closed at the maturit
 shown in the remediation table. The repository is M3 Done for the Dev Track;
 production release evidence remains independently governed by the release
 checklist. Current milestone maturity is centralized in
-[`docs/README.md`](./README.md).
+[`docs/README.md`](../README.md).
 
 ## 2. P0 — Immediate Blockers
 
@@ -479,7 +481,7 @@ The word “complete” currently covers module implementation, environment veri
 
 **Remediation update — Closed after the M3 closure documentation audit**
 
-- [`docs/README.md`](./README.md) is the canonical status index and separates
+- [`docs/README.md`](../README.md) is the canonical status index and separates
   implemented, runtime-integrated, CI-verified, and release-verified maturity.
 - The root README, milestone plans, M3 reports, and release checklist now point
   to the same Dev-versus-release boundary.
