@@ -262,7 +262,7 @@ test("E2E-021 — Full currency Reference Data availability and normalization", 
     await rateForm.getByLabel("Source currency").selectOption("CNY");
     await rateForm.getByLabel("Exchange rate", { exact: true }).fill("1");
     await rateForm.getByRole("button", { name: "Save rate" }).click();
-    await expect(expenseWorkspace.getByRole("alert")).toContainText("different");
+    await expect(expenseWorkspace.getByRole("alert").filter({ hasText: "different" })).toBeVisible();
   }
 
   const tripId = await createTrip(page, {
@@ -274,7 +274,7 @@ test("E2E-021 — Full currency Reference Data availability and normalization", 
   const fileInput = page.getByRole("region", { name: "导入映射工作台" }).getByLabel("上传行程文件");
   await fileInput.setInputFiles(resolve(process.cwd(), "packages/test-fixtures/imports/product-currencies.csv"));
   const importWorkspace = page.getByRole("region", { name: "导入映射工作台" });
-  await expect(importWorkspace.getByRole("status")).toContainText("已生成真实 ImportJob", { timeout: 120_000 });
+  await expect(importWorkspace.getByRole("status").filter({ hasText: "已生成真实 ImportJob" })).toBeVisible({ timeout: 120_000 });
   const latest = await readJson<LatestImport>(page, `/trips/${tripId}/imports/latest`);
   const mapping = page.getByRole("region", { name: "导入列映射" });
   await mapping.getByRole("button", { name: "保存映射" }).click();

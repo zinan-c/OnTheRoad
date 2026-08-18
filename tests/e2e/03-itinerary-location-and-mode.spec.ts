@@ -180,7 +180,7 @@ test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ p
   if (workspaceMode) {
     const savedOrder = page.waitForResponse((response) => response.request().method() === "POST"
       && response.url().endsWith("/itinerary-items/reorder"));
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByTestId("save-itinerary-edit").click();
     expect((await savedOrder).ok()).toBe(true);
   }
   await page.reload();
@@ -193,7 +193,7 @@ test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ p
   if (workspaceMode) {
     const savedKeyboardOrder = page.waitForResponse((response) => response.request().method() === "POST"
       && response.url().endsWith("/itinerary-items/reorder"));
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByTestId("save-itinerary-edit").click();
     expect((await savedKeyboardOrder).ok()).toBe(true);
   } else {
     expect((await keyboardReorder!).ok()).toBe(true);
@@ -397,5 +397,16 @@ async function assertItemFields(page: Page, itemIds: Record<string, string>) {
 async function dragBefore(page: Page, source: string, target: string) {
   const from = page.getByRole("button", { name: `Drag ${source}` });
   const to = page.getByRole("button", { name: `Drag ${target}` });
-  await from.dragTo(to);
+  await from.scrollIntoViewIfNeeded();
+  await to.scrollIntoViewIfNeeded();
+  const fromBox = await from.boundingBox();
+  const toRowBox = await to.locator("xpath=..").boundingBox();
+  if (!fromBox || !toRowBox) throw new Error(`Unable to drag ${source} before ${target}`);
+  await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(200);
+  await page.mouse.move(toRowBox.x + toRowBox.width / 2, toRowBox.y + toRowBox.height / 2, { steps: 20 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+  await page.waitForTimeout(80);
 }

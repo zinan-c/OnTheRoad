@@ -24,13 +24,13 @@ test("E2E-022 — Global/Day map scope and stable MapLibre sizing", async ({ pag
   await expectStableMapSize(routeMap, 320);
 
   await selectDay(page, 1);
-  await expect(page.getByRole("heading", { name: "Day 1 route" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Day 1 map" })).toBeVisible();
   await expect(routeMap).toHaveAttribute("data-marker-count", "1");
   await expect(routeMap.locator(`[data-item-id="${dayOneItemId}"]`)).toBeVisible();
   await expect(routeMap.locator(`[data-item-id="${dayTwoItemId}"]`)).toHaveCount(0);
 
   await selectDay(page, 2);
-  await expect(page.getByRole("heading", { name: "Day 2 route" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Day 2 map" })).toBeVisible();
   await expect(routeMap).toHaveAttribute("data-marker-count", "1");
   await expect(routeMap.locator(`[data-item-id="${dayOneItemId}"]`)).toHaveCount(0);
   await expect(routeMap.locator(`[data-item-id="${dayTwoItemId}"]`)).toBeVisible();
