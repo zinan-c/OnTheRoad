@@ -218,20 +218,79 @@ test("E2E-020 — Three-format import, mapping and staging preview", async ({ pa
   }
 });
 
-test("E2E-021 — shared currency Reference Data remains available in active product surfaces", async ({ page }) => {
-  await page.goto("/trips/new");
-  const tripCurrency = page.getByLabel("Default currency");
-  await expect(tripCurrency.locator("option")).toHaveCount(CURRENCIES.length);
-  await expect(tripCurrency.locator("option").allTextContents()).resolves.toEqual([...CURRENCIES]);
+test("E2E-021 — Full currency Reference Data availability and normalization", async ({ page }) => {
+  test.setTimeout(360_000);
+  const reference = await readJson<{ currencies: readonly { code: string }[] }>(page, "/system/reference-data");
+  expect(reference.currencies.map(({ code }) => code)).toEqual([...CURRENCIES]);
 
-  await createTrip(page, { name: caseName("E2E-021", "reference-data") });
-  const itemEditor = await openNewItem(page, "other");
-  const expenseCurrency = itemEditor.locator("#item-expense-currency");
-  await expect(expenseCurrency.locator("option").allTextContents()).resolves.toEqual([...CURRENCIES]);
-  await itemEditor.getByRole("button", { name: "Cancel" }).first().click();
-  const expenseWorkspace = page.getByRole("region", { name: "Expense workspace" });
-  await expect(expenseWorkspace.getByLabel("Source currency").locator("option").allTextContents()).resolves.toEqual([...CURRENCIES]);
-  await expect(expenseWorkspace.getByLabel("Settlement currency").locator("option").allTextContents()).resolves.toEqual([...CURRENCIES]);
+  for (const currency of CURRENCIES) {
+    const tripId = await createTrip(page, {
+      name: caseName("E2E-021", `currency-${currency}`),
+      startDate: "2026-10-01",
+      endDate: "2026-10-01",
+      currency,
+    });
+    await page.reload();
+    await page.goto(`/trips/${tripId}/settings`);
+    const settings = page.locator(".settingsPage");
+    await expect(settings.locator("dl.settingsSummary")).toContainText(currency);
+    const trip = await readJson<{ defaultCurrency: string }>(page, `/trips/${tripId}`);
+    expect(trip.defaultCurrency).toBe(currency);
+
+    await page.goto(`/trips/${tripId}`);
+    const itemId = await createSimpleItem(page, `Expense ${currency}`, {
+      kind: "other",
+      day: 1,
+      expense: { amount: "12.34", currency, remark: "Original currency" },
+    });
+    const expenses = await readJson<readonly { originalAmount: string; currency: string; remark: string }[]>(page, `/trips/${tripId}/itinerary-items/${itemId}/expenses`);
+    expect(expenses).toEqual(expect.arrayContaining([
+      expect.objectContaining({ originalAmount: "12.34", currency, remark: "Original currency" }),
+    ]));
+    const summary = page.getByRole("region", { name: "Expense summary" });
+    await expect(summary).toContainText("12.34");
+    await expect(summary).toContainText(currency);
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Expense summary" })).toContainText("12.34");
+
+    const expenseWorkspace = page.getByRole("region", { name: "Expense workspace" });
+    await expect(expenseWorkspace.getByLabel("Source currency").locator("option").allTextContents()).resolves.toEqual([...CURRENCIES]);
+    await expect(expenseWorkspace.getByLabel("Settlement currency").locator("option").allTextContents()).resolves.toEqual([...CURRENCIES]);
+    const rateForm = expenseWorkspace.getByRole("form", { name: "Exchange rate management" });
+    await rateForm.getByLabel("Source currency").selectOption("CNY");
+    await rateForm.getByLabel("Exchange rate", { exact: true }).fill("1");
+    await rateForm.getByRole("button", { name: "Save rate" }).click();
+    await expect(expenseWorkspace.getByRole("alert")).toContainText("different");
+  }
+
+  const tripId = await createTrip(page, {
+    name: caseName("E2E-021", "currency-fixture"),
+    startDate: "2026-10-01",
+    endDate: "2026-10-01",
+    currency: "CNY",
+  });
+  const fileInput = page.getByRole("region", { name: "导入映射工作台" }).getByLabel("上传行程文件");
+  await fileInput.setInputFiles(resolve(process.cwd(), "packages/test-fixtures/imports/product-currencies.csv"));
+  const importWorkspace = page.getByRole("region", { name: "导入映射工作台" });
+  await expect(importWorkspace.getByRole("status")).toContainText("已生成真实 ImportJob", { timeout: 120_000 });
+  const latest = await readJson<LatestImport>(page, `/trips/${tripId}/imports/latest`);
+  const mapping = page.getByRole("region", { name: "导入列映射" });
+  await mapping.getByRole("button", { name: "保存映射" }).click();
+  await expect(importWorkspace.getByRole("status").filter({ hasText: "映射已保存" })).toBeVisible({ timeout: 30_000 });
+  const previewRegion = page.getByRole("region", { name: "服务端导入预览" });
+  await expect(previewRegion.getByRole("table")).toBeVisible({ timeout: 120_000 });
+  await expect(previewRegion).toContainText("currency: CNY");
+  await expect(previewRegion).toContainText("currency: USD");
+  const preview = await readJson<PreviewPayload>(page, `/imports/${latest.id}/preview?page=1&pageSize=50`);
+  expect(preview.counts.total).toBe(16);
+  expect(preview.counts.error).toBe(0);
+  const normalizedCurrencies = preview.rows.map(({ normalizedData }) => normalizedData?.currency);
+  expect(normalizedCurrencies).toContain("CNY");
+  expect(normalizedCurrencies).toContain("USD");
+  expect(preview.rows.find(({ rawData }) => String(rawData.Currency).toUpperCase() === "RMB")?.normalizedData?.currency).toBe("CNY");
+  for (const currency of CURRENCIES.filter((code) => code !== "CNY")) {
+    expect(normalizedCurrencies).toContain(currency);
+  }
 });
 
 type GalleryAttachment = {

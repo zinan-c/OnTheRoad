@@ -1,3 +1,5 @@
+import { currencies } from "@on-the-road/config/reference-data";
+
 export const ALIAS_DICTIONARY_VERSION = "1.0.0";
 
 export const STANDARD_COLUMNS = Object.freeze([
@@ -68,6 +70,10 @@ const LOOKUP = new Map(
     aliases.map((alias) => [alias.trim().toLocaleLowerCase("en-US"), column])),
 );
 
+const CURRENCY_CODES = new Map(
+  currencies.map(({ code }) => [code.toLocaleLowerCase("en-US"), code]),
+);
+
 /** @param {unknown} value */
 export function canonicalColumn(value) {
   if (typeof value !== "string") return undefined;
@@ -77,9 +83,9 @@ export function canonicalColumn(value) {
 /** @param {unknown} value */
 export function normalizeCurrencyAlias(value) {
   if (typeof value !== "string") return value;
-  const normalized = value.trim();
+  const normalized = value.normalize("NFKC").trim();
   if (/^(?:RMB|CNY)$/iu.test(normalized)) return "CNY";
-  return normalized;
+  return CURRENCY_CODES.get(normalized.toLocaleLowerCase("en-US")) ?? normalized;
 }
 
 /** @param {unknown} value */

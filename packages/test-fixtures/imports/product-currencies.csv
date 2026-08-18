@@ -1,0 +1,17 @@
+Day,Date,Target,Cost,Currency,Remark
+1,2026-10-01,CNY reference,1.00,CNY,uppercase reference
+1,2026-10-01,USD reference,2.00,usd,lowercase variant
+1,2026-10-01,EUR reference,3.00,EUR,uppercase reference
+1,2026-10-01,JPY reference,4.00,jpy,lowercase variant
+1,2026-10-01,KRW reference,5.00,KRW,uppercase reference
+1,2026-10-01,PHP reference,6.00,php,lowercase variant
+1,2026-10-01,THB reference,7.00,THB,uppercase reference
+1,2026-10-01,SGD reference,8.00,sgd,lowercase variant
+1,2026-10-01,MYR reference,9.00,MYR,uppercase reference
+1,2026-10-01,VND reference,10.00,vnd,lowercase variant
+1,2026-10-01,IDR reference,11.00,IDR,uppercase reference
+1,2026-10-01,HKD reference,12.00,hkd,lowercase variant
+1,2026-10-01,TWD reference,13.00,TWD,uppercase reference
+1,2026-10-01,AUD reference,14.00,aud,lowercase variant
+1,2026-10-01,GBP reference,15.00,GBP,uppercase reference
+1,2026-10-01,RMB alias,16.00,RMB,alias must normalize to CNY
