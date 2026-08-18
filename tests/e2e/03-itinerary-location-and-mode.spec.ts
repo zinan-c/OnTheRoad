@@ -14,7 +14,7 @@ import {
   waitForAutosave,
 } from "./helpers";
 
-test("E2E-009 — complete Itinerary Item type and field matrix", async ({ page }) => {
+test("E2E-009 — Complete Itinerary Item type and field matrix", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-009", "item-matrix") });
   const itemIds: Record<string, string> = {};
 
@@ -79,7 +79,7 @@ test("E2E-009 — complete Itinerary Item type and field matrix", async ({ page 
   await assertItemFields(page, itemIds);
 });
 
-test("E2E-010 — explicit Item save and reload", async ({ page }) => {
+test("E2E-010 — Item edit, autosave and reload", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-010", "autosave") });
   const itemId = await createSimpleItem(page, "待编辑景点", { kind: "attraction" });
   const editor = await openItem(page, itemId);
@@ -121,7 +121,7 @@ test("E2E-010 — explicit Item save and reload", async ({ page }) => {
   await expect(reloaded.locator("#location-name-status")).toContainText("Location status: resolved");
 });
 
-test("E2E-011 — copy, edit copied Item and soft delete", async ({ page }) => {
+test("E2E-011 — Copy, edit copied Item and soft delete", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-011", "copy-delete") });
   const breakfastId = await createSimpleItem(page, "早餐", { kind: "dining", day: 1 });
   const copyResponse = page.waitForResponse((response) => response.request().method() === "POST"
@@ -149,7 +149,7 @@ test("E2E-011 — copy, edit copied Item and soft delete", async ({ page }) => {
   await expect(editor.getByLabel("Notes")).toHaveValue("副本已修改");
 });
 
-test("E2E-012 — same-day reorder across mouse, keyboard and touch", async ({ page, browser }) => {
+test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ page, browser }) => {
   const tripId = await createTrip(page, { name: caseName("E2E-012", "reorder") });
   for (const target of ["A", "B", "C", "D"]) await createSimpleItem(page, target, { kind: "attraction" });
   await dragBefore(page, "B", "A");
@@ -179,25 +179,90 @@ test("E2E-012 — same-day reorder across mouse, keyboard and touch", async ({ p
   await mobileContext.close();
 });
 
-test("E2E-013 — built-in transport modes stay available without settings UI", async ({ page }) => {
-  await createTrip(page, { name: caseName("E2E-013", "built-in-mode") });
-  await expect(page.getByRole("button", { name: "Transport modes" })).toHaveCount(0);
+test("E2E-013 — Custom transport mode lifecycle", async ({ page }) => {
+  const mode = {
+    code: "CABLE_SHUTTLE_CUSTOM",
+    label: "Cable-car shuttle",
+    icon: "cable-car",
+    color: "#123456",
+    lineStyle: "dotted",
+  } as const;
+  await createTrip(page, { name: caseName("E2E-013", "custom-mode") });
+
+  await page.getByRole("link", { name: "Trip settings" }).click();
+  const manager = page.getByRole("region", { name: "Transport mode management" });
+  await expect(manager).toBeVisible();
+  const form = manager.getByRole("form", { name: "Add custom transport mode" });
+  await form.getByLabel("Transport mode code").fill(mode.code);
+  await form.getByLabel("Transport mode name").fill(mode.label);
+  await form.getByLabel("Transport mode icon").fill(mode.icon);
+  await form.getByLabel("Transport mode color").fill(mode.color);
+  await form.getByLabel("Transport mode line style").selectOption(mode.lineStyle);
+  const createdMode = page.waitForResponse((response) =>
+    response.request().method() === "POST" && response.url().endsWith("/transport-modes"));
+  await form.getByRole("button", { name: "Add transport mode" }).click();
+  expect((await createdMode).status()).toBe(201);
+  const savedMode = manager.locator(`[data-mode-code="${mode.code}"]`);
+  await expect(savedMode).toHaveAttribute("data-enabled", "true");
+  await expect(savedMode).toHaveAttribute("data-mode-label", mode.label);
+  await expect(savedMode).toHaveAttribute("data-mode-icon", mode.icon);
+  await expect(savedMode).toHaveAttribute("data-mode-color", mode.color);
+  await expect(savedMode).toHaveAttribute("data-mode-line-style", mode.lineStyle);
+
+  await page.getByRole("link", { name: "Back to itinerary" }).click();
+  await selectDay(page, 1);
   const editor = await openNewItem(page, "transport");
   const modes = editor.getByLabel("Transport mode");
-  await expect(modes.locator('option[value="WALK"]')).toHaveCount(1);
-  await expect(modes.locator('option[value="CABLE_CAR"]')).toHaveCount(1);
-  await expect(modes.locator('option[value="FLIGHT"]')).toHaveCount(1);
-  await editor.getByLabel("Item name").fill("Cable car segment");
+  await expect(modes.locator(`option[value="${mode.code}"]`)).toHaveText(`${mode.label} (${mode.code})`);
+  await editor.getByLabel("Item name").fill("Cable shuttle segment");
   await resolveLocation(editor, "外滩", { legend: "Transport origin", inputLabel: "Origin location" });
   await resolveLocation(editor, "豫园", { legend: "Transport destination", inputLabel: "Destination location" });
-  await modes.selectOption("CABLE_CAR");
+  await modes.selectOption(mode.code);
   const itemId = await saveNewItem(editor);
+
   await page.reload();
-  const existing = await openItem(page, itemId);
-  await expect(existing.getByLabel("Transport mode")).toHaveValue("CABLE_CAR");
+  await selectDay(page, 1);
+  const timelineMode = page.locator(`[data-transport-mode-code="${mode.code}"]`).first();
+  await expect(timelineMode).toHaveAttribute("data-transport-mode-label", mode.label);
+  await expect(timelineMode).toHaveAttribute("data-transport-mode-icon", mode.icon);
+  await expect(timelineMode).toHaveAttribute("data-transport-mode-color", mode.color);
+  await expect(timelineMode).toHaveAttribute("data-transport-mode-line-style", mode.lineStyle);
+  const mapMode = page.getByRole("list", { name: "Route mode legend" }).locator(`[data-mode-code="${mode.code}"]`);
+  await expect(mapMode).toBeVisible({ timeout: 30_000 });
+  await expect(mapMode).toHaveAttribute("data-mode-label", mode.label);
+  await expect(mapMode).toHaveAttribute("data-mode-icon", mode.icon);
+  await expect(mapMode).toHaveAttribute("data-mode-color", mode.color);
+  await expect(mapMode).toHaveAttribute("data-line-style", mode.lineStyle);
+
+  await page.locator(`[data-item-id="${itemId}"]`).click();
+  const details = page.getByRole("dialog", { name: "Item details" });
+  const detailMode = details.locator('dd[data-transport-mode-code="CABLE_SHUTTLE_CUSTOM"]');
+  await expect(detailMode).toContainText(`${mode.label} (${mode.code})`);
+  await expect(detailMode).toHaveAttribute("data-transport-mode-icon", mode.icon);
+  await expect(detailMode).toHaveAttribute("data-transport-mode-color", mode.color);
+  await expect(detailMode).toHaveAttribute("data-transport-mode-line-style", mode.lineStyle);
+  await details.getByRole("button", { name: "Close" }).click();
+
+  await page.getByRole("link", { name: "Trip settings" }).click();
+  const refreshedManager = page.getByRole("region", { name: "Transport mode management" });
+  const deactivate = refreshedManager.locator(`[data-mode-code="${mode.code}"]`).getByRole("button", { name: `Deactivate ${mode.label}` });
+  await deactivate.click();
+  const deactivated = refreshedManager.locator(`[data-mode-code="${mode.code}"]`);
+  await expect(deactivated).toHaveAttribute("data-enabled", "false");
+  await expect(deactivated).toContainText("已停用");
+
+  await page.getByRole("link", { name: "Back to itinerary" }).click();
+  await selectDay(page, 1);
+  await page.locator(`[data-item-id="${itemId}"]`).click();
+  const oldDetails = page.getByRole("dialog", { name: "Item details" });
+  await expect(oldDetails.locator('dd[data-transport-mode-code="CABLE_SHUTTLE_CUSTOM"]')).toContainText("已停用");
+  await oldDetails.getByRole("button", { name: "Close" }).click();
+  const newEditor = await openNewItem(page, "transport");
+  await expect(newEditor.getByLabel("Transport mode").locator(`option[value="${mode.code}"]`)).toHaveCount(0);
+  await newEditor.getByRole("button", { name: "Cancel" }).click();
 });
 
-test("E2E-014 — explicit location search, candidate confirmation and persistence", async ({ page }) => {
+test("E2E-014 — Explicit location search, candidate confirmation and persistence", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-014", "location-confirmation") });
   const editor = await openNewItem(page, "attraction");
   await editor.getByLabel("Item name").fill("人民广场散步");
@@ -220,7 +285,7 @@ test("E2E-014 — explicit location search, candidate confirmation and persisten
   await expect(reloaded.locator("#location-name-status")).toContainText("上海市黄浦区");
 });
 
-test("E2E-015 — map pick, Marker drag and manual coordinate persistence", async ({ page }) => {
+test("E2E-015 — Map pick, Marker drag and manual coordinate persistence", async ({ page }) => {
   await createTrip(page, { name: caseName("E2E-015", "coordinate-priority") });
   const editor = await openNewItem(page, "attraction");
   await editor.getByLabel("Item name").fill("外滩附近");

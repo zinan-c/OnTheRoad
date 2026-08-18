@@ -403,6 +403,22 @@ export function ItineraryPanel({
     }
   }, [onTransportModesChange, tripId]);
 
+  useEffect(() => {
+    if (workspaceMode) void loadTransportModes();
+  }, [loadTransportModes, workspaceMode]);
+
+  function modeFor(code: string | null | undefined): TransportModeView | undefined {
+    if (!code) return undefined;
+    return modeCatalog.find((mode) => mode.code === code);
+  }
+
+  function modeText(code: string | null | undefined): string {
+    if (!code) return "—";
+    const mode = modeFor(code);
+    if (!mode) return code;
+    return `${mode.label} (${mode.code}) · ${mode.icon} · ${mode.color} · ${mode.lineStyle}${mode.enabled ? "" : " · 已停用"}`;
+  }
+
   function update<K extends keyof ItemDraft>(field: K, value: ItemDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
     if (editing) setStatus("dirty");
@@ -779,13 +795,13 @@ export function ItineraryPanel({
         update("locationText", inputText);
       }}
     /> : null}
-    {draft.kind !== "transport" ? <label>Inbound transport mode<select aria-label="Inbound transport mode" value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Unspecified (OTHER)</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label> : null}
+    {draft.kind !== "transport" ? <label>Inbound transport mode<select aria-label="Inbound transport mode" value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Unspecified (OTHER)</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label} ({mode.code}){mode.enabled ? "" : " (disabled)"}</option>)}</select></label> : null}
     {draft.kind === "dining" ? <fieldset><legend>Dining details</legend><label>Restaurant<input value={draft.diningName} required onChange={(event) => update("diningName", event.target.value)} /></label><label>Meal<select value={draft.mealType} onChange={(event) => update("mealType", event.target.value)}><option value="">Unspecified</option><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></label></fieldset> : null}
     {draft.kind === "accommodation" ? <fieldset><legend>Accommodation details</legend><label>Property name<input value={draft.hotelName} required onChange={(event) => update("hotelName", event.target.value)} /></label><label>Details<input value={draft.accommodationType} onChange={(event) => update("accommodationType", event.target.value)} /></label><div className="formRow"><label>Check-in date<input type="date" value={draft.checkInDate} onChange={(event) => update("checkInDate", event.target.value)} /></label><label>Check-out date<input type="date" value={draft.checkOutDate} onChange={(event) => update("checkOutDate", event.target.value)} /></label></div></fieldset> : null}
     {draft.kind === "transport" ? <>
       <LocationProductPicker tripId={tripId} locationId={draft.transportOrigin} legend="Transport origin" inputLabel="Origin location" onLocationChange={(locationId) => update("transportOrigin", locationId)} />
       <LocationProductPicker tripId={tripId} locationId={draft.transportDestination} legend="Transport destination" inputLabel="Destination location" onLocationChange={(locationId) => update("transportDestination", locationId)} />
-      <label>Transport mode<select aria-label="Transport mode" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Select</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.code}{mode.enabled ? "" : " (disabled)"}</option>)}</select></label>
+      <label>Transport mode<select aria-label="Transport mode" required value={draft.transportModeId} onChange={(event) => update("transportModeId", event.target.value)}><option value="">Select</option>{modeCatalog.filter((mode) => mode.enabled || mode.code === draft.transportModeId).map((mode) => <option key={mode.code} value={mode.code} disabled={!mode.enabled}>{mode.label} ({mode.code}){mode.enabled ? "" : " (disabled)"}</option>)}</select></label>
     </> : null}
     <fieldset><legend>Booking and contact</legend><label>Booking reference<input value={draft.reservationReference} onChange={(event) => update("reservationReference", event.target.value)} /></label><div className="formRow"><label>Contact name<input value={draft.contactName} onChange={(event) => update("contactName", event.target.value)} /></label><label>Contact phone<input value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} /></label></div></fieldset>
     <fieldset disabled={expenseLoading}><legend>Expense</legend><div className="formRow"><label>Amount<input id="item-expense-amount" inputMode="decimal" value={draft.costAmount} onChange={(event) => update("costAmount", event.target.value)} /></label><label>Currency<select id="item-expense-currency" value={draft.costCurrency} onChange={(event) => update("costCurrency", event.target.value)}>{currencies.map(({ code }) => <option key={code} value={code}>{code}</option>)}</select></label></div><label>Expense remark<input id="item-expense-remark" value={draft.costRemark} onChange={(event) => update("costRemark", event.target.value)} /></label>{expenseLoading ? <p role="status">Loading item expense…</p> : null}</fieldset>
@@ -878,6 +894,15 @@ export function ItineraryPanel({
             {selectedDayId === null ? <span className="workspaceItemDay">Day {day?.dayNumber ?? "?"}</span> : null}
             <h3>{itemLabel(item)}</h3>
             <p>{item.description || "No description yet."}</p>
+            {modeFor(item.transportModeCode) ? <span
+              className="workspaceItemTransportMode"
+              data-transport-mode-code={item.transportModeCode!}
+              data-transport-mode-label={modeFor(item.transportModeCode)!.label}
+              data-transport-mode-icon={modeFor(item.transportModeCode)!.icon}
+              data-transport-mode-color={modeFor(item.transportModeCode)!.color}
+              data-transport-mode-line-style={modeFor(item.transportModeCode)!.lineStyle}
+              style={{ color: modeFor(item.transportModeCode)!.color }}
+            >{modeText(item.transportModeCode)}</span> : null}
             {expense ? <span className="workspaceItemExpense">Expense · {displayAmount(expense.originalAmount)} {expense.currency}</span> : null}
           </div>
           {workspaceEditing ? <div className="workspaceItemActions">
@@ -907,7 +932,14 @@ export function ItineraryPanel({
           <div><dt>Location</dt><dd>{displayValue(viewing.locationId)}</dd></div>
           <div><dt>Start location</dt><dd>{displayValue(viewing.startLocationId)}</dd></div>
           <div><dt>End location</dt><dd>{displayValue(viewing.endLocationId)}</dd></div>
-          <div><dt>Transport mode</dt><dd>{displayValue(viewing.transportModeCode)}</dd></div>
+          <div><dt>Transport mode</dt><dd
+            data-transport-mode-code={viewing.transportModeCode ?? undefined}
+            data-transport-mode-label={modeFor(viewing.transportModeCode)?.label}
+            data-transport-mode-icon={modeFor(viewing.transportModeCode)?.icon}
+            data-transport-mode-color={modeFor(viewing.transportModeCode)?.color}
+            data-transport-mode-line-style={modeFor(viewing.transportModeCode)?.lineStyle}
+            style={modeFor(viewing.transportModeCode) ? { color: modeFor(viewing.transportModeCode)!.color } : undefined}
+          >{modeText(viewing.transportModeCode)}</dd></div>
           <div><dt>Booking</dt><dd>{displayValue(viewing.bookingInfo)}</dd></div>
           <div><dt>Contact</dt><dd>{displayValue(viewing.contactInfo)}</dd></div>
           <div><dt>Dining</dt><dd>{displayValue(viewing.dining)}</dd></div>

@@ -401,7 +401,7 @@ test("E2E-012 persists the complete Day order with its current version", async (
   expect(screen.getByRole("button", { name: "Move 外滩 up" })).toBeTruthy();
 });
 
-test("E2E-013 exposes built-in Modes without a settings surface", async () => {
+test("E2E-013 exposes built-in Modes with their shared display metadata", async () => {
   const builtIn = {
     id: "system:CABLE_CAR", tripId: null, ownerId: null,
     code: "CABLE_CAR", label: "Cable car", icon: "cable-car",
@@ -424,5 +424,5 @@ test("E2E-013 exposes built-in Modes without a settings surface", async () => {
   expect(screen.queryByRole("button", { name: "Transport modes" })).toBeNull();
   fireEvent.click(await screen.findByRole("button", { name: "Add item" }));
   fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "transport" } });
-  expect(await screen.findByRole("option", { name: builtIn.code })).toBeTruthy();
+  expect(await screen.findByRole("option", { name: `${builtIn.label} (${builtIn.code})` })).toBeTruthy();
 });

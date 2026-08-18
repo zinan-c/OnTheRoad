@@ -8,6 +8,7 @@ import {
   TripSettings,
   type TripSettingsRecord,
 } from "../../../../features/trips/trip-settings";
+import { TransportModeManager } from "../../../../features/trips/settings/transport-mode-manager";
 
 const client = new OnTheRoadClient(
   process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:3001",
@@ -57,6 +58,7 @@ export function TripSettingsScreen({ tripId }: { readonly tripId: string }) {
         onTripChange={setTrip}
         onDeleted={() => router.push("/trips")}
       />
+      <TransportModeManager tripId={trip.id} onCatalogChange={() => undefined} />
     </section>
   );
 }

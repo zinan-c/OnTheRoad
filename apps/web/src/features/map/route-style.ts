@@ -8,6 +8,7 @@ export type RouteStyle = {
   readonly dasharray: readonly number[];
   readonly icon: string;
   readonly label: string;
+  readonly lineStyle: string;
   readonly qualityLabel: string;
   readonly isApproximate: boolean;
 };
@@ -33,6 +34,7 @@ export function routeStyle({ modeCode, quality, customMode }: { readonly modeCod
     dasharray: dasharray(mode.lineStyle),
     icon: mode.icon,
     label: customMode && !customMode.isSystem ? customMode.label : mode.code,
+    lineStyle: mode.lineStyle,
     qualityLabel: QUALITY_LABELS[quality],
     isApproximate: quality !== "actual",
   };

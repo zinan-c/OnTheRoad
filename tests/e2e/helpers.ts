@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-export const API_ORIGIN = "http://127.0.0.1:3101";
+export const API_ORIGIN = process.env.OTR_PLAYWRIGHT_API_ORIGIN ?? "http://127.0.0.1:3101";
 
 export type TripInput = {
   name: string;
@@ -32,15 +32,35 @@ export async function createTrip(page: Page, input: TripInput): Promise<string> 
 }
 
 export async function selectDay(page: Page, dayNumber: number): Promise<void> {
-  const workspace = page.getByRole("region", { name: "Daily itinerary" });
-  const loaded = page.waitForResponse((response) => response.request().method() === "GET"
-    && /\/days\/[0-9a-f-]+\/itinerary-items$/u.test(new URL(response.url()).pathname));
-  await workspace.getByRole("button", { name: `Day ${dayNumber}`, exact: true }).click();
-  await expect(workspace.getByRole("button", { name: `Day ${dayNumber}`, exact: true })).toHaveAttribute("aria-pressed", "true");
-  expect((await loaded).ok()).toBe(true);
+  let workspace = page.getByRole("region", { name: "Daily itinerary" });
+  let loaded: Promise<import("@playwright/test").Response> | undefined;
+  const railDay = page.getByRole("complementary", { name: "Trip days" })
+    .getByRole("button", { name: new RegExp(`^Day ${dayNumber},`, "u") });
+  if (await workspace.count() === 0) {
+    loaded = page.waitForResponse((response) => response.request().method() === "GET"
+      && /\/days\/[0-9a-f-]+\/itinerary-items$/u.test(new URL(response.url()).pathname));
+    await railDay.click();
+    workspace = page.getByRole("region", { name: "Daily itinerary" });
+  } else if (await railDay.getAttribute("aria-pressed") !== "true") {
+    loaded = page.waitForResponse((response) => response.request().method() === "GET"
+      && /\/days\/[0-9a-f-]+\/itinerary-items$/u.test(new URL(response.url()).pathname));
+    await railDay.click();
+  }
+  await expect(workspace).toBeVisible();
+  const localDay = workspace.getByRole("button", { name: `Day ${dayNumber}`, exact: true });
+  if (await localDay.count() > 0 && await localDay.getAttribute("aria-pressed") !== "true") {
+    loaded ??= page.waitForResponse((response) => response.request().method() === "GET"
+      && /\/days\/[0-9a-f-]+\/itinerary-items$/u.test(new URL(response.url()).pathname));
+    await localDay.click();
+    await expect(localDay).toHaveAttribute("aria-pressed", "true");
+  }
+  if (loaded) expect((await loaded).ok()).toBe(true);
 }
 
 export async function openNewItem(page: Page, kind: "activity" | "attraction" | "dining" | "accommodation" | "transport" | "other") {
+  if (await page.getByRole("button", { name: "Add item", exact: true }).count() === 0) {
+    await selectDay(page, 1);
+  }
   await page.getByRole("button", { name: "Add item", exact: true }).click();
   const editor = page.getByRole("form", { name: "Add item" });
   await expect(editor).toBeVisible();

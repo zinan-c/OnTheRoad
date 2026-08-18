@@ -240,15 +240,21 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
       onRouteSelect={selectRoute}
     /> : <p role="status">No valid coordinates. Confirm a location to show it on the map.</p>}
     <small className="otr-map-attribution">Map data © On The Road fixture</small>
-    {!compact ? <>
-      {modeLegend.length > 0 ? <ul aria-label="Route mode legend">{modeLegend.map(({ code, style }) => <li key={code} data-line-style={style.dasharray.join(" ")}><span aria-hidden="true">{style.icon}</span> {style.label}{code === "OTHER" ? " (transport mode not specified)" : ""}</li>)}</ul> : null}
-      {gaps.length > 0 ? <aside aria-label="Route gaps"><h3>Route gaps</h3><ul>{gaps.map((route) => {
+    {modeLegend.length > 0 ? <ul aria-label="Route mode legend">{modeLegend.map(({ code, style }) => <li
+        key={code}
+        data-mode-code={code}
+        data-mode-label={style.label}
+        data-mode-icon={style.icon}
+        data-mode-color={style.color}
+        data-line-style={style.lineStyle}
+        style={{ color: style.color }}
+      ><span aria-hidden="true">{style.icon}</span> {style.label} ({code}){code === "OTHER" ? " (transport mode not specified)" : ""}</li>)}</ul> : null}
+    {!compact && gaps.length > 0 ? <aside aria-label="Route gaps"><h3>Route gaps</h3><ul>{gaps.map((route) => {
         const blockers = Array.isArray(route.sourceContext.blockers)
           ? route.sourceContext.blockers.map((blocker) => ROUTE_BLOCKER_LABELS[String(blocker)] ?? String(blocker)).join(", ")
           : "Location not confirmed";
         return <li key={route.id}>{itemLabel(route.fromItineraryItemId)} → {itemLabel(route.toItineraryItemId)}: {blockers}</li>;
       })}</ul></aside> : null}
-    </> : null}
     {showTimeline && hasDayScope ? <ol aria-label="Itinerary timeline" className="workspaceTimeline">{visibleTimelineItems.map((item) => <li key={item.id}><button
         type="button"
         aria-pressed={selectedItemId === item.id}

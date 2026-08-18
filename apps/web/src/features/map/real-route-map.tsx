@@ -30,7 +30,14 @@ export function buildPersistedRouteGeoJson(
         type: "Feature" as const,
         id: route.id,
         geometry: route.geometry,
-        properties: { color: style.color, dasharray: [...style.dasharray], selected: route.id === selectedRouteId },
+        properties: {
+          color: style.color,
+          dasharray: [...style.dasharray],
+          modeLabel: style.label,
+          modeIcon: style.icon,
+          lineStyle: style.lineStyle,
+          selected: route.id === selectedRouteId,
+        },
       }];
     }),
   };

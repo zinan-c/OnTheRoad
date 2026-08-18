@@ -115,9 +115,18 @@ export function TransportModeManager({
       <button type="submit" disabled={pending}>{editing ? "Save changes" : "Add transport mode"}</button>
       {editing ? <button type="button" onClick={() => { setEditing(null); setDraft(EMPTY); }}>Cancel editing</button> : null}
     </form>
-    <ul>{modes.map((mode) => <li key={mode.id} data-enabled={mode.enabled}>
-      <span aria-hidden="true" style={{ color: mode.color }}>{mode.icon}</span>
-      <strong>{mode.isSystem ? mode.code : mode.label}</strong> <code>{mode.code}</code> <span>{mode.lineStyle}</span>
+    <ul>{modes.map((mode) => <li
+      key={mode.id}
+      data-mode-code={mode.code}
+      data-mode-label={mode.label}
+      data-mode-icon={mode.icon}
+      data-mode-color={mode.color}
+      data-mode-line-style={mode.lineStyle}
+      data-enabled={mode.enabled}
+    >
+      <span aria-hidden="true" data-mode-icon={mode.icon} style={{ color: mode.color }}>{mode.icon}</span>
+      <strong>{mode.label}</strong> <code>{mode.code}</code> <span>{mode.lineStyle}</span>
+      {!mode.enabled ? <span role="status">已停用</span> : null}
       {mode.isSystem ? <span>System</span> : <>
         <button type="button" disabled={pending || !mode.enabled} aria-label={`Edit ${mode.label}`} onClick={() => {
           setEditing(mode);
