@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { API_ORIGIN, caseName, createTrip } from "./helpers";
 
-test("E2E-001 — clean-stack readiness and capability discovery", async ({ page }) => {
+test("E2E-001 — Clean-stack readiness and capability discovery", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText(/Service ready/u)).toBeVisible();
   await expect(page.getByText(/Location search (available|degraded)/u)).toBeVisible();
@@ -37,7 +37,7 @@ test("E2E-001 — clean-stack readiness and capability discovery", async ({ page
   await expect(page.getByText(/Service ready/u)).toBeVisible();
 });
 
-test("E2E-002 — development login, session persistence and re-login", async ({ page, context }) => {
+test("E2E-002 — Development login, session persistence and re-login", async ({ page, context }) => {
   const name = caseName("E2E-002", "session");
   const tripId = await createTrip(page, { name });
   const tripUrl = `/trips/${tripId}`;
@@ -66,7 +66,7 @@ test("E2E-002 — development login, session persistence and re-login", async ({
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`, "u"));
 });
 
-test("E2E-003 — standard five-day multi-destination Trip creation", async ({ page }) => {
+test("E2E-003 — Standard five-day multi-destination Trip creation", async ({ page }) => {
   const name = caseName("E2E-003", "上海与舟山五日");
   await page.goto("/");
   await page.getByRole("link", { name: "Create a trip" }).click();
@@ -116,7 +116,7 @@ test("E2E-003 — standard five-day multi-destination Trip creation", async ({ p
   await expect(page.getByRole("navigation", { name: "Select day" }).getByRole("button")).toHaveCount(5);
 });
 
-test("E2E-004 — single-day minimum-value Trip", async ({ page }) => {
+test("E2E-004 — Single-day minimum-value Trip", async ({ page }) => {
   const name = caseName("E2E-004", "东京一日散步");
   await page.goto("/trips/new");
   const form = page.getByRole("form", { name: "New trip" });
@@ -145,7 +145,7 @@ test("E2E-004 — single-day minimum-value Trip", async ({ page }) => {
   await expect(settings.getByLabel("Map profile")).toHaveValue("international_primary");
 });
 
-test("E2E-005 — leap-date, mixed delimiters and maximum form values", async ({ page }) => {
+test("E2E-005 — Leap-date, mixed destination delimiters and maximum form values", async ({ page }) => {
   const name = caseName("E2E-005", "华东闰年跨月旅行");
   await page.goto("/trips/new");
   const form = page.getByRole("form", { name: "New trip" });
@@ -176,7 +176,7 @@ test("E2E-005 — leap-date, mixed delimiters and maximum form values", async ({
   await expect(page.getByText("2028-02-28 — 2028-03-01")).toBeVisible();
 });
 
-test("E2E-006 — duplicate submit and idempotent Trip creation", async ({ page }) => {
+test("E2E-006 — Duplicate submit and idempotent Trip creation", async ({ page }) => {
   const name = caseName("E2E-006", "idempotent");
   let createRequests = 0;
   let firstTripId = "";

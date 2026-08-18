@@ -2,7 +2,7 @@ import { expect, test, type Locator } from "@playwright/test";
 
 import { caseName, createLocatedSequence, createTrip, openItem, selectDay } from "./helpers";
 
-test("E2E-022 — global and daily map scope with stable MapLibre sizing", async ({ page }) => {
+test("E2E-022 — Global/Day map scope and stable MapLibre sizing", async ({ page }) => {
   await createTrip(page, {
     name: caseName("E2E-022", "map-scope-sizing"),
     startDate: "2026-10-01",

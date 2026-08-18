@@ -13,7 +13,7 @@ import {
   waitForAutosave,
 } from "./helpers";
 
-test("E2E-016 — full runtime DirectionsProvider-to-MapLibre happy path", async ({ page }) => {
+test("E2E-016 — Full runtime route-to-MapLibre happy path", async ({ page }) => {
   const tileRequest = page.waitForResponse((response) =>
     response.ok() && new URL(response.url()).pathname.startsWith("/api/map/tiles/"));
   await createTrip(page, { name: caseName("E2E-016", "runtime-route") });
@@ -51,7 +51,7 @@ test("E2E-016 — full runtime DirectionsProvider-to-MapLibre happy path", async
   await expect(page.getByRole("complementary", { name: "Route details" })).toContainText("fixture");
 });
 
-test("E2E-017 — cross-day and transport-internal route matrix", async ({ page }) => {
+test("E2E-017 — Cross-day and transport-internal route matrix", async ({ page }) => {
   await createTrip(page, {
     name: caseName("E2E-017", "route-matrix"),
     startDate: "2026-10-01",
