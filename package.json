@@ -32,6 +32,7 @@
     "test:pdf-worker-smoke": "bash scripts/run-profile.sh dev -- vitest run tests/runtime/pdf-worker-stack.e2e.spec.ts",
     "test:e2e:verify": "node scripts/verify-product-e2e-manifest.mjs",
     "test:e2e": "pnpm run test:e2e:verify && playwright test --config playwright.e2e.config.ts",
+    "test:e2e:evidence": "node scripts/write-product-e2e-evidence.mjs --verify",
     "test:cases:verify": "node scripts/verify-required-cases.mjs",
     "test:cases:required": "node scripts/run-required-cases.mjs",
     "test:cases:evidence": "node scripts/verify-required-case-report.mjs",

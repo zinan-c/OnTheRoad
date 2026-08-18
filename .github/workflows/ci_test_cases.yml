@@ -179,3 +179,96 @@ jobs:
         run: bash scripts/dev-down.sh --track compose
       - name: Verify tests did not change tracked sources
         run: git diff --exit-code
+
+  product-e2e-required:
+    name: "Product E2E / required 22"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4.4.0
+        with:
+          version: 9.15.4
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium and product-e2e runtime tools
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes redis-tools curl
+      - name: Start real Compose dependencies and application runtimes
+        env:
+          OTR_COMPOSE_PULL_POLICY: missing
+          OTR_DEV_WEB_PORT: "3100"
+          OTR_DEV_API_PORT: "3101"
+        run: |
+          mkdir -p test-results
+          bash scripts/run-environment.sh dev -compose > test-results/product-e2e-runtime.log 2>&1 &
+          runtime_pid=$!
+          echo "$runtime_pid" > "$RUNNER_TEMP/otr-product-e2e-runtime.pid"
+          set -a
+          source infra/local-stack.env
+          set +a
+          for attempt in $(seq 1 180); do
+            if ! kill -0 "$runtime_pid" 2>/dev/null; then
+              echo "Product E2E runtime exited before readiness." >&2
+              tail -200 test-results/product-e2e-runtime.log >&2 || true
+              exit 1
+            fi
+            if curl --fail --silent http://127.0.0.1:3101/health/ready > test-results/product-e2e-readiness.json \
+              && curl --fail --silent http://127.0.0.1:3100/ > /dev/null \
+              && grep --quiet '"status":"ready"' test-results/product-e2e-readiness.json \
+              && redis-cli -u "$REDIS_URL" --scan --pattern 'otr:worker:heartbeat:*' | grep --quiet .; then
+              echo "Product E2E runtime ready: Compose, API, Worker, and Web."
+              break
+            fi
+            if [ "$attempt" -eq 180 ]; then
+              echo "Product E2E runtime readiness timed out." >&2
+              tail -200 test-results/product-e2e-runtime.log >&2 || true
+              exit 1
+            fi
+            sleep 1
+          done
+      - name: Run the root product E2E suite
+        env:
+          OTR_PLAYWRIGHT_EXTERNAL_STACK: "1"
+          OTR_PLAYWRIGHT_WEB_ORIGIN: http://127.0.0.1:3100
+          OTR_PLAYWRIGHT_API_ORIGIN: http://127.0.0.1:3101
+          OTR_PRODUCT_E2E_JSON: test-results/product-e2e-results.json
+          OTR_PRODUCT_E2E_JUNIT: test-results/product-e2e-results.xml
+        run: pnpm run test:e2e
+      - name: Generate and verify commit-bound product-e2e evidence
+        if: always()
+        env:
+          OTR_PRODUCT_E2E_JSON: test-results/product-e2e-results.json
+          OTR_PRODUCT_E2E_EVIDENCE: test-results/product-e2e-evidence.json
+        run: pnpm run test:e2e:evidence
+      - name: Upload product-e2e evidence and browser artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: product-e2e-required-${{ github.sha }}
+          path: |
+            test-results/
+            apps/web/test-results/
+          if-no-files-found: error
+      - name: Stop application runtimes and Compose dependencies
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/otr-product-e2e-runtime.pid" ]; then
+            read -r runtime_pid < "$RUNNER_TEMP/otr-product-e2e-runtime.pid"
+            kill -TERM "$runtime_pid" 2>/dev/null || true
+            for attempt in $(seq 1 30); do
+              if ! kill -0 "$runtime_pid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+          fi
+          bash scripts/dev-down.sh --track compose
+      - name: Verify product-e2e job did not change tracked sources
+        if: always()
+        run: git diff --exit-code
