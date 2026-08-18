@@ -1,0 +1,304 @@
+{
+  "version": 1,
+  "suite": "product-e2e",
+  "sourceDocument": "docs/E2E_AUTOMATION_CASES.md",
+  "requiredCaseIds": [
+    "E2E-001",
+    "E2E-002",
+    "E2E-003",
+    "E2E-004",
+    "E2E-005",
+    "E2E-006",
+    "E2E-007",
+    "E2E-008",
+    "E2E-009",
+    "E2E-010",
+    "E2E-011",
+    "E2E-012",
+    "E2E-013",
+    "E2E-014",
+    "E2E-015",
+    "E2E-016",
+    "E2E-017",
+    "E2E-018",
+    "E2E-019",
+    "E2E-020",
+    "E2E-021",
+    "E2E-022"
+  ],
+  "rules": {
+    "exactCaseCount": 22,
+    "allowSkipped": false,
+    "positiveAcceptanceCannotUseAbsenceAsProof": true,
+    "requiredDeviceProjects": ["chromium"]
+  },
+  "cases": [
+    {
+      "id": "E2E-001",
+      "title": "Clean-stack readiness and capability discovery",
+      "uiActions": [
+        { "documentPhrase": "Wait for explicit API, Web, and Worker-heartbeat readiness output.", "sourceMarkers": ["/health/ready", "reference-data"] },
+        { "documentPhrase": "Refresh the homepage once and confirm that service status does not regress to an error state.", "sourceMarkers": ["page.reload", "Service ready"] }
+      ],
+      "readOnlyApiVerification": ["GET /health/live", "GET /health/ready", "GET /api/v1/system/reference-data", "GET /api/v1/system/capabilities"],
+      "dataMatrix": { "currencies": 15, "costCategories": 9, "systemTransportModes": 22, "providerProfile": "fixture" },
+      "finalBusinessFacts": ["The real Web page and API are ready.", "Reference Data counts and capability text agree."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-002",
+      "title": "Development login, session persistence and re-login",
+      "uiActions": [
+        { "documentPhrase": "Click “Log in again.”", "sourceMarkers": ["Sign in again", "context.clearCookies"] },
+        { "documentPhrase": "Click “Log out.”", "sourceMarkers": ["Sign out", "clearCookies"] }
+      ],
+      "readOnlyApiVerification": ["GET /identity/session", "GET protected Trip detail after browser login"],
+      "dataMatrix": { "profile": "dev", "owner": "browser-demo-owner", "sameOriginTabs": 2, "refreshes": 2 },
+      "finalBusinessFacts": ["The browser session survives refresh and a same-origin tab.", "Logout removes access and re-login restores the same Trip."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-003",
+      "title": "Standard five-day multi-destination Trip creation",
+      "uiActions": [
+        { "documentPhrase": "Click “Create my Trip” on the homepage.", "sourceMarkers": ["createTrip", "Create trip"] },
+        { "documentPhrase": "Click “Create Trip” and observe the button change to “Creating…”.", "sourceMarkers": ["Creating…", "waitForResponse"] }
+      ],
+      "readOnlyApiVerification": ["GET created Trip", "GET Trip Days", "GET Trip Destinations through the public Trip response"],
+      "dataMatrix": { "startDate": "2026-10-01", "endDate": "2026-10-05", "destinations": ["上海", "舟山"], "travelers": 2, "defaultCurrency": "CNY", "timezone": "Asia/Shanghai", "mapProfile": "cn_primary" },
+      "finalBusinessFacts": ["Exactly one five-day Trip is created.", "Two destinations and five consecutive Days persist after refresh."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-004",
+      "title": "Single-day minimum-value Trip",
+      "uiActions": [
+        { "documentPhrase": "Open the new-Trip page.", "sourceMarkers": ["/trips/new", "New trip"] },
+        { "documentPhrase": "Refresh and read the Day list.", "sourceMarkers": ["page.reload", "toHaveCount(1)"] }
+      ],
+      "readOnlyApiVerification": ["GET created Trip", "GET Trip Days"],
+      "dataMatrix": { "startDate": "2026-11-08", "endDate": "2026-11-08", "destination": "东京", "travelers": 1, "defaultCurrency": "USD" },
+      "finalBusinessFacts": ["Exactly one Day exists and its date equals the Trip date.", "The selected USD currency persists."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-005",
+      "title": "Leap-date, mixed destination delimiters and maximum form values",
+      "uiActions": [
+        { "documentPhrase": "Select 2028-02-28, then 2028-03-01.", "sourceMarkers": ["2028-02-28", "2028-03-01"] },
+        { "documentPhrase": "Enter 99 travelers and select JPY.", "sourceMarkers": ["fill(\"99\")", "selectOption(\"JPY\")"] }
+      ],
+      "readOnlyApiVerification": ["GET created Trip", "GET Trip Destinations", "GET Trip Days"],
+      "dataMatrix": { "startDate": "2028-02-28", "endDate": "2028-03-01", "destinations": "上海, 杭州，舟山、南京", "travelers": 99, "defaultCurrency": "JPY" },
+      "finalBusinessFacts": ["Three Days are generated for the leap-year boundary.", "All four destinations and the maximum traveler value persist."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-006",
+      "title": "Duplicate submit and idempotent Trip creation",
+      "uiActions": [
+        { "documentPhrase": "Immediately try clicking the button again and pressing Enter.", "sourceMarkers": ["form.press(\"Enter\")", "Creating…"] },
+        { "documentPhrase": "Replay the same Idempotency-Key in developer tools to simulate a safe retry after the first response was lost.", "sourceMarkers": ["idempotency-key", "route.abort"] }
+      ],
+      "readOnlyApiVerification": ["GET Trip list and compare created record count"],
+      "dataMatrix": { "network": "delayed response followed by connection failure", "idempotencyKey": "same browser-generated key", "submissions": 2 },
+      "finalBusinessFacts": ["One Trip exists after the retry.", "No duplicate Trip is created and the browser reaches the original Trip."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-007",
+      "title": "Trip date extension and empty-Day contraction",
+      "uiActions": [
+        { "documentPhrase": "Change the end date to 2026-10-05 and preview the change.", "sourceMarkers": ["Preview date changes", "2026-10-05"] },
+        { "documentPhrase": "Confirm that only empty Days 4/5 are removed, then refresh again.", "sourceMarkers": ["Days removed", "page.reload"] }
+      ],
+      "readOnlyApiVerification": ["GET Trip Days before and after date change", "GET Day Items"],
+      "dataMatrix": { "initialEndDate": "2026-10-03", "extendedEndDate": "2026-10-05", "contractionEndDate": "2026-10-03", "nonEmptyDays": [1, 2] },
+      "finalBusinessFacts": ["Existing Day and Item IDs are retained on extension.", "Only empty Days 4 and 5 are removed on contraction."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-008",
+      "title": "Trip update, soft delete and restore lifecycle",
+      "uiActions": [
+        { "documentPhrase": "Open Trip settings, enter the update data, and save.", "sourceMarkers": ["Trip details", "Save changes"] },
+        { "documentPhrase": "Open Deleted/Trash and restore it.", "sourceMarkers": ["Trash", "Restore trip"] }
+      ],
+      "readOnlyApiVerification": ["GET active Trip list", "GET deleted Trip list", "GET restored Trip and retained Item"],
+      "dataMatrix": { "updatedCurrency": "EUR", "travelers": 4, "budget": "12000.50", "description": "Lifecycle confirmed; mixed description." },
+      "finalBusinessFacts": ["Updated Trip fields persist.", "Delete is soft, and restore returns the same Trip and related Item."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-009",
+      "title": "Complete Itinerary Item type and field matrix",
+      "uiActions": [
+        { "documentPhrase": "Select each of the six Item types and fill every field in the matrix.", "sourceMarkers": ["createSimpleItem", "openNewItem"] },
+        { "documentPhrase": "Refresh, then open and verify every Item again.", "sourceMarkers": ["assertItemFields", "page.reload"] }
+      ],
+      "readOnlyApiVerification": ["GET each Day Item", "GET Item Expense where present"],
+      "dataMatrix": { "itemTypes": ["activity", "attraction", "dining", "accommodation", "transport", "other"], "fields": "type-specific editor matrix" },
+      "finalBusinessFacts": ["All six Item types are persisted with their type-specific fields.", "Every Item remains readable after refresh."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-010",
+      "title": "Item edit, autosave and reload",
+      "uiActions": [
+        { "documentPhrase": "Observe saving/saved status after each input.", "sourceMarkers": ["waitForAutosave", "Saved"] },
+        { "documentPhrase": "Rapidly change the description three times, ending with “Final description.”", "sourceMarkers": ["最终描述", "openItem"] }
+      ],
+      "readOnlyApiVerification": ["GET Item after autosave", "GET Item Expense"],
+      "dataMatrix": { "target": "edited target", "description": "Final description", "time": "09:00–10:30", "durationMinutes": 90, "expense": "persisted original amount/currency" },
+      "finalBusinessFacts": ["The last edit wins without stale overwrite.", "Item fields and expense survive refresh."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-011",
+      "title": "Copy, edit copied Item and soft delete",
+      "uiActions": [
+        { "documentPhrase": "Copy it to Day 2.", "sourceMarkers": ["copy", "Day 2"] },
+        { "documentPhrase": "Return to Day 1, delete the original, and confirm.", "sourceMarkers": ["dialog.accept", "delete"] }
+      ],
+      "readOnlyApiVerification": ["GET Day 1 and Day 2 Items", "GET copied Item history where available"],
+      "dataMatrix": { "sourceItem": "Breakfast", "targetDay": 2, "copyTarget": "Breakfast (edited copy)", "note": "Copy edited." },
+      "finalBusinessFacts": ["The copy has a new ID and independent edits.", "The original is soft-deleted while the copy remains readable and writable."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-012",
+      "title": "Same-day reorder across mouse, keyboard and touch",
+      "uiActions": [
+        { "documentPhrase": "On desktop, drag into B→A→D→C order.", "sourceMarkers": ["dragBefore", "B", "D"] },
+        { "documentPhrase": "Open the same Day at Pixel 7 viewport and move once using touch or an equivalent control.", "sourceMarkers": ["Pixel 7", "Move B down"] }
+      ],
+      "readOnlyApiVerification": ["GET ordered Day Items after each reorder", "GET route generation status"],
+      "dataMatrix": { "initialOrder": ["A", "B", "C", "D"], "desktopOrder": ["B", "A", "D", "C"], "keyboardMove": "D up", "mobileMove": "B down" },
+      "finalBusinessFacts": ["Mouse, keyboard, and mobile-equivalent input persist one complete Item order each.", "No Item is omitted or duplicated."],
+      "deviceProjects": ["chromium", "pixel-7"]
+    },
+    {
+      "id": "E2E-013",
+      "title": "Custom transport mode lifecycle",
+      "uiActions": [
+        { "documentPhrase": "Open transport-mode management in Trip settings.", "sourceMarkers": ["Transport mode management", "Trip settings"] },
+        { "documentPhrase": "Create and save the custom Mode above.", "sourceMarkers": ["CABLE_SHUTTLE_CUSTOM", "Add transport mode"] },
+        { "documentPhrase": "Return to settings, deactivate the Mode, then open both the existing Item and a new-Item form.", "sourceMarkers": ["Deactivate", "data-enabled"] }
+      ],
+      "readOnlyApiVerification": ["GET /trips/{tripId}/transport-modes", "GET transport Item", "GET route/map read models"],
+      "dataMatrix": { "code": "CABLE_SHUTTLE_CUSTOM", "label": "Cable-car shuttle", "color": "#123456", "lineStyle": "dotted", "icon": "cable-car" },
+      "finalBusinessFacts": ["The custom Mode is selectable immediately and persists after refresh.", "Timeline, map, details, and route styling expose the same label/icon/color/lineStyle.", "After deactivation, the old Item is readable with a disabled warning and a new Item does not offer the Mode by default."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-014",
+      "title": "Explicit location search, candidate confirmation and persistence",
+      "uiActions": [
+        { "documentPhrase": "Click explicit search and wait for candidates.", "sourceMarkers": ["Search location", "Location candidates"] },
+        { "documentPhrase": "Save the Item, refresh, and reopen it.", "sourceMarkers": ["saveNewItem", "page.reload"] }
+      ],
+      "readOnlyApiVerification": ["GET Location search job/result", "GET confirmed Location", "GET Item"],
+      "dataMatrix": { "query": "People's Square", "candidateContexts": ["上海", "重庆"], "provider": "fixture" },
+      "finalBusinessFacts": ["No candidate is silently selected.", "The explicitly confirmed Location and Item relationship survive refresh."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-015",
+      "title": "Map pick, Marker drag and manual coordinate persistence",
+      "uiActions": [
+        { "documentPhrase": "Drag the Marker to the second coordinate and save.", "sourceMarkers": ["Save marker position", "marker"] },
+        { "documentPhrase": "Open manual coordinate input, enter the final coordinate, and confirm.", "sourceMarkers": ["Save manual coordinates", "121.5100"] }
+      ],
+      "readOnlyApiVerification": ["GET Location after each coordinate adjustment", "GET Item Location relationship"],
+      "dataMatrix": { "initialLocation": "Near the Bund", "mapPick": "121.4900,31.2400", "markerDrag": "121.5000,31.2300", "manual": "121.5100,31.2200" },
+      "finalBusinessFacts": ["Manual coordinates have precedence and persist as WGS84.", "The final Location remains stable after refresh."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-016",
+      "title": "Full runtime route-to-MapLibre happy path",
+      "uiActions": [
+        { "documentPhrase": "Wait for the page to show route generation, then for generation to complete.", "sourceMarkers": ["Generating routes", "data-route-count"] },
+        { "documentPhrase": "Open the global map and inspect basemap, Markers, routes, and attribution.", "sourceMarkers": ["Route mode legend", "Map data © On The Road fixture"] }
+      ],
+      "readOnlyApiVerification": ["GET route generation status", "GET persisted routes", "GET Locations"],
+      "dataMatrix": { "items": ["A", "B", "C"], "inboundModes": ["WALK", "METRO"], "provider": "fixture" },
+      "finalBusinessFacts": ["The Worker-generated route reaches the public Route API and real MapLibre surface.", "Marker, route, provider, quality, and endpoint facts remain after refresh."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-017",
+      "title": "Cross-day and transport-internal route matrix",
+      "uiActions": [
+        { "documentPhrase": "Switch between Day and global maps and inspect each Segment.", "sourceMarkers": ["selectDay", "Route list"] },
+        { "documentPhrase": "Confirm the route-gap explanation around F.", "sourceMarkers": ["Route gaps", "not confirmed"] }
+      ],
+      "readOnlyApiVerification": ["GET all persisted route Segments", "GET route status after reorder/mode change"],
+      "dataMatrix": { "days": 2, "items": ["A", "B", "C", "D", "E", "F"], "modes": ["WALK", "FLIGHT", "FERRY", "CABLE_CAR", "PUBLIC_BUS"], "unresolvedItem": "F" },
+      "finalBusinessFacts": ["Cross-day and transport-internal segments are scoped correctly.", "Unconfirmed Locations produce an explicit gap rather than a fabricated route."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-018",
+      "title": "Multi-image upload and gallery happy path",
+      "uiActions": [
+        { "documentPhrase": "Select all three images in one upload action.", "sourceMarkers": ["setInputFiles", "multiple"] },
+        { "documentPhrase": "Delete the first image and confirm deletion.", "sourceMarkers": ["确认删除", "data-status=\"ready\""] }
+      ],
+      "readOnlyApiVerification": ["GET Item gallery", "GET Attachment/object metadata without writes"],
+      "dataMatrix": { "day-view.jpg": "landscape JPEG", "meal.png": "square PNG", "hotel.webp": "portrait WebP", "uploadCount": 3 },
+      "finalBusinessFacts": ["Each real file reaches ready through upload, scan, and Worker processing.", "Caption, cover, order, lightbox, delete confirmation, and refresh state are correct."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-019",
+      "title": "Multi-currency expense and summary reconciliation",
+      "uiActions": [
+        { "documentPhrase": "Enter each Expense while creating its owning Item in the daily itinerary editor.", "sourceMarkers": ["expense", "createSimpleItem"] },
+        { "documentPhrase": "Open rate management and enter manual USD, JPY, and VND to CNY rates.", "sourceMarkers": ["saveRate", "Exchange rate management"] }
+      ],
+      "readOnlyApiVerification": ["GET Item Expenses", "GET Trip exchange rates", "GET expense summary"],
+      "dataMatrix": { "CNY": "200.00", "USD": "50.25 @ 7.2000", "JPY": "8000 @ 0.0480", "VND": "100000 @ 0.00030", "settlementCurrency": "CNY" },
+      "finalBusinessFacts": ["Original Decimal amounts and rate snapshots reconcile to the daily CNY summary.", "Refresh retains rates, original amounts, and the read-only detail tree."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-020",
+      "title": "Three-format import, mapping and staging preview",
+      "uiActions": [
+        { "documentPhrase": "Observe upload-session creation, upload, scan, and inspection states.", "sourceMarkers": ["setInputFiles", "上传文件", "扫描并检查"] },
+        { "documentPhrase": "Change at least one Mapping and save.", "sourceMarkers": ["保存映射", "导入列映射"] },
+        { "documentPhrase": "Select an error row, choose “Skip error,” and complete secondary confirmation.", "sourceMarkers": ["跳过当前页错误", "确认跳过"] }
+      ],
+      "readOnlyApiVerification": ["GET latest ImportJob", "GET inspection Job", "GET Mapping", "GET Preview rows/counts", "GET production Item/Location/Expense counts"],
+      "dataMatrix": { "formats": ["xlsx", "xls", "csv"], "fixtures": ["product-e2e.xlsx", "product-e2e.xls", "product-e2e.csv"], "rows": "new/update/duplicate/error/unresolved representative rows" },
+      "finalBusinessFacts": ["All three files complete upload, scan, inspection, Mapping, and Preview through the UI.", "Raw/normalized values, status counts, errors, skip confirmation, and refresh restoration are visible.", "Formal Item, Location, and Expense counts are unchanged because the case does not commit production rows."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-021",
+      "title": "Full currency Reference Data availability and normalization",
+      "uiActions": [
+        { "documentPhrase": "Select each currency and create a minimum single-day Trip; automation may parameterize 15 runs.", "sourceMarkers": ["CURRENCIES", "for (const currency"] },
+        { "documentPhrase": "Upload an import containing all 15 codes and the `RMB` alias, then enter Preview.", "sourceMarkers": ["RMB", "currency-fixture"] },
+        { "documentPhrase": "Confirm `RMB` normalizes to `CNY` and other codes remain unchanged.", "sourceMarkers": ["currency: CNY", "currency: USD"] }
+      ],
+      "readOnlyApiVerification": ["GET /api/v1/system/reference-data", "GET each created Trip", "GET Item Expense", "GET exchange rates", "GET Import Preview"],
+      "dataMatrix": { "currencies": ["CNY", "USD", "EUR", "JPY", "KRW", "PHP", "THB", "SGD", "MYR", "VND", "IDR", "HKD", "TWD", "AUD", "GBP"], "aliases": ["lowercase variants", "RMB"] },
+      "finalBusinessFacts": ["All 15 currencies create Trips and Item-owned Expenses with original uppercase codes.", "Trip, Expense, rate, and Import selectors share the same 15-code set.", "RMB is normalized to CNY while other codes remain their ISO code."],
+      "deviceProjects": ["chromium"]
+    },
+    {
+      "id": "E2E-022",
+      "title": "Global/Day map scope and stable MapLibre sizing",
+      "uiActions": [
+        { "documentPhrase": "Click Day 1 in the left itinerary and confirm that the right map fits and displays only the Day 1 marker and routes.", "sourceMarkers": ["selectDay(page, 1)", "data-marker-count"] },
+        { "documentPhrase": "Observe the coordinate map for at least 750 ms and confirm that its height remains fixed without continuous growth.", "sourceMarkers": ["waitForTimeout(750)", "boundingBox"] }
+      ],
+      "readOnlyApiVerification": ["GET Days/Items/Locations/Routes", "GET route status"],
+      "dataMatrix": { "days": 2, "confirmedItems": 2, "mapScopes": ["global", "day-1", "day-2"], "routeMapHeight": 320, "coordinateMapHeight": 256 },
+      "finalBusinessFacts": ["Global and Day scopes show the correct persisted markers and routes.", "Both real MapLibre canvases remain bounded at their documented heights after delayed measurement."],
+      "deviceProjects": ["chromium"]
+    }
+  ]
+}
