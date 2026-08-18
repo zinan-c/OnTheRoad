@@ -239,15 +239,19 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "Worker" "\$\{WORKER_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "PDF Worker" "\$\{PDF_WORKER_PID\}"/);
+  assert.match(localCi, /fail_if_runtime_exited "Web" "\$\{WEB_PID\}"/);
   assert.match(localCi, /run-profile\.sh dev -- node apps\/api\/dist\/main\.js/);
   assert.match(localCi, /run-profile\.sh dev -- node apps\/worker\/dist\/main\.js/);
   assert.match(localCi, /run-profile\.sh dev -- node apps\/pdf-worker\/dist\/main\.js/);
+  assert.match(localCi, /--filter=@on-the-road\/web/);
+  assert.match(localCi, /run-profile\.sh dev -- env[\s\\]*PORT="\$\{WEB_PORT\}"[\s\\]*WEB_PORT="\$\{WEB_PORT\}"[\s\\]*APP_ORIGIN="\$\{WEB_ORIGIN\}"[\s\\]*API_BASE_URL="\$\{API_ORIGIN\}\/api\/v1"[\s\\]*NEXT_PUBLIC_API_ORIGIN="\$\{API_ORIGIN\}"[\s\\]*pnpm run start:web/);
   assert.doesNotMatch(
     localCi,
     /profile:dev -- pnpm --filter @on-the-road\/(?:api|worker|pdf-worker) start/,
   );
   assert.match(localCi, /wait "\$\{runtime_pid\}"/);
   assert.match(localCi, /otr:pdf-worker:heartbeat:\*/);
+  assert.match(localCi, /otr:worker:heartbeat:\*/);
   assert.match(
     testWorkflow,
     /Initialize required-case diagnostic artifact[\s\S]*node scripts\/initialize-required-case-report\.mjs[\s\S]*Start real integration dependencies/,
@@ -308,6 +312,8 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     "pnpm run test:cases:required",
     "pnpm run test:cases:evidence",
     "pnpm run test:pdf-worker-smoke",
+    "pnpm run test:e2e",
+    "pnpm run test:e2e:evidence",
     "pnpm run ci:smoke",
     "git diff --exit-code",
   ]) {

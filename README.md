@@ -179,12 +179,14 @@ pnpm run ci:local
 ```
 
 `pnpm run ci:local` must run from a clean, committed worktree. It verifies the
-current full SHA, provisions the dependency stack, applies and checks
-migrations, starts the real API and Worker, and executes every required M0–M4
-Vitest, `node:test`, and Playwright Case without skips. The Gate rejects dirty,
-wrong-commit, failed, skipped, todo, or uncollected evidence. Diagnostics are
-written to `test-results/local-m0-m4-required.json` and validated by
-`pnpm run test:cases:evidence`.
+current full SHA, provisions the real Compose/PostgreSQL/Redis/MinIO/ClamAV
+stack, applies and checks migrations, starts the API, Web, Worker, and PDF
+Worker, and executes every required M0–M4 Case plus the required 22-case
+product-browser suite without skips. The Gate rejects dirty, wrong-commit,
+failed, skipped, todo, or uncollected evidence. Diagnostics are written to
+`test-results/local-m0-m4-required.json`; product E2E JSON/JUnit, browser
+artifacts, HTML, and commit-bound `product-e2e-evidence.json` are retained in
+`test-results/` and verified by the corresponding evidence commands.
 
 The local aggregate Gate requires Docker Compose v2, Playwright Chromium,
 Poppler, ImageMagick, `redis-cli`, and the pinned native `minio`/`mc` test

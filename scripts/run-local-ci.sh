@@ -8,6 +8,7 @@ STACK_STARTED=0
 API_PID=""
 WORKER_PID=""
 PDF_WORKER_PID=""
+WEB_PID=""
 
 stop_runtime() {
   local runtime_pid="$1"
@@ -22,6 +23,7 @@ cleanup() {
   stop_runtime "${API_PID}"
   stop_runtime "${WORKER_PID}"
   stop_runtime "${PDF_WORKER_PID}"
+  stop_runtime "${WEB_PID}"
   if [[ "${STACK_STARTED}" -eq 1 ]]; then
     bash "${SCRIPT_DIR}/dev-down.sh" --track compose
   fi
@@ -110,11 +112,12 @@ export OTR_RUN_CLAMAV_INTEGRATION="1"
 export OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}"
 export OTR_COMMIT_SHA="$(git rev-parse HEAD)"
 
-echo "Starting M4 API, Worker, and PDF Worker runtimes..."
+echo "Starting M4 API, Worker, PDF Worker, and Web runtimes..."
 pnpm exec turbo run build \
   --filter=@on-the-road/api \
   --filter=@on-the-road/worker \
-  --filter=@on-the-road/pdf-worker
+  --filter=@on-the-road/pdf-worker \
+  --filter=@on-the-road/web
 bash scripts/run-profile.sh dev -- node apps/api/dist/main.js \
   > test-results/m4-api.log 2>&1 &
 API_PID=$!
@@ -128,9 +131,17 @@ API_ORIGIN="$(bash scripts/run-profile.sh dev -- node -e \
   'process.stdout.write(new URL(process.env.API_BASE_URL).origin)')"
 WEB_ORIGIN="$(bash scripts/run-profile.sh dev -- node -e \
   'process.stdout.write(new URL(process.env.APP_ORIGIN).origin)')"
+WEB_PORT="$(bash scripts/run-profile.sh dev -- node -e '
+  const url = new URL(process.env.APP_ORIGIN);
+  process.stdout.write(url.port || (url.protocol === "https:" ? "443" : "80"));
+')"
 export NEXT_PUBLIC_API_ORIGIN="${API_ORIGIN}"
 export OTR_PLAYWRIGHT_API_ORIGIN="${API_ORIGIN}"
 export OTR_PLAYWRIGHT_WEB_ORIGIN="${WEB_ORIGIN}"
+export OTR_PLAYWRIGHT_EXTERNAL_STACK="1"
+export OTR_PRODUCT_E2E_JSON="test-results/local-product-e2e-results.json"
+export OTR_PRODUCT_E2E_JUNIT="test-results/local-product-e2e-results.xml"
+export OTR_PRODUCT_E2E_EVIDENCE="test-results/local-product-e2e-evidence.json"
 print_runtime_diagnostics() {
   echo "Application runtime readiness response:"
   cat test-results/m4-readiness.json 2>/dev/null || true
@@ -140,6 +151,8 @@ print_runtime_diagnostics() {
   cat test-results/m4-worker.log 2>/dev/null || true
   echo "PDF Worker runtime log:"
   cat test-results/m4-pdf-worker.log 2>/dev/null || true
+  echo "Web runtime log:"
+  cat test-results/m4-web.log 2>/dev/null || true
   echo "Compose dependency health:"
   bash scripts/dev-up-health.sh --track compose || true
 }
@@ -164,7 +177,8 @@ for attempt in $(seq 1 60); do
     fail_if_runtime_exited "API" "${API_PID}"
     fail_if_runtime_exited "Worker" "${WORKER_PID}"
     fail_if_runtime_exited "PDF Worker" "${PDF_WORKER_PID}"
-    if redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:pdf-worker:heartbeat:*' 2>/dev/null | grep -q .; then
+    if redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:worker:heartbeat:*' 2>/dev/null | grep -q . \
+      && redis-cli -u "${REDIS_URL}" --scan --pattern 'otr:pdf-worker:heartbeat:*' 2>/dev/null | grep -q .; then
       echo "Application runtimes ready: API, Worker, and PDF Worker heartbeat passed"
       break
     fi
@@ -187,6 +201,41 @@ if ! pnpm run test:pdf-worker-smoke > test-results/m4-pdf-worker-smoke.log 2>&1;
   exit 1
 fi
 cat test-results/m4-pdf-worker-smoke.log
+
+echo "Starting Web runtime for the required product E2E suite..."
+bash scripts/run-profile.sh dev -- env \
+  PORT="${WEB_PORT}" \
+  WEB_PORT="${WEB_PORT}" \
+  APP_ORIGIN="${WEB_ORIGIN}" \
+  API_BASE_URL="${API_ORIGIN}/api/v1" \
+  NEXT_PUBLIC_API_ORIGIN="${API_ORIGIN}" \
+  pnpm run start:web \
+  > test-results/m4-web.log 2>&1 &
+WEB_PID=$!
+for attempt in $(seq 1 60); do
+  fail_if_runtime_exited "Web" "${WEB_PID}"
+  if curl --fail --silent "${WEB_ORIGIN}/" > test-results/m4-web-readiness.html; then
+    echo "Web runtime ready: ${WEB_ORIGIN}"
+    break
+  fi
+  if [ "${attempt}" -eq 60 ]; then
+    echo "Web runtime readiness timed out at ${WEB_ORIGIN}." >&2
+    print_runtime_diagnostics
+    exit 1
+  fi
+  sleep 1
+done
+
+echo "Running the required 22-case product E2E suite..."
+product_e2e_status=0
+pnpm run test:e2e > test-results/local-product-e2e.log 2>&1 || product_e2e_status=$?
+cat test-results/local-product-e2e.log
+product_e2e_evidence_status=0
+pnpm run test:e2e:evidence || product_e2e_evidence_status=$?
+if [[ "${product_e2e_status}" -ne 0 || "${product_e2e_evidence_status}" -ne 0 ]]; then
+  echo "Required product E2E did not produce passing 22/22 evidence." >&2
+  exit 1
+fi
 
 echo "Running the clean-checkout smoke gate..."
 pnpm run ci:smoke
