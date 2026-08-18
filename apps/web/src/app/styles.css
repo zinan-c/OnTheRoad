@@ -224,7 +224,7 @@ select {
 .tripDayAll span { letter-spacing: .14em; }
 .tripWorkspaceMain { display: grid; gap: 1rem; min-width: 0; }
 .routeWorkspaceCompact { position: static; padding: 1.1rem; }
-.routeWorkspaceCompact .realRouteMap { height: min(56vh, 36rem); min-height: 24rem; }
+.routeWorkspaceCompact .realRouteMap { height: 20rem; min-height: 18rem; }
 .workspaceItinerary { padding: 1.25rem; }
 .workspaceItineraryHeader { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .workspaceItineraryHeader .eyebrow { margin: 0 0 .4rem; color: #b25935; }

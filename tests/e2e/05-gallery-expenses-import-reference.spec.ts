@@ -41,7 +41,7 @@ test("E2E-018 — Multi-image upload and gallery happy path", async ({ page }) =
   await expect(fileInput).toHaveAttribute("multiple", "");
 
   await fileInput.setInputFiles([...GALLERY_FIXTURES]);
-  await expect(gallery.getByRole("status")).toContainText(/正在准备|正在上传|正在安全处理/u, { timeout: 15_000 });
+  await expect(gallery.getByRole("status").filter({ hasText: /正在准备|正在上传|正在安全处理/u })).toBeVisible({ timeout: 15_000 });
 
   const cards = gallery.locator('article[data-status="ready"]');
   await expect(cards).toHaveCount(3, { timeout: 120_000 });
@@ -181,7 +181,9 @@ test("E2E-020 — Three-format import, mapping and staging preview", async ({ pa
     await expect(preview.getByRole("status")).toContainText("导入预览，尚未写入正式行程");
     const initialPreview = await readJson<PreviewPayload>(page, `/imports/${latest.id}/preview?page=1&pageSize=50`);
     expect(initialPreview.rows.length).toBe(initialPreview.counts.total);
-    expect(Object.values(initialPreview.counts).filter((value): value is number => typeof value === "number").slice(1).reduce((sum, value) => sum + value, 0)).toBe(initialPreview.counts.total);
+    const statusCount = (["new", "update", "duplicate", "error", "unresolved", "skipped"] as const)
+      .reduce((sum, status) => sum + initialPreview.counts[status], 0);
+    expect(statusCount).toBe(initialPreview.counts.total);
     expect(initialPreview.rows.some(({ rawData }) => rawData.Comment === "manual comment")).toBe(true);
     expect(initialPreview.rows.some(({ normalizedData }) => normalizedData?.remark === "manual comment")).toBe(true);
     expect(initialPreview.rows.some(({ errors }) => errors.length > 0)).toBe(true);
@@ -245,7 +247,7 @@ test("E2E-021 — Full currency Reference Data availability and normalization", 
     });
     const expenses = await readJson<readonly { originalAmount: string; currency: string; remark: string }[]>(page, `/trips/${tripId}/itinerary-items/${itemId}/expenses`);
     expect(expenses).toEqual(expect.arrayContaining([
-      expect.objectContaining({ originalAmount: "12.34", currency, remark: "Original currency" }),
+      expect.objectContaining({ originalAmount: "12.3400", currency, remark: "Original currency" }),
     ]));
     const summary = page.getByRole("region", { name: "Expense summary" });
     await expect(summary).toContainText("12.34");

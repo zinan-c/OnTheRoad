@@ -150,10 +150,10 @@ export async function openItem(page: Page, itemId: string): Promise<Locator> {
   if (await legacyEdit.count() > 0) {
     await legacyEdit.click();
   } else {
-    let card = page.locator(`[data-item-id="${itemId}"]`);
+    let card = page.locator(`article[data-item-id="${itemId}"]`);
     if (await card.count() === 0 && await page.getByRole("complementary", { name: "Trip days" }).count() > 0) {
       await selectDay(page, 1);
-      card = page.locator(`[data-item-id="${itemId}"]`);
+      card = page.locator(`article[data-item-id="${itemId}"]`);
     }
     await expect(card).toBeVisible();
     const itemEdit = card.getByRole("button", { name: /^Item edit /u });

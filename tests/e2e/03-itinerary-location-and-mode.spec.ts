@@ -308,7 +308,7 @@ test("E2E-013 — Custom transport mode lifecycle", async ({ page }) => {
   await oldDetails.getByRole("button", { name: "Close" }).click();
   const newEditor = await openNewItem(page, "transport");
   await expect(newEditor.getByLabel("Transport mode").locator(`option[value="${mode.code}"]`)).toHaveCount(0);
-  await newEditor.getByRole("button", { name: "Cancel" }).click();
+  await newEditor.getByTestId("item-editor-close").click();
 });
 
 test("E2E-014 — Explicit location search, candidate confirmation and persistence", async ({ page }) => {
@@ -397,11 +397,5 @@ async function assertItemFields(page: Page, itemIds: Record<string, string>) {
 async function dragBefore(page: Page, source: string, target: string) {
   const from = page.getByRole("button", { name: `Drag ${source}` });
   const to = page.getByRole("button", { name: `Drag ${target}` });
-  const fromBox = await from.boundingBox();
-  const toBox = await to.boundingBox();
-  if (!fromBox || !toBox) throw new Error(`Unable to drag ${source} before ${target}`);
-  await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + 2, { steps: 12 });
-  await page.mouse.up();
+  await from.dragTo(to);
 }
