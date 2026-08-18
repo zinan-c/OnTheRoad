@@ -1,0 +1,5 @@
+Day,Date,Target,Desc,Cost,Currency,Address,Latitude,Longitude,ExternalSource,ExternalId,Comment
+1,2026-10-01,Import new row,,12.50,CNY,,31.2304,121.4737,product-e2e,new-001,manual comment
+1,2026-10-01,Import new row,,12.50,CNY,,31.2304,121.4737,product-e2e,new-001,manual comment
+1,2026-10-01,,,12.50,CNY,,31.2304,121.4737,product-e2e,error-001,missing target
+1,2026-10-01,Unresolved location row,,8.00,USD,Fixture location,,,product-e2e,unresolved-001,needs location confirmation

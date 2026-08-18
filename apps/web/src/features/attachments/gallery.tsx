@@ -6,6 +6,12 @@ import { useBodyScrollLock } from "../../components/use-body-scroll-lock";
 export type GalleryAttachment = {
   readonly id: string;
   readonly status: "pending" | "uploaded" | "processing" | "failed" | "ready";
+  /** Read-only object metadata returned by the gallery read model for evidence. */
+  readonly contentType?: string;
+  readonly contentLength?: number;
+  readonly checksumSha256?: string;
+  readonly objectVersion?: string;
+  readonly etag?: string;
   readonly previewUrl?: string;
   readonly width?: number;
   readonly height?: number;

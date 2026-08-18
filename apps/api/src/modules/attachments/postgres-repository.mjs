@@ -127,7 +127,7 @@ export class PostgresAttachmentRepository {
 
   /** @param {string} ownerId @param {string} itemId */
   list(ownerId, itemId) {
-    return this.#json(`SELECT COALESCE(jsonb_agg(jsonb_build_object('id', a.id, 'ownerId', a.owner_id, 'itemId', a.itinerary_item_id, 'status', a.status, 'thumbnailKey', a.thumbnail_key, 'thumbnailVersion', a.thumbnail_version, 'width', a.width, 'height', a.height, 'caption', a.caption, 'sortOrder', a.sort_order, 'isCover', a.is_cover, 'version', a.version, 'error', a.processing_error_code) ORDER BY a.sort_order, a.id), '[]'::jsonb) FROM attachment a WHERE a.owner_id = $1 AND a.itinerary_item_id = $2::uuid AND a.deleted_at IS NULL`, [ownerId, itemId]).then((attachments) => attachments.map((/** @type {any} */ attachment) => ({
+    return this.#json(`SELECT COALESCE(jsonb_agg(jsonb_build_object('id', a.id, 'ownerId', a.owner_id, 'itemId', a.itinerary_item_id, 'status', a.status, 'contentType', a.content_type, 'contentLength', a.content_length, 'checksumSha256', a.checksum_sha256, 'objectVersion', a.object_version, 'etag', a.etag, 'thumbnailKey', a.thumbnail_key, 'thumbnailVersion', a.thumbnail_version, 'width', a.width, 'height', a.height, 'caption', a.caption, 'sortOrder', a.sort_order, 'isCover', a.is_cover, 'version', a.version, 'error', a.processing_error_code) ORDER BY a.sort_order, a.id), '[]'::jsonb) FROM attachment a WHERE a.owner_id = $1 AND a.itinerary_item_id = $2::uuid AND a.deleted_at IS NULL`, [ownerId, itemId]).then((attachments) => attachments.map((/** @type {any} */ attachment) => ({
       ...attachment,
       ...(attachment.status === "ready"
         && attachment.thumbnailKey
