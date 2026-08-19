@@ -163,6 +163,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     new URL("scripts/install-native-minio.sh", root),
     "utf8",
   );
+  const chromiumInstaller = await readFile(
+    new URL("scripts/install-ci-chromium.sh", root),
+    "utf8",
+  );
   const playwrightConfig = await readFile(
     new URL("apps/web/playwright.config.ts", root),
     "utf8",
@@ -181,6 +185,13 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     testWorkflow,
     /bash scripts\/install-native-minio\.sh "\$RUNNER_TEMP\/otr-native-minio"/,
   );
+  assert.equal(
+    testWorkflow.match(/bash scripts\/install-ci-chromium\.sh/g)?.length,
+    2,
+    "required-case and product E2E jobs both use bounded Chromium installation",
+  );
+  assert.match(testWorkflow, /timeout-minutes: 12[\s\S]*bash scripts\/install-ci-chromium\.sh/);
+  assert.match(testWorkflow, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
   assert.doesNotMatch(testWorkflow, /RUN_COMPOSE_INTEGRATION/);
   assert.match(releaseWorkflow, /RUN_COMPOSE_INTEGRATION: "1"/);
   assert.match(
@@ -269,6 +280,14 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     2,
     "unit and clean-install paths both require native MinIO",
   );
+  assert.equal(
+    qualityWorkflow.match(/bash scripts\/install-ci-chromium\.sh/g)?.length,
+    2,
+    "unit and clean-install paths both use bounded Chromium installation",
+  );
+  assert.match(chromiumInstaller, /timeout --signal=TERM --kill-after=30s/);
+  assert.match(chromiumInstaller, /OTR_PLAYWRIGHT_INSTALL_ATTEMPTS:-2/);
+  assert.match(chromiumInstaller, /OTR_PLAYWRIGHT_INSTALL_TIMEOUT:-5m/);
   assert.match(nativeMinioInstaller, /--retry-all-errors/);
   assert.match(nativeMinioInstaller, /--retry-delay 5/);
   assert.match(nativeMinioInstaller, /github\.com\/minio\/minio\/releases\/download/);

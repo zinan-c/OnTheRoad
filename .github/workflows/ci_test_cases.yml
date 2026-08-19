@@ -16,7 +16,7 @@ jobs:
   test-cases:
     name: "CI-Test Cases"
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4.4.0
@@ -33,11 +33,14 @@ jobs:
         run: |
           bash scripts/install-native-minio.sh "$RUNNER_TEMP/otr-native-minio"
           echo "$RUNNER_TEMP/otr-native-minio" >> "$GITHUB_PATH"
-      - name: Install Chromium and Linux test tools
+      - name: Install Chromium with bounded retries
+        timeout-minutes: 12
+        run: bash scripts/install-ci-chromium.sh
+      - name: Install Linux test tools
+        timeout-minutes: 8
         run: |
-          pnpm exec playwright install --with-deps chromium
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils redis-tools
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --no-install-recommends --yes imagemagick poppler-utils redis-tools
       - name: Initialize required-case diagnostic artifact
         env:
           OTR_REQUIRED_CASE_REPORT: test-results/m0-m4-required.json
@@ -196,11 +199,14 @@ jobs:
           cache: pnpm
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
-      - name: Install Chromium and product-e2e runtime tools
+      - name: Install Chromium with bounded retries
+        timeout-minutes: 12
+        run: bash scripts/install-ci-chromium.sh
+      - name: Install product-e2e runtime tools
+        timeout-minutes: 8
         run: |
-          pnpm exec playwright install --with-deps chromium
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes redis-tools curl
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --no-install-recommends --yes redis-tools curl
       - name: Start real Compose dependencies and application runtimes
         env:
           OTR_COMPOSE_PULL_POLICY: missing
@@ -243,7 +249,7 @@ jobs:
           OTR_PRODUCT_E2E_JUNIT: test-results/product-e2e-results.xml
         run: pnpm run test:e2e
       - name: Generate and verify commit-bound product-e2e evidence
-        if: always()
+        if: ${{ always() && !cancelled() }}
         env:
           OTR_PRODUCT_E2E_JSON: test-results/product-e2e-results.json
           OTR_PRODUCT_E2E_EVIDENCE: test-results/product-e2e-evidence.json

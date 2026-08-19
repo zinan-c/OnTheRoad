@@ -37,12 +37,15 @@ jobs:
           bash scripts/install-native-minio.sh "$RUNNER_TEMP/otr-native-minio"
           echo "$RUNNER_TEMP/otr-native-minio" >> "$GITHUB_PATH"
       - if: matrix.task == 'unit'
-        run: pnpm exec playwright install --with-deps chromium
+        name: Install Chromium with bounded retries
+        timeout-minutes: 12
+        run: bash scripts/install-ci-chromium.sh
       - if: matrix.task == 'unit'
         name: Install Linux test tools
+        timeout-minutes: 8
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --no-install-recommends --yes imagemagick poppler-utils
       - run: pnpm run ${{ matrix.task }}
 
   clean-install:
@@ -63,11 +66,14 @@ jobs:
         run: |
           bash scripts/install-native-minio.sh "$RUNNER_TEMP/otr-native-minio"
           echo "$RUNNER_TEMP/otr-native-minio" >> "$GITHUB_PATH"
-      - run: pnpm exec playwright install --with-deps chromium
+      - name: Install Chromium with bounded retries
+        timeout-minutes: 12
+        run: bash scripts/install-ci-chromium.sh
       - name: Install Linux test tools
+        timeout-minutes: 8
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes imagemagick poppler-utils
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install --no-install-recommends --yes imagemagick poppler-utils
       - run: pnpm run quality
       - run: pnpm run ci:smoke
       - run: git diff --exit-code
