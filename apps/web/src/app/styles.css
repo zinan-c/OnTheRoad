@@ -423,6 +423,13 @@ article p {
   .tripDayRail button { min-height: 4.25rem; }
   .workspaceItineraryHeader { align-items: flex-start; flex-direction: column; }
   .workspaceItineraryActions { justify-content: flex-start; }
+  .productTimelineItem[data-reorderable="true"] { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .productTimelineItem[data-reorderable="true"] .timelineItemContent { grid-column: 2; width: 100%; min-width: 0; }
+  .productTimelineItem[data-reorderable="true"] .keyboardOrderActions { grid-column: 2; justify-self: start; }
+  .productTimelineItem[data-reorderable="true"] .workspaceItemCard { min-width: 0; flex-direction: column; align-items: stretch; }
+  .productTimelineItem[data-reorderable="true"] .workspaceItemActions { width: 100%; justify-content: flex-start; }
+  .productTimelineItem[data-reorderable="true"] .workspaceItemActions > label { min-width: 0; flex: 1 1 10rem; }
+  .productTimelineItem[data-reorderable="true"] .workspaceItemActions select { max-width: 100%; }
   .routeWorkspaceCompact .realRouteMap { height: 20rem; min-height: 18rem; }
   .workspaceItemDetails { grid-template-columns: 1fr; }
   .dayRouteWorkspace, .settingsSummary { grid-template-columns: 1fr; }
