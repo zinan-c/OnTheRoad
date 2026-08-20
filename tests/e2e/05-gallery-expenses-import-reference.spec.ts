@@ -93,11 +93,18 @@ test("E2E-018 — Multi-image upload and gallery happy path", async ({ page }) =
   await gallery.locator("article.galleryCard").nth(1).getByRole("button", { name: "前移图片" }).click();
   await expect.poll(async () => galleryCaptions(page, tripId, itemId), { timeout: 15_000 })
     .toEqual(["Hotel caption", "Meal caption", "Day view caption"]);
+  await expect.poll(async () => gallery.locator("article.galleryCard .galleryPreview")
+    .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))), {
+    timeout: 15_000,
+  }).toEqual(["Hotel caption", "Meal caption", "Day view caption"]);
 
-  const firstCard = gallery.locator("article.galleryCard").first();
-  await firstCard.getByRole("button", { name: "删除", exact: true }).click();
-  await expect(firstCard.getByRole("button", { name: "确认删除" })).toBeVisible();
-  await firstCard.getByRole("button", { name: "确认删除" }).click();
+  const hotelCard = gallery.locator("article.galleryCard").filter({
+    has: page.getByRole("button", { name: "Hotel caption", exact: true }),
+  });
+  await expect(hotelCard).toHaveCount(1);
+  await hotelCard.getByRole("button", { name: "删除", exact: true }).click();
+  await expect(hotelCard.getByRole("button", { name: "确认删除" })).toBeVisible();
+  await hotelCard.getByRole("button", { name: "确认删除" }).click();
   await expect(gallery.locator("article.galleryCard")).toHaveCount(2);
 
   await page.reload();
