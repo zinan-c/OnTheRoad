@@ -6,9 +6,9 @@ attempt_timeout="${OTR_PLAYWRIGHT_INSTALL_TIMEOUT:-5m}"
 last_status=1
 
 for attempt in $(seq 1 "${attempts}"); do
-  echo "Installing Chromium and its system dependencies (attempt ${attempt}/${attempts})..."
+  echo "Installing Chromium browser binary (attempt ${attempt}/${attempts})..."
   if timeout --signal=TERM --kill-after=30s "${attempt_timeout}" \
-    pnpm exec playwright install --with-deps chromium; then
+    pnpm exec playwright install chromium; then
     exit 0
   else
     last_status=$?
