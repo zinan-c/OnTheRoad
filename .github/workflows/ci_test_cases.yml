@@ -220,12 +220,15 @@ jobs:
           OTR_DEV_API_PORT: "3101"
         run: |
           mkdir -p test-results
-          bash scripts/run-environment.sh dev -compose > test-results/product-e2e-runtime.log 2>&1 &
-          runtime_pid=$!
-          echo "$runtime_pid" > "$RUNNER_TEMP/otr-product-e2e-runtime.pid"
+          if [ ! -f infra/local-stack.env ]; then
+            install -m 600 infra/local-stack.env.example infra/local-stack.env
+          fi
           set -a
           source infra/local-stack.env
           set +a
+          bash scripts/run-environment.sh dev -compose > test-results/product-e2e-runtime.log 2>&1 &
+          runtime_pid=$!
+          echo "$runtime_pid" > "$RUNNER_TEMP/otr-product-e2e-runtime.pid"
           for attempt in $(seq 1 180); do
             if ! kill -0 "$runtime_pid" 2>/dev/null; then
               echo "Product E2E runtime exited before readiness." >&2
@@ -247,6 +250,7 @@ jobs:
             sleep 1
           done
       - name: Run the root product E2E suite
+        id: product-e2e
         env:
           OTR_PLAYWRIGHT_EXTERNAL_STACK: "1"
           OTR_PLAYWRIGHT_WEB_ORIGIN: http://127.0.0.1:3100
@@ -255,7 +259,7 @@ jobs:
           OTR_PRODUCT_E2E_JUNIT: test-results/product-e2e-results.xml
         run: pnpm run test:e2e
       - name: Generate and verify commit-bound product-e2e evidence
-        if: ${{ always() && !cancelled() }}
+        if: ${{ always() && !cancelled() && steps.product-e2e.outcome != 'skipped' }}
         env:
           OTR_PRODUCT_E2E_JSON: test-results/product-e2e-results.json
           OTR_PRODUCT_E2E_EVIDENCE: test-results/product-e2e-evidence.json

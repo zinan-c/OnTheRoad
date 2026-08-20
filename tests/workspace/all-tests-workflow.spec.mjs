@@ -196,7 +196,18 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     "required-case and product E2E jobs install Chromium system dependencies separately",
   );
   assert.match(testWorkflow, /timeout-minutes: 12[\s\S]*bash scripts\/install-ci-chromium\.sh/);
-  assert.match(testWorkflow, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
+  assert.match(
+    testWorkflow,
+    /if: \$\{\{ always\(\) && !cancelled\(\) && steps\.product-e2e\.outcome != 'skipped' \}\}/,
+  );
+  assert.match(
+    testWorkflow,
+    /install -m 600 infra\/local-stack\.env\.example infra\/local-stack\.env[\s\S]*source infra\/local-stack\.env[\s\S]*bash scripts\/run-environment\.sh dev -compose/,
+  );
+  assert.match(
+    testWorkflow,
+    /name: Run the root product E2E suite\n {8}id: product-e2e/,
+  );
   assert.doesNotMatch(testWorkflow, /RUN_COMPOSE_INTEGRATION/);
   assert.match(releaseWorkflow, /RUN_COMPOSE_INTEGRATION: "1"/);
   assert.match(
