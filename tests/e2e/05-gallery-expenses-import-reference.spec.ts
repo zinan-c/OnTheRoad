@@ -175,10 +175,19 @@ test("E2E-020 — Three-format import, mapping and staging preview", async ({ pa
     await expect(manualRow).toContainText("手工映射");
     await mapping.getByRole("button", { name: "保存映射" }).click();
     await expect(workspace.getByRole("status").filter({ hasText: "映射已保存" })).toBeVisible({ timeout: 30_000 });
+    await expect.poll(async () => {
+      const current = await readJson<LatestImport>(page, `/trips/${tripId}/imports/latest`);
+      return current.status;
+    }, { timeout: 120_000, intervals: [250, 500, 1_000] })
+      .toMatch(/^(?:confirmation_required|ready_to_import)$/u);
 
     const preview = page.getByRole("region", { name: "服务端导入预览" });
     await expect(preview.getByRole("table")).toBeVisible({ timeout: 120_000 });
     await expect(preview.getByRole("status")).toContainText("导入预览，尚未写入正式行程");
+    await expect.poll(async () => {
+      const current = await readJson<PreviewPayload>(page, `/imports/${latest.id}/preview?page=1&pageSize=50`);
+      return current.counts.total > 0 && current.rows.length === current.counts.total;
+    }, { timeout: 120_000, intervals: [250, 500, 1_000] }).toBe(true);
     const initialPreview = await readJson<PreviewPayload>(page, `/imports/${latest.id}/preview?page=1&pageSize=50`);
     expect(initialPreview.rows.length).toBe(initialPreview.counts.total);
     const statusCount = (["new", "update", "duplicate", "error", "unresolved", "skipped"] as const)
