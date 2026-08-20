@@ -326,6 +326,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     testWorkflow,
     /install --no-install-recommends --yes imagemagick poppler-utils redis-tools/,
   );
+  assert.match(
+    testWorkflow,
+    /Install product-e2e runtime tools[\s\S]*install --no-install-recommends --yes imagemagick redis-tools curl/,
+  );
   assert.match(playwrightConfig, /process\.env\.OTR_PLAYWRIGHT_WEB_ORIGIN/);
   assert.doesNotMatch(playwrightConfig, /(?:localhost|127\.0\.0\.1):3001/);
 
