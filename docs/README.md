@@ -90,6 +90,8 @@ and the [migration plan](./reports/nominatim-online-plan.md).
   2026-08-11 run executed E2E-001 through E2E-022 with 22 passed, zero failed,
   and zero skipped. E2E-022 covers the Global/Day map-scope and stable
   MapLibre sizing regression fixed by the accompanying implementation commit.
+  GitHub runs this suite independently in `CI-Product E2E`; it is not a job
+  dependency of `CI-Test Cases`.
 - The M4 required-case runner includes 156 active Cases: the 129 historical
   M0–M3 Cases, 24 M4 Task Cases, and three M4 integration Cases. A configured
   manifest is not closure evidence until the exact-SHA run has zero failed,

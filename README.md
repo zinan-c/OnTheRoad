@@ -197,6 +197,8 @@ GitHub runs:
 
 - `CI-Quality Related` for static quality and build checks;
 - `CI-Test Cases` for the dependency-backed required Cases and runtime smoke;
+- `CI-Product E2E` independently for the required 22-case product-browser suite
+  and commit-bound browser evidence;
 - `Release Gates` for protected Compose and real-IdP release evidence.
 
 ## Map profiles

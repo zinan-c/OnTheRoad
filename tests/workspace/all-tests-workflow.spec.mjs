@@ -143,6 +143,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     new URL(".github/workflows/ci_test_cases.yml", root),
     "utf8",
   );
+  const productE2eWorkflow = await readFile(
+    new URL(".github/workflows/ci_product_e2e.yml", root),
+    "utf8",
+  );
   const qualityWorkflow = await readFile(
     new URL(".github/workflows/ci_quality_related.yml", root),
     "utf8",
@@ -180,6 +184,15 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     /^on:\n {2}push:\n {2}pull_request:\n {2}workflow_dispatch:$/m,
   );
   assert.match(testWorkflow, /^name: "CI-Test Cases"$/m);
+  assert.match(productE2eWorkflow, /^name: "CI-Product E2E"$/m);
+  assert.match(
+    productE2eWorkflow,
+    /^on:\n {2}push:\n {2}pull_request:\n {2}workflow_dispatch:$/m,
+  );
+  assert.match(productE2eWorkflow, /^  product-e2e-required:$/m);
+  assert.doesNotMatch(productE2eWorkflow, /needs:/);
+  assert.doesNotMatch(testWorkflow, /^  product-e2e-required:$/m);
+  assert.doesNotMatch(testWorkflow, /product-e2e|test:e2e/);
   assert.match(testWorkflow, /run: \|[\s\S]*pnpm run test:cases:required/);
   assert.match(
     testWorkflow,
@@ -187,25 +200,35 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   );
   assert.equal(
     testWorkflow.match(/bash scripts\/install-ci-chromium\.sh/g)?.length,
-    2,
-    "required-case and product E2E jobs both use bounded Chromium installation",
+    1,
+    "required-case job uses bounded Chromium installation",
+  );
+  assert.equal(
+    productE2eWorkflow.match(/bash scripts\/install-ci-chromium\.sh/g)?.length,
+    1,
+    "product E2E job uses bounded Chromium installation",
   );
   assert.equal(
     testWorkflow.match(/pnpm exec playwright install-deps chromium/g)?.length,
-    2,
-    "required-case and product E2E jobs install Chromium system dependencies separately",
+    1,
+    "required-case job installs Chromium system dependencies",
+  );
+  assert.equal(
+    productE2eWorkflow.match(/pnpm exec playwright install-deps chromium/g)?.length,
+    1,
+    "product E2E job installs Chromium system dependencies",
   );
   assert.match(testWorkflow, /timeout-minutes: 12[\s\S]*bash scripts\/install-ci-chromium\.sh/);
   assert.match(
-    testWorkflow,
+    productE2eWorkflow,
     /if: \$\{\{ always\(\) && !cancelled\(\) && steps\.product-e2e\.outcome != 'skipped' \}\}/,
   );
   assert.match(
-    testWorkflow,
+    productE2eWorkflow,
     /install -m 600 infra\/local-stack\.env\.example infra\/local-stack\.env[\s\S]*source infra\/local-stack\.env[\s\S]*bash scripts\/run-environment\.sh dev -compose/,
   );
   assert.match(
-    testWorkflow,
+    productE2eWorkflow,
     /name: Run the root product E2E suite\n {8}id: product-e2e/,
   );
   assert.doesNotMatch(testWorkflow, /RUN_COMPOSE_INTEGRATION/);
@@ -327,7 +350,7 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     /install --no-install-recommends --yes imagemagick poppler-utils redis-tools/,
   );
   assert.match(
-    testWorkflow,
+    productE2eWorkflow,
     /Install product-e2e runtime tools[\s\S]*install --no-install-recommends --yes imagemagick redis-tools curl/,
   );
   assert.match(playwrightConfig, /process\.env\.OTR_PLAYWRIGHT_WEB_ORIGIN/);
