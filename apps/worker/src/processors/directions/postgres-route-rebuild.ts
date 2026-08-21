@@ -57,6 +57,7 @@ type ResolvedCandidate = RouteCandidate & {
 export class PostgresRouteRebuildProcessor {
   readonly #database: PostgresExecutor;
   readonly #beforeCommit: (() => Promise<void>) | undefined;
+  readonly #afterGenerationLock: (() => Promise<void>) | undefined;
   readonly #directions: DirectionsProvider;
   readonly #providerName: string;
 
@@ -64,12 +65,14 @@ export class PostgresRouteRebuildProcessor {
     databaseUrl: string,
     options: Readonly<{
       beforeCommit?: () => Promise<void>;
+      afterGenerationLock?: () => Promise<void>;
       directions: DirectionsProvider;
       providerName: string;
     }>,
   ) {
     this.#database = new PostgresExecutor({ databaseUrl, role: "worker" });
     this.#beforeCommit = options.beforeCommit;
+    this.#afterGenerationLock = options.afterGenerationLock;
     this.#directions = options.directions;
     this.#providerName = options.providerName;
   }
@@ -98,6 +101,22 @@ export class PostgresRouteRebuildProcessor {
       );
       if (inbox.rowCount === 0) return false;
 
+      const referencedItemIds = [...new Set(resolvedCandidates.flatMap((candidate) => [
+        candidate.fromItineraryItemId,
+        candidate.toItineraryItemId,
+      ]))].sort();
+      if (referencedItemIds.length > 0) {
+        await client.query(
+          `SELECT id
+           FROM itinerary_item
+           WHERE trip_id = $1::uuid
+             AND id = ANY($2::uuid[])
+           ORDER BY id
+           FOR KEY SHARE`,
+          [context.tripId, referencedItemIds],
+        );
+      }
+
       const lockedDays = (await client.query<DayGenerationRow>(
         `SELECT id, route_generation
          FROM trip_day
@@ -113,6 +132,7 @@ export class PostgresRouteRebuildProcessor {
         await markHandled(client, event);
         return false;
       }
+      await this.#afterGenerationLock?.();
 
       await client.query(
         `UPDATE route_segment

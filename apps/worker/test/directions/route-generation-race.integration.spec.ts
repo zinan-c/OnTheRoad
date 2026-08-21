@@ -10,6 +10,7 @@ const databaseUrl = process.env.OTR_C07_DATABASE_URL
 const liveTest = databaseUrl ? test : test.skip;
 const ownerId = "m3-c07-route-race";
 let database: PostgresExecutor | undefined;
+let apiDatabase: PostgresExecutor | undefined;
 const processors: PostgresRouteRebuildProcessor[] = [];
 const directions = createFixtureProvider().directions;
 
@@ -18,6 +19,10 @@ afterEach(async () => {
     await database.query("DELETE FROM trip WHERE owner_id = $1", [ownerId]);
     await database.close();
     database = undefined;
+  }
+  if (apiDatabase) {
+    await apiDatabase.close();
+    apiDatabase = undefined;
   }
   await Promise.all(processors.splice(0).map((processor) => processor.close()));
 });
@@ -92,6 +97,56 @@ describe("TC-C07-02 generation/sourceVersion race", () => {
   });
 });
 
+describe("route rebuild lock ordering", () => {
+  liveTest("serializes a concurrent itinerary deletion without deadlocking", async () => {
+    database = new PostgresExecutor({ databaseUrl, role: "worker" });
+    apiDatabase = new PostgresExecutor({ databaseUrl, role: "api" });
+    const context = await seedRouteContext(database);
+    const event = await latestRouteEvent(database, context.dayId);
+
+    let releaseGenerationLock!: () => void;
+    let generationLocked!: () => void;
+    const generationLockReached = new Promise<void>((resolve) => {
+      generationLocked = resolve;
+    });
+    const generationLockRelease = new Promise<void>((resolve) => {
+      releaseGenerationLock = resolve;
+    });
+    const processor = new PostgresRouteRebuildProcessor(databaseUrl!, {
+      directions,
+      providerName: "fixture",
+      afterGenerationLock: async () => {
+        generationLocked();
+        await generationLockRelease;
+      },
+    });
+    processors.push(processor);
+
+    const rebuild = processor.process(event);
+    await generationLockReached;
+    const deletion = apiDatabase.query(
+      "SELECT delete_itinerary_item($1, $2::uuid, $3::uuid, 1)",
+      [ownerId, context.tripId, context.firstItemId],
+    );
+    try {
+      await expect.poll(async () => {
+        const row = (await database!.query<{ wait_event_type: string | null }>(
+          `SELECT wait_event_type
+           FROM pg_stat_activity
+           WHERE application_name = 'on-the-road-api'
+             AND query LIKE 'SELECT delete_itinerary_item%'
+             AND state = 'active'`,
+        )).rows[0];
+        return row?.wait_event_type;
+      }).toBe("Lock");
+    } finally {
+      releaseGenerationLock();
+    }
+    await expect(rebuild).resolves.toMatchObject({ applied: true });
+    await expect(deletion).resolves.toMatchObject({ rowCount: 1 });
+  });
+});
+
 async function seedRouteContext(database: PostgresExecutor) {
   const tripId = "00000000-0000-4000-8000-000000000701";
   const firstLocationId = "00000000-0000-4000-8000-000000000711";
@@ -130,7 +185,12 @@ async function seedRouteContext(database: PostgresExecutor) {
         'attraction', 'unscheduled', 'B', $5::uuid, 2048)`,
     [tripId, ownerId, dayId, firstLocationId, secondLocationId],
   );
-  return { tripId, dayId, secondLocationId };
+  return {
+    tripId,
+    dayId,
+    firstItemId: "00000000-0000-4000-8000-000000000721",
+    secondLocationId,
+  };
 }
 
 async function latestRouteEvent(
