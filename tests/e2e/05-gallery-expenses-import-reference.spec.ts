@@ -84,19 +84,27 @@ test("E2E-018 — Multi-image upload and gallery happy path", async ({ page }) =
   await lightbox.getByRole("button", { name: "关闭灯箱" }).click();
   await expect(lightbox).toHaveCount(0);
 
-  await galleryCards.nth(0).getByRole("button", { name: "后移图片" }).click();
+  const cardForCaption = (caption: string) => gallery.locator("article.galleryCard").filter({
+    has: page.getByRole("button", { name: caption, exact: true }),
+  });
+  const domCaptions = () => gallery.locator("article.galleryCard .galleryPreview")
+    .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
+
+  await cardForCaption("Day view caption").getByRole("button", { name: "后移图片" }).click();
   await expect.poll(async () => galleryCaptions(page, tripId, itemId), { timeout: 15_000 })
     .toEqual(["Meal caption", "Day view caption", "Hotel caption"]);
-  await gallery.locator("article.galleryCard").nth(2).getByRole("button", { name: "前移图片" }).click();
+  await expect.poll(domCaptions, { timeout: 15_000 })
+    .toEqual(["Meal caption", "Day view caption", "Hotel caption"]);
+  await cardForCaption("Hotel caption").getByRole("button", { name: "前移图片" }).click();
   await expect.poll(async () => galleryCaptions(page, tripId, itemId), { timeout: 15_000 })
     .toEqual(["Meal caption", "Hotel caption", "Day view caption"]);
-  await gallery.locator("article.galleryCard").nth(1).getByRole("button", { name: "前移图片" }).click();
+  await expect.poll(domCaptions, { timeout: 15_000 })
+    .toEqual(["Meal caption", "Hotel caption", "Day view caption"]);
+  await cardForCaption("Hotel caption").getByRole("button", { name: "前移图片" }).click();
   await expect.poll(async () => galleryCaptions(page, tripId, itemId), { timeout: 15_000 })
     .toEqual(["Hotel caption", "Meal caption", "Day view caption"]);
-  await expect.poll(async () => gallery.locator("article.galleryCard .galleryPreview")
-    .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))), {
-    timeout: 15_000,
-  }).toEqual(["Hotel caption", "Meal caption", "Day view caption"]);
+  await expect.poll(domCaptions, { timeout: 15_000 })
+    .toEqual(["Hotel caption", "Meal caption", "Day view caption"]);
 
   const hotelCard = gallery.locator("article.galleryCard").filter({
     has: page.getByRole("button", { name: "Hotel caption", exact: true }),
