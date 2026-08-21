@@ -189,9 +189,9 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     productE2eWorkflow,
     /^on:\n {2}push:\n {2}pull_request:\n {2}workflow_dispatch:$/m,
   );
-  assert.match(productE2eWorkflow, /^  product-e2e-required:$/m);
+  assert.match(productE2eWorkflow, /^ {2}product-e2e-required:$/m);
   assert.doesNotMatch(productE2eWorkflow, /needs:/);
-  assert.doesNotMatch(testWorkflow, /^  product-e2e-required:$/m);
+  assert.doesNotMatch(testWorkflow, /^ {2}product-e2e-required:$/m);
   assert.doesNotMatch(testWorkflow, /product-e2e|test:e2e/);
   assert.match(testWorkflow, /run: \|[\s\S]*pnpm run test:cases:required/);
   assert.match(
