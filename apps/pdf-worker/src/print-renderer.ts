@@ -4,7 +4,12 @@ import { fileURLToPath } from "node:url";
 import { buildPrintChapters, buildPrintManifest, type PrintChapter, type PrintDay, type PrintItem } from "@on-the-road/application/export/print";
 import type { ExportSection, ExportSnapshot } from "@on-the-road/application/export";
 import { exportSnapshotHash } from "@on-the-road/application/export/snapshot";
-import { createStaticMapAssetProvider, type StaticMapRouteGeometry } from "@on-the-road/providers/static-map/renderer";
+import {
+  createStaticMapAssetProvider,
+  type StaticMapAssetProvider,
+  type StaticMapRouteGeometry,
+} from "@on-the-road/providers/static-map/renderer";
+import type { StaticMapAssetContentType } from "@on-the-road/providers/static-map";
 import { chromium } from "@playwright/test";
 import type { PdfPrintRenderer } from "./pdf-processor.js";
 import type { PdfExportJob } from "./export-stage-machine.js";
@@ -20,8 +25,12 @@ export type RenderedMapAsset = Readonly<{
   assetId: string;
   bytes: Uint8Array;
   checksumSha256: string;
+  contentType: StaticMapAssetContentType;
   width: number;
   height: number;
+  attribution: string;
+  degraded: boolean;
+  degradationReason: string | null;
   objectKey?: string;
   objectVersion?: string;
   dataUrl: string;
@@ -138,13 +147,14 @@ function markers(days: readonly RenderDay[], selectedDayId?: string): {
   return { markers: result, dayItems: selected.flatMap((day) => day.items) };
 }
 
-async function renderMaps(
+export async function renderMaps(
   snapshot: ExportSnapshot,
   persist?: (asset: RenderedMapAsset) => Promise<Readonly<{ objectKey: string; objectVersion: string }>>,
+  provider: StaticMapAssetProvider = createStaticMapAssetProvider(),
+  attribution = "On The Road fixture",
 ): Promise<readonly RenderedMapAsset[]> {
   const days = snapshotDays(snapshot);
   const routes = routeGeometries(snapshot);
-  const provider = createStaticMapAssetProvider();
   const mapAssets = snapshot.assets.filter((asset) => asset.kind === "map");
   const rendered: RenderedMapAsset[] = [];
   for (const asset of mapAssets) {
@@ -169,16 +179,20 @@ async function renderMaps(
         { label: "行程点", color: "#2563eb", kind: "marker" },
         { label: "路线", color: "#155eef", kind: "route" },
       ],
-      attribution: "On The Road fixture",
+      attribution,
       tilePolicy: { mode: "fixture", allowedHosts: [] },
     });
     const renderedAsset: RenderedMapAsset = {
       assetId: asset.id,
       bytes: result.bytes,
       checksumSha256: result.manifest.checksumSha256!,
+      contentType: result.manifest.contentType,
       width: result.manifest.width,
       height: result.manifest.height,
-      dataUrl: `data:image/png;base64,${Buffer.from(result.bytes).toString("base64")}`,
+      attribution: result.manifest.attribution,
+      degraded: result.manifest.degraded,
+      degradationReason: result.manifest.degradationReason,
+      dataUrl: `data:${result.manifest.contentType};base64,${Buffer.from(result.bytes).toString("base64")}`,
     };
     rendered.push(persist ? { ...renderedAsset, ...(await persist(renderedAsset)) } : renderedAsset);
   }
@@ -199,10 +213,11 @@ function snapshotWithRenderedMaps(
         ...asset,
         status: "ready" as const,
         checksumSha256: map.checksumSha256,
+        contentType: map.contentType,
         objectVersion: map.objectVersion ?? `runtime-${map.checksumSha256.slice(0, 16)}`,
         width: map.width,
         height: map.height,
-        omissionReason: null,
+        omissionReason: map.degraded ? map.degradationReason : null,
       };
     }),
   };
@@ -220,7 +235,7 @@ function printItem(item: PrintItem): string {
   return `<li><h3>${escapeHtml(item.name)}</h3>${item.time ? `<p>${escapeHtml(item.time)}</p>` : ""}${item.location ? `<p>${escapeHtml(item.location)}</p>` : ""}${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}${item.expense ? `<p>Expense: ${escapeHtml(item.expense)}</p>` : ""}</li>`;
 }
 
-function chapterHtml(chapter: PrintChapter, maps: ReadonlyMap<string, string>): string {
+function chapterHtml(chapter: PrintChapter, maps: ReadonlyMap<string, RenderedMapAsset>): string {
   const data = chapter.data;
   if (chapter.kind === "cover") {
     return `<div class="cover"><p>${escapeHtml(text(data.name ?? data.title) ?? "未命名旅程")}</p><p>${escapeHtml(text(data.startDate) ?? "")}${text(data.endDate) ? ` — ${escapeHtml(text(data.endDate)!)}` : ""}</p></div>`;
@@ -234,7 +249,14 @@ function chapterHtml(chapter: PrintChapter, maps: ReadonlyMap<string, string>): 
     const assetIds = [text(data.assetId), ...days.map((day) => day.mapAssetId)].filter((value): value is string => Boolean(value));
     return assetIds.length === 0
       ? "<p>暂无地图资源，详见遗漏清单。</p>"
-      : assetIds.map((assetId) => maps.has(assetId) ? `<figure><img src="${maps.get(assetId)}" alt="${escapeHtml(assetId)}"><figcaption>${escapeHtml(assetId)}</figcaption></figure>` : `<p>地图资源 ${escapeHtml(assetId)} 暂不可用。</p>`).join("");
+      : assetIds.map((assetId) => {
+        const asset = maps.get(assetId);
+        if (!asset) return `<p>地图资源 ${escapeHtml(assetId)} 暂不可用。</p>`;
+        const degradation = asset.degraded && asset.degradationReason
+          ? `；地图降级：${escapeHtml(asset.degradationReason)}`
+          : "";
+        return `<figure><img src="${asset.dataUrl}" alt="${escapeHtml(assetId)}"><figcaption>${escapeHtml(asset.attribution)}${degradation}</figcaption></figure>`;
+      }).join("");
   }
   if (chapter.kind === "day") {
     const days = Array.isArray(data.days) ? data.days as readonly PrintDay[] : [];
@@ -260,7 +282,7 @@ export function renderPrintHtml(
   const manifest = buildPrintManifest(snapshot, chapters);
   const templateVersion = metadata.templateVersion ?? "m4-print-v1";
   const snapshotHash = metadata.snapshotHash === undefined ? exportSnapshotHash(snapshot) : metadata.snapshotHash;
-  const mapLookup = new Map(maps.map((asset) => [asset.assetId, asset.dataUrl]));
+  const mapLookup = new Map(maps.map((asset) => [asset.assetId, asset]));
   const pageWidth = orientation === "portrait" ? "210mm" : "297mm";
   const pageHeight = orientation === "portrait" ? "296mm" : "209mm";
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
@@ -273,16 +295,22 @@ export class PlaywrightPdfPrintRenderer implements PdfPrintRenderer {
   readonly #fontPath: string;
   readonly #persistMapAsset: ((job: PdfExportJob, asset: RenderedMapAsset) => Promise<Readonly<{ objectKey: string; objectVersion: string }>>) | undefined;
   readonly #deleteMapAsset: ((asset: Readonly<{ objectKey: string; objectVersion: string }>) => Promise<void>) | undefined;
+  readonly #staticMapProvider: StaticMapAssetProvider;
+  readonly #staticMapAttribution: string;
   readonly #persistedMaps = new Map<string, Array<{ objectKey: string; objectVersion: string }>>();
 
   constructor(options: Readonly<{
     fontPath?: string;
     persistMapAsset?: (job: PdfExportJob, asset: RenderedMapAsset) => Promise<Readonly<{ objectKey: string; objectVersion: string }>>;
     deleteMapAsset?: (asset: Readonly<{ objectKey: string; objectVersion: string }>) => Promise<void>;
+    staticMapProvider?: StaticMapAssetProvider;
+    staticMapAttribution?: string;
   }> = {}) {
     this.#fontPath = options.fontPath ?? process.env.OTR_PDF_FONT_PATH ?? DEFAULT_FONT_PATH;
     this.#persistMapAsset = options.persistMapAsset;
     this.#deleteMapAsset = options.deleteMapAsset;
+    this.#staticMapProvider = options.staticMapProvider ?? createStaticMapAssetProvider();
+    this.#staticMapAttribution = options.staticMapAttribution ?? "On The Road fixture";
   }
 
   async render(input: Readonly<{ job: PdfExportJob; snapshot: ExportSnapshot; signal: AbortSignal }>): Promise<Uint8Array> {
@@ -301,6 +329,8 @@ export class PlaywrightPdfPrintRenderer implements PdfPrintRenderer {
             return persisted;
           }
           : undefined,
+        this.#staticMapProvider,
+        this.#staticMapAttribution,
       );
       const sections = input.job.options?.sections.length ? input.job.options.sections : DEFAULT_SECTIONS;
       const renderedSnapshot = snapshotWithRenderedMaps(input.snapshot, maps);

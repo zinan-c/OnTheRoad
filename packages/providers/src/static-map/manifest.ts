@@ -14,6 +14,7 @@ export type StaticMapAssetScope = "overview" | "day" | "item";
 
 export type StaticMapAssetContentType =
   | "image/png"
+  | "image/jpeg"
   | "image/webp";
 
 export type StaticMapBounds = Readonly<{
@@ -80,6 +81,8 @@ export type StaticMapRenderRequest = Readonly<{
   legend: readonly StaticMapLegendEntry[];
   attribution: string;
   tilePolicy: StaticMapTilePolicy;
+  /** Explicitly records why an online provider had to use the neutral renderer. */
+  degradationReason?: string;
 }>;
 
 export function assertStaticMapAssetManifest(

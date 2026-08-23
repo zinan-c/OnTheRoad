@@ -65,6 +65,7 @@ export function renderStaticMapAsset(
   const mapContent = routeGeometries.some(({ coordinates }) => coordinates.length >= 2)
     || request.markers.length > 0;
   const degradationReasons: string[] = [];
+  if (request.degradationReason?.trim()) degradationReasons.push(request.degradationReason.trim());
   if (request.tilePolicy.mode !== "fixture") {
     degradationReasons.push(request.tilePolicy.mode === "disabled"
       ? "tile policy is disabled"

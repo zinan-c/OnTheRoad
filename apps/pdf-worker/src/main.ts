@@ -10,6 +10,8 @@ import { createExportQueueProcessor } from "./export-queue-processor.js";
 import { PlaywrightPdfPrintRenderer } from "./print-renderer.js";
 import { PdfExportProcessor } from "./pdf-processor.js";
 import { createPdfQueueProcess } from "./queue-runtime.js";
+import { createAmapStaticMapAssetProvider } from "@on-the-road/providers/static-map/amap";
+import { createStaticMapAssetProvider } from "@on-the-road/providers/static-map/renderer";
 
 type RedisControlConnection = Pick<Redis, "connect" | "ping" | "status">;
 
@@ -35,6 +37,17 @@ export async function startPdfWorker(
     allowedContentTypes: [...IMPORT_CONTENT_TYPES, "image/jpeg", "image/png", "image/webp", "application/pdf"],
   });
   const stages = new PostgresExportStageRepository(database);
+  const staticMapProvider = config.map.profile === "cn_primary"
+    ? createAmapStaticMapAssetProvider({
+      apiKey: config.server.providerCredentials.amapApiKey ?? "",
+      baseUrl: config.map.amap.staticMapBaseUrl.href,
+      timeoutMs: config.map.amap.timeoutMs,
+      attribution: config.map.amap.staticMapAttribution,
+    })
+    : createStaticMapAssetProvider();
+  const staticMapAttribution = config.map.profile === "cn_primary"
+    ? config.map.amap.staticMapAttribution
+    : "On The Road fixture";
   const exportProcessor = new PdfExportProcessor({
     source: new PostgresExportJobSource(database),
     stages,
@@ -43,7 +56,7 @@ export async function startPdfWorker(
         const stored = await storage.putImmutable(
           `derived/${job.id}/map-${asset.assetId.replaceAll(":", "-")}-${randomUUID()}`,
           Buffer.from(asset.bytes),
-          "image/png",
+          asset.contentType,
         );
         const objectVersion = stored.version;
         if (!await stages.recordMapAsset(job, {
@@ -59,6 +72,8 @@ export async function startPdfWorker(
         return { objectKey: stored.key, objectVersion };
       },
       deleteMapAsset: (asset) => storage.deleteImmutable?.(asset.objectKey, asset.objectVersion) ?? Promise.resolve(),
+      staticMapProvider,
+      staticMapAttribution,
     }),
     artifacts: new S3PdfArtifactStore(storage),
     probeFactory: () => ({
