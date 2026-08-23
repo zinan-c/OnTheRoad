@@ -10,6 +10,13 @@ vi.mock("../../src/features/map/maplibre-runtime.mjs", () => ({
   }),
 }));
 
+vi.mock("../../src/features/map/map-runtime-config", () => ({
+  loadConfiguredMapRuntime: async () => ({
+    createMap: async () => ({ setGeoJson: vi.fn(), setMarkers: vi.fn(), setRouteGeoJson: vi.fn(), fitBounds: vi.fn(), resize: vi.fn(), destroy: vi.fn() }),
+    mapConfig: { provider: "fixture", engine: "maplibre", defaultLayer: "amap-street", attribution: "On The Road fixture" },
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

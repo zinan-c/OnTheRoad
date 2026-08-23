@@ -24,7 +24,12 @@ test("TC-A03-03 .env.example boots with explicit fixture capabilities", async ()
   const config = loadProcessConfig("api", environment);
 
   assert.equal(environment.AMAP_API_KEY, "");
+  assert.equal(environment.AMAP_JS_API_KEY, "");
+  assert.equal(environment.AMAP_JS_SECURITY_CODE, "");
   assert.equal(environment.MAP_PROFILE, "fixture");
+  assert.equal(environment.OTR_MAP_DEFAULT_LAYER, "amap-street");
+  assert.equal(environment.OTR_DIRECTIONS_BASE_URL, "https://restapi.amap.com/");
+  assert.equal(environment.OTR_STATIC_MAP_BASE_URL, "https://restapi.amap.com/v3/staticmap");
   assert.equal(environment.OTR_NOMINATIM_BASE_URL, "https://nominatim.openstreetmap.org");
   assert.deepEqual(config.map.capabilities, {
     autocomplete: false,

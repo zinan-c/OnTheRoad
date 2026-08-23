@@ -56,6 +56,17 @@ describe("TC-A03-02 secret and error redaction", () => {
       "AMAP_API_KEY",
     ],
     [
+      "China profile with a non-AMap Directions endpoint",
+      {
+        MAP_PROFILE: "cn_primary",
+        AMAP_API_KEY: "amap-server-key",
+        AMAP_JS_API_KEY: "amap-browser-key",
+        AMAP_JS_SECURITY_CODE: "amap-security-code",
+        OTR_DIRECTIONS_BASE_URL: "https://maps.example.test/",
+      },
+      "OTR_DIRECTIONS_BASE_URL",
+    ],
+    [
       "Nominatim search without identity",
       {
         MAP_PROFILE: "international_primary",

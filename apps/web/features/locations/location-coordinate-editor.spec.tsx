@@ -28,6 +28,22 @@ vi.mock("../../src/features/map/maplibre-runtime.mjs", () => ({
   },
 }));
 
+vi.mock("../../src/features/map/map-runtime-config", () => ({
+  loadConfiguredMapRuntime: async () => {
+    mapRuntime.runtimeOptions = {
+      tileTemplate: "/api/map/tiles/{z}/{x}/{y}?v=2",
+      attribution: "Map data © On The Road fixture",
+    };
+    return {
+      createMap: async (options: TestMapOptions) => {
+        mapRuntime.options = options;
+        return { setGeoJson: vi.fn(), setMarkers: vi.fn(), setRouteGeoJson: vi.fn(), fitBounds: vi.fn(), resize: vi.fn(), destroy: vi.fn() };
+      },
+      mapConfig: { provider: "fixture", engine: "maplibre", defaultLayer: "amap-street", attribution: "On The Road fixture" },
+    };
+  },
+}));
+
 afterEach(() => {
   cleanup();
   mapRuntime.options = null;

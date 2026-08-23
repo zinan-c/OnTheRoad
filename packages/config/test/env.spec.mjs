@@ -107,6 +107,37 @@ describe("TC-A03-01 minimal config schema", () => {
       "https://nominatim.openstreetmap.org/",
     );
   });
+
+  test("cn_primary exposes only browser-safe AMap JS config and actual capabilities", () => {
+    const environment = {
+      ...minimalEnvironment,
+      MAP_PROFILE: "cn_primary",
+      MAP_EXPLICIT_SEARCH_ENABLED: "true",
+      AMAP_API_KEY: "server-amap-key",
+      AMAP_JS_API_KEY: "browser-amap-key",
+      AMAP_JS_SECURITY_CODE: "browser-security-code",
+    };
+    const web = loadProcessConfig("web", environment);
+    const api = loadProcessConfig("api", environment);
+
+    expect(web.map.client).toMatchObject({
+      provider: "amap",
+      engine: "amap-js",
+      jsApiKey: "browser-amap-key",
+      securityJsCode: "browser-security-code",
+      defaultLayer: "amap-street",
+      attribution: "© 高德地图",
+    });
+    expect(web.map.providerCapabilities).toEqual({
+      map: true,
+      geocoding: true,
+      reverseGeocoding: true,
+      directions: true,
+      staticMaps: true,
+    });
+    expect(api.server.providerCredentials.amapApiKey).toBe("server-amap-key");
+    expect(JSON.stringify(web)).not.toContain("server-amap-key");
+  });
 });
 
 export { minimalEnvironment };
