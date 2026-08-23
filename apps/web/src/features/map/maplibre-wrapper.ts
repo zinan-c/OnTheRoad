@@ -6,6 +6,7 @@ import {
   type MapMarker,
   type MapModel,
 } from "./map-model";
+import type { MapLayerId } from "@on-the-road/config/env";
 
 export type MapRuntimeOptions = {
   container: unknown;
@@ -22,6 +23,7 @@ export type MapRuntimeHandle = {
   setMarkers: (markers: readonly MapMarker[]) => void;
   setRouteGeoJson: (geojson: unknown) => void;
   setSelectedItem?: (itemId: string | null) => void;
+  setBaseLayer?: (layer: MapLayerId) => void;
   fitBounds: (bounds: Bounds, options: { padding: number; maxZoom: number }) => void;
   resize: () => void;
   destroy: () => void;
@@ -72,10 +74,17 @@ export class MapLibreWrapper {
     filter: { kind: "all" },
   };
 
-  constructor(private readonly runtime: MapRuntimeFactory) {}
+  constructor(
+    private readonly runtime: MapRuntimeFactory,
+    private readonly onStateChange?: (state: MapShellState) => void,
+  ) {}
 
   setRouteGeoJson(geojson: unknown): void {
     this.runtimeHandle?.setRouteGeoJson(geojson);
+  }
+
+  setBaseLayer(layer: MapLayerId): void {
+    this.runtimeHandle?.setBaseLayer?.(layer);
   }
 
   selectItem(itemId: string | null): void {
@@ -94,13 +103,13 @@ export class MapLibreWrapper {
     this.applyModelToState(model);
 
     if (model.fit.kind === "empty") {
-      this.state = { ...this.state, mode: "empty", mapAvailable: false };
+      this.setState({ ...this.state, mode: "empty", mapAvailable: false });
       return;
     }
 
     try {
       const mapOptions: MapRuntimeOptions = { container, onTileError: () => {
-        this.state = { ...this.state, mode: "neutral-grid", degradationReason: "底图不可用" };
+        this.setState({ ...this.state, mode: "neutral-grid", degradationReason: "底图不可用" });
       } };
       if (onMarkerClick) mapOptions.onMarkerClick = onMarkerClick;
       if (onRouteClick) mapOptions.onRouteClick = onRouteClick;
@@ -109,15 +118,17 @@ export class MapLibreWrapper {
       handle.setGeoJson(model.geojson);
       handle.setMarkers(model.markers);
       handle.fitBounds(model.fit.bounds, { padding: 48, maxZoom: 14 });
-      this.state = { ...this.state, mode: "map", mapAvailable: true };
+      const healthyState = { ...this.state };
+      delete healthyState.degradationReason;
+      this.setState({ ...healthyState, mode: "map", mapAvailable: true });
     } catch {
       this.runtimeHandle = undefined;
-      this.state = {
+      this.setState({
         ...this.state,
         mode: "neutral-grid",
         mapAvailable: false,
         degradationReason: "WebGL 不可用",
-      };
+      });
     }
   }
 
@@ -142,12 +153,12 @@ export class MapLibreWrapper {
   }
 
   enterFullscreen(): void {
-    this.state = { ...this.state, fullscreen: true };
+    this.setState({ ...this.state, fullscreen: true });
     this.runtimeHandle?.resize();
   }
 
   exitFullscreen(): void {
-    this.state = { ...this.state, fullscreen: false };
+    this.setState({ ...this.state, fullscreen: false });
     this.runtimeHandle?.resize();
   }
 
@@ -163,7 +174,7 @@ export class MapLibreWrapper {
   }
 
   private applyModelToState(model: MapModel): void {
-    this.state = {
+    this.setState({
       ...this.state,
       markerCount: model.markers.length,
       markers: model.markers,
@@ -172,7 +183,12 @@ export class MapLibreWrapper {
       unresolvedItemIds: model.unresolvedItemIds,
       fit: model.fit,
       filter: model.filter,
-    };
+    });
+  }
+
+  private setState(state: MapShellState): void {
+    this.state = state;
+    this.onStateChange?.(state);
   }
 }
 

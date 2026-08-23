@@ -149,6 +149,9 @@ importers:
       '@on-the-road/importer':
         specifier: workspace:*
         version: link:../../packages/importer
+      '@on-the-road/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       maplibre-gl:
         specifier: 6.0.0
         version: 6.0.0

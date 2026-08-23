@@ -11,6 +11,7 @@
     "@on-the-road/contracts": "workspace:*",
     "@on-the-road/domain": "workspace:*",
     "@on-the-road/importer": "workspace:*",
+    "@on-the-road/providers": "workspace:*",
     "maplibre-gl": "6.0.0",
     "next": "16.2.12",
     "react": "19.2.8",

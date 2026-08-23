@@ -69,6 +69,11 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
       });
 
       return {
+        setBaseLayer() {
+          // The fixture raster has one deterministic base layer. The method
+          // exists so the shared MapRuntimeHandle remains interchangeable with
+          // the AMap JS runtime.
+        },
         setGeoJson(next) {
           geojson = next;
           if (ready) applyGeoJson(map, geojson);

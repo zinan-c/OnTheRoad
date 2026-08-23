@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { MapRuntimeHandle, MapRuntimeOptions } from "../map/maplibre-wrapper";
-import { loadMapLibreRuntime } from "../map/maplibre-runtime.mjs";
-import { TRIP_MAP_RUNTIME_OPTIONS } from "../map/map-runtime-options";
+import { loadConfiguredMapRuntime } from "../map/map-runtime-config";
 import type { ProductLocation } from "./location-product-picker";
 
 type Point = { longitude: number; latitude: number; crs: "WGS84" };
@@ -85,7 +84,7 @@ export function LocationCoordinateEditor({
 
   useEffect(() => {
     let disposed = false;
-    void loadMapLibreRuntime(TRIP_MAP_RUNTIME_OPTIONS).then(async (runtime) => {
+    void loadConfiguredMapRuntime().then(async (runtime) => {
       if (disposed || !containerRef.current) return;
       const typedRuntime = runtime as unknown as {
         createMap: (options: MapRuntimeOptions) => MapRuntimeHandle | Promise<MapRuntimeHandle>;

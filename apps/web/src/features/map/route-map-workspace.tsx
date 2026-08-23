@@ -239,7 +239,6 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
       onSelect={selectMapItem}
       onRouteSelect={selectRoute}
     /> : <p role="status">No valid coordinates. Confirm a location to show it on the map.</p>}
-    <small className="otr-map-attribution">Map data © On The Road fixture</small>
     {modeLegend.length > 0 ? <ul aria-label="Route mode legend">{modeLegend.map(({ code, style }) => <li
         key={code}
         data-mode-code={code}

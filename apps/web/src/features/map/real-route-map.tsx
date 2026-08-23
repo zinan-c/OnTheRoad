@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapLibreWrapper, type MapRuntimeFactory } from "./maplibre-wrapper";
 import type { MapFilter, MapItem } from "./map-model";
-import { loadMapLibreRuntime } from "./maplibre-runtime.mjs";
-import { TRIP_MAP_RUNTIME_OPTIONS } from "./map-runtime-options";
+import { AMAP_LAYER_CATALOG, loadConfiguredMapRuntime } from "./map-runtime-config";
+import type { MapLayerId } from "@on-the-road/config/env";
 import { routeStyle, type RouteQuality } from "./route-style";
 import type { TransportModeView } from "../trips/settings/transport-modes";
 
@@ -55,6 +55,9 @@ export function RealRouteMap({ items, routes, transportModes = [], selectedRoute
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<MapLibreWrapper | undefined>(undefined);
+  const [layer, setLayer] = useState<MapLayerId>(() => preferredLayer());
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [attribution, setAttribution] = useState("© 高德地图");
   const itemsRef = useRef(items);
   const filterRef = useRef(filter);
   itemsRef.current = items;
@@ -70,15 +73,24 @@ export function RealRouteMap({ items, routes, transportModes = [], selectedRoute
 
   useEffect(() => {
     let disposed = false;
-    void loadMapLibreRuntime(TRIP_MAP_RUNTIME_OPTIONS).then((runtime) => {
+    void loadConfiguredMapRuntime().then((runtime) => {
       if (disposed || !containerRef.current) return;
-      const wrapper = new MapLibreWrapper(runtime as unknown as MapRuntimeFactory);
+      const wrapper = new MapLibreWrapper(
+        runtime as unknown as MapRuntimeFactory,
+        (state) => setRuntimeError(state.degradationReason ?? null),
+      );
       wrapperRef.current = wrapper;
+      setAttribution(runtime.mapConfig.attribution);
+      const initialLayer = preferredLayer(runtime.mapConfig.defaultLayer);
+      setLayer(initialLayer);
       return wrapper.mount(containerRef.current, itemsRef.current, filterRef.current ?? { kind: "all" }, onSelect, onRouteSelect)
         .then(() => {
           wrapper.setRouteGeoJson(routeGeoJsonRef.current);
           wrapper.selectItem(selectedItemRef.current ?? null);
+          wrapper.setBaseLayer(initialLayer);
         });
+    }).catch((error: unknown) => {
+      if (!disposed) setRuntimeError(error instanceof Error ? error.message : "Map configuration is unavailable");
     });
     return () => { disposed = true; wrapperRef.current?.destroy(); wrapperRef.current = undefined; };
   }, [onRouteSelect, onSelect]);
@@ -86,15 +98,36 @@ export function RealRouteMap({ items, routes, transportModes = [], selectedRoute
   useEffect(() => { wrapperRef.current?.updateItems(items, filter ?? { kind: "all" }); }, [filter, items]);
   useEffect(() => { wrapperRef.current?.setRouteGeoJson(routeGeoJson); }, [routeGeoJson]);
   useEffect(() => { wrapperRef.current?.selectItem(selectedItemId ?? null); }, [selectedItemId]);
+  useEffect(() => {
+    wrapperRef.current?.setBaseLayer(layer);
+    if (typeof window !== "undefined") window.localStorage.setItem("otr.map.basemap", layer);
+  }, [layer]);
 
   const validPoints = items.filter(({ point }) => point);
-  return <div
-    id="route-map-canvas"
-    ref={containerRef}
-    className="realRouteMap"
-    role="application"
-    aria-label="Route map"
-    data-marker-count={validPoints.length}
-    data-route-count={routeGeoJson.features.length}
-  />;
+  return <section className="realRouteMapShell" aria-label="在线地图">
+    <div className="realRouteMapControls">
+      <label>地图图层<select aria-label="地图图层" value={layer} onChange={(event) => setLayer(event.target.value as MapLayerId)}>
+        {AMAP_LAYER_CATALOG.filter(({ enabled }) => enabled).map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
+      </select></label>
+    </div>
+    {runtimeError ? <p role="status">在线地图不可用，文字行程仍可编辑。{runtimeError}</p> : null}
+    <div
+      id="route-map-canvas"
+      ref={containerRef}
+      className={`realRouteMap${runtimeError ? " is-degraded" : ""}`}
+      role="application"
+      aria-label="Route map"
+      data-marker-count={validPoints.length}
+      data-route-count={routeGeoJson.features.length}
+    >{runtimeError ? <div className="otr-map-grid" aria-label="中性网格" /> : null}</div>
+    <small className="otr-map-attribution">{attribution}</small>
+  </section>;
+}
+
+function preferredLayer(fallback: MapLayerId = "amap-street"): MapLayerId {
+  if (typeof window === "undefined") return fallback;
+  const stored = window.localStorage.getItem("otr.map.basemap");
+  return stored === "amap-street" || stored === "amap-satellite" || stored === "amap-satellite-labels"
+    ? stored
+    : fallback;
 }
