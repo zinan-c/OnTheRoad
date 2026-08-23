@@ -271,11 +271,25 @@ class ApiController {
   @Get("system/capabilities")
   capabilities() {
     const map = this.runtime.locationSearch.capabilities();
+    // Test and plugin runtimes created before the capability matrix existed
+    // may omit this optional field; production composition always supplies it
+    // from the validated process configuration.
+    const configured = this.runtime.mapCapabilities ?? {
+      map: true,
+      geocoding: true,
+      reverseGeocoding: true,
+      directions: true,
+      staticMaps: true,
+    };
     return {
-      geocoding: map.search,
-      reverseGeocoding: map.reverse,
-      directions: map.provider === "fixture",
-      staticMaps: map.provider === "fixture",
+      geocoding: map.search && configured.geocoding,
+      reverseGeocoding: map.reverse && configured.reverseGeocoding,
+      directions: configured.directions,
+      staticMaps: configured.staticMaps,
+      map: configured.map,
+      provider: map.provider,
+      mapProfile: map.mapProfile,
+      autocomplete: map.autocomplete,
       imports: true,
       exports: true,
     };

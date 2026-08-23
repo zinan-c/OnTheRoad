@@ -2,6 +2,8 @@ export * from "./contracts/dto.js";
 export * from "./contracts/errors.js";
 export * from "./contracts/providers.js";
 export * from "./contracts/validation.js";
+export * from "./coordinates/index.js";
+export * from "./directions/index.js";
 export * from "./fixture/fixture-provider.js";
 export * from "./geocoding/index.js";
 export * from "./static-map/manifest.js";

@@ -14,6 +14,8 @@ export type MapProfile =
   | "cn_primary"
   | "international_primary"
   | "hybrid";
+export type MapLayerId = "amap-street" | "amap-satellite" | "amap-satellite-labels";
+export type MapClientProvider = "fixture" | "amap";
 
 export interface ConfigIssue {
   readonly field: string;
@@ -65,6 +67,28 @@ export interface ProcessConfig {
   };
   readonly map: {
     readonly profile: MapProfile;
+    readonly defaultLayer: MapLayerId;
+    readonly amap: {
+      readonly directionsBaseUrl: URL;
+      readonly directionsTimeoutMs: number;
+      readonly directionsAttribution: string;
+      readonly staticMapBaseUrl: URL;
+      readonly staticMapAttribution: string;
+      readonly timeoutMs: number;
+      readonly rateLimitRps: number;
+      readonly cacheTtlSeconds: number;
+      readonly drivingStrategy: number;
+      readonly jsApiKeyConfigured: boolean;
+      readonly securityJsCodeConfigured: boolean;
+    };
+    readonly client: {
+      readonly provider: MapClientProvider;
+      readonly engine: "maplibre" | "amap-js";
+      readonly jsApiKey?: string;
+      readonly securityJsCode?: string;
+      readonly defaultLayer: MapLayerId;
+      readonly attribution: string;
+    };
     readonly nominatim: {
       readonly baseUrl: URL;
       readonly userAgentConfigured: boolean;
@@ -89,6 +113,14 @@ export interface ProcessConfig {
       readonly explicitSearch: boolean;
       readonly offlineMap: true;
     };
+    readonly providerCapabilities: {
+      readonly map: boolean;
+      readonly geocoding: boolean;
+      readonly reverseGeocoding: boolean;
+      readonly directions: boolean;
+      readonly staticMaps: boolean;
+    };
+    readonly liveSmoke: boolean;
   };
   readonly server?: {
     readonly databaseUrl: URL;
@@ -139,6 +171,11 @@ const VALID_MAP_PROFILES = new Set<MapProfile>([
   "international_primary",
   "hybrid",
 ]);
+const VALID_MAP_LAYERS = new Set<MapLayerId>([
+  "amap-street",
+  "amap-satellite",
+  "amap-satellite-labels",
+]);
 
 function issue(
   issues: ConfigIssue[],
@@ -173,6 +210,20 @@ function optionalBoolean(
   if (value === "true") return true;
   if (value === "false") return false;
   issue(issues, field, "INVALID_BOOLEAN", `${field} must be true or false`);
+  return fallback;
+}
+
+function optionalFlag(
+  input: EnvironmentInput,
+  issues: ConfigIssue[],
+  field: string,
+  fallback: boolean,
+): boolean {
+  const value = input[field]?.trim().toLowerCase();
+  if (!value) return fallback;
+  if (value === "1" || value === "true") return true;
+  if (value === "0" || value === "false") return false;
+  issue(issues, field, "INVALID_BOOLEAN", `${field} must be 1, 0, true or false`);
   return fallback;
 }
 
@@ -240,6 +291,22 @@ function parsedUrl(
       `${field} must be an absolute ${protocols.join(" or ")} URL`,
     );
     return new URL("http://invalid.local");
+  }
+}
+
+function assertOfficialAmapEndpoint(
+  url: URL,
+  issues: ConfigIssue[],
+  field: string,
+  profile: MapProfile,
+): void {
+  if (profile === "cn_primary" && url.hostname !== "restapi.amap.com") {
+    issue(
+      issues,
+      field,
+      "INVALID_URL",
+      `${field} must use the official AMap Web Service host`,
+    );
   }
 }
 
@@ -416,7 +483,57 @@ export function loadProcessConfig(
     mapProfile !== "fixture",
   );
   const amapKey = environment.AMAP_API_KEY?.trim() ?? "";
+  const amapJsApiKey = environment.AMAP_JS_API_KEY?.trim() ?? "";
+  const amapSecurityJsCode = environment.AMAP_JS_SECURITY_CODE?.trim() ?? "";
   const hereKey = environment.OTR_HERE_API_KEY?.trim() ?? "";
+  const defaultLayerValue = environment.OTR_MAP_DEFAULT_LAYER?.trim() || "amap-street";
+  const defaultLayer = VALID_MAP_LAYERS.has(defaultLayerValue as MapLayerId)
+    ? defaultLayerValue as MapLayerId
+    : "amap-street";
+  if (!VALID_MAP_LAYERS.has(defaultLayerValue as MapLayerId)) {
+    issue(issues, "OTR_MAP_DEFAULT_LAYER", "INVALID_ENUM", "OTR_MAP_DEFAULT_LAYER is not supported");
+  }
+  const amapTimeoutMs = optionalInteger(
+    environment,
+    issues,
+    "OTR_AMAP_TIMEOUT_MS",
+    5_000,
+    250,
+    30_000,
+  );
+  const amapRateLimitRps = optionalNumber(
+    environment,
+    issues,
+    "OTR_AMAP_RATE_LIMIT_RPS",
+    5,
+    0.001,
+    100,
+  );
+  const amapCacheTtlSeconds = optionalInteger(
+    environment,
+    issues,
+    "OTR_AMAP_CACHE_TTL_SECONDS",
+    86_400,
+    1,
+    604_800,
+  );
+  const amapDrivingStrategy = optionalInteger(
+    environment,
+    issues,
+    "OTR_AMAP_DRIVING_STRATEGY",
+    0,
+    0,
+    20,
+  );
+  const directionsTimeoutMs = optionalInteger(
+    environment,
+    issues,
+    "OTR_DIRECTIONS_TIMEOUT_MS",
+    8_000,
+    250,
+    30_000,
+  );
+  const liveSmoke = optionalFlag(environment, issues, "OTR_AMAP_LIVE_SMOKE", false);
   const nominatimUserAgent = environment.OTR_NOMINATIM_USER_AGENT?.trim() ?? "";
   const nominatimContact = environment.OTR_NOMINATIM_CONTACT?.trim() ?? "";
   const nominatimTimeoutMs = optionalInteger(
@@ -470,6 +587,22 @@ export function loadProcessConfig(
       "AMAP_API_KEY",
       "CONFLICTING_CAPABILITY",
       "cn_primary online search requires AMAP_API_KEY",
+    );
+  }
+  if (mapProfile === "cn_primary" && !amapJsApiKey) {
+    issue(
+      issues,
+      "AMAP_JS_API_KEY",
+      "CONFLICTING_CAPABILITY",
+      "cn_primary online map requires AMAP_JS_API_KEY",
+    );
+  }
+  if (mapProfile === "cn_primary" && !amapSecurityJsCode) {
+    issue(
+      issues,
+      "AMAP_JS_SECURITY_CODE",
+      "CONFLICTING_CAPABILITY",
+      "cn_primary online map requires AMAP_JS_SECURITY_CODE",
     );
   }
   if (
@@ -532,6 +665,30 @@ export function loadProcessConfig(
     "OTR_HERE_REVERSE_ENDPOINT",
     ["https:"],
   );
+  const directionsBaseUrl = parsedUrl(
+    environment.OTR_DIRECTIONS_BASE_URL?.trim() || "https://restapi.amap.com/",
+    issues,
+    "OTR_DIRECTIONS_BASE_URL",
+    ["https:"],
+  );
+  assertOfficialAmapEndpoint(directionsBaseUrl, issues, "OTR_DIRECTIONS_BASE_URL", mapProfile);
+  const directionsAttribution = environment.OTR_DIRECTIONS_ATTRIBUTION?.trim()
+    || "© 高德地图";
+  if (mapProfile === "cn_primary" && !directionsAttribution) {
+    issue(issues, "OTR_DIRECTIONS_ATTRIBUTION", "REQUIRED", "OTR_DIRECTIONS_ATTRIBUTION is required");
+  }
+  const staticMapBaseUrl = parsedUrl(
+    environment.OTR_STATIC_MAP_BASE_URL?.trim() || "https://restapi.amap.com/v3/staticmap",
+    issues,
+    "OTR_STATIC_MAP_BASE_URL",
+    ["https:"],
+  );
+  assertOfficialAmapEndpoint(staticMapBaseUrl, issues, "OTR_STATIC_MAP_BASE_URL", mapProfile);
+  const staticMapAttribution = environment.OTR_STATIC_MAP_ATTRIBUTION?.trim()
+    || "© 高德地图";
+  if (mapProfile === "cn_primary" && !staticMapAttribution) {
+    issue(issues, "OTR_STATIC_MAP_ATTRIBUTION", "REQUIRED", "OTR_STATIC_MAP_ATTRIBUTION is required");
+  }
 
   let server: ProcessConfig["server"];
   if (role !== "web") {
@@ -588,6 +745,8 @@ export function loadProcessConfig(
         ["OBJECT_STORAGE_SECRET_KEY", storageSecretKey],
         ["SESSION_SECRET", sessionSecret],
         ["AMAP_API_KEY", amapKey],
+        ["AMAP_JS_API_KEY", amapJsApiKey],
+        ["AMAP_JS_SECURITY_CODE", amapSecurityJsCode],
         ["OTR_HERE_API_KEY", hereKey],
       ] as const) {
         if (value && DEVELOPMENT_CREDENTIAL.test(value)) {
@@ -640,6 +799,21 @@ export function loadProcessConfig(
   );
   if (issues.length > 0) throw new ConfigValidationError(issues);
 
+  const amapReady = Boolean(amapKey);
+  const clientProvider: MapClientProvider = mapProfile === "cn_primary" ? "amap" : "fixture";
+  const clientAttribution = clientProvider === "amap" ? "© 高德地图" : "On The Road fixture";
+  const providerCapabilities = {
+    map: mapProfile === "fixture" || (mapProfile === "cn_primary" && Boolean(amapJsApiKey && amapSecurityJsCode)),
+    geocoding: mapProfile === "fixture"
+      || (mapProfile === "cn_primary" && amapReady)
+      || ((mapProfile === "international_primary" || mapProfile === "hybrid") && Boolean(nominatimUserAgent && nominatimContact)),
+    reverseGeocoding: mapProfile === "fixture"
+      || (mapProfile === "cn_primary" && amapReady)
+      || ((mapProfile === "international_primary" || mapProfile === "hybrid") && Boolean(nominatimUserAgent && nominatimContact)),
+    directions: mapProfile === "fixture" || (mapProfile === "cn_primary" && amapReady),
+    staticMaps: mapProfile === "fixture" || (mapProfile === "cn_primary" && amapReady),
+  } as const;
+
   return {
     role,
     environment: runtime,
@@ -655,6 +829,28 @@ export function loadProcessConfig(
     },
     map: {
       profile: mapProfile,
+      defaultLayer,
+      amap: {
+        directionsBaseUrl,
+        directionsTimeoutMs,
+        directionsAttribution,
+        staticMapBaseUrl,
+        staticMapAttribution,
+        timeoutMs: amapTimeoutMs,
+        rateLimitRps: amapRateLimitRps,
+        cacheTtlSeconds: amapCacheTtlSeconds,
+        drivingStrategy: amapDrivingStrategy,
+        jsApiKeyConfigured: Boolean(amapJsApiKey),
+        securityJsCodeConfigured: Boolean(amapSecurityJsCode),
+      },
+      client: {
+        provider: clientProvider,
+        engine: clientProvider === "amap" ? "amap-js" : "maplibre",
+        ...(amapJsApiKey && clientProvider === "amap" ? { jsApiKey: amapJsApiKey } : {}),
+        ...(amapSecurityJsCode && clientProvider === "amap" ? { securityJsCode: amapSecurityJsCode } : {}),
+        defaultLayer,
+        attribution: clientAttribution,
+      },
       nominatim: {
         baseUrl: nominatimBaseUrl,
         userAgentConfigured: Boolean(nominatimUserAgent),
@@ -679,6 +875,8 @@ export function loadProcessConfig(
         explicitSearch,
         offlineMap: true,
       },
+      providerCapabilities,
+      liveSmoke,
     },
     ...(server ? { server } : {}),
   };

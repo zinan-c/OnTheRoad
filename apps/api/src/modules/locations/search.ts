@@ -163,6 +163,13 @@ export function createConfiguredLocationSearchApi(
     timeoutMs: Number(environment.OTR_NOMINATIM_TIMEOUT_MS ?? "5000"),
     ...(options.fetch ? { fetch: options.fetch } : {}),
   };
+  const amapOptions = {
+    profile: "cn-primary" as const,
+    apiKey: environment.AMAP_API_KEY ?? "",
+    language: environment.MAP_LANGUAGE ?? "zh-CN",
+    timeoutMs: Number(environment.OTR_AMAP_TIMEOUT_MS ?? "5000"),
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  };
   if (profile === "fixture") {
     return createLocationSearchApi({
       geocoder: createFixtureGeocoder({ profile: "fixture-global" }),
@@ -180,10 +187,7 @@ export function createConfiguredLocationSearchApi(
   if (profile === "cn_primary") {
     return createLocationSearchApi({
       geocoder: applyPolicy(createAmapGeocoder({
-        profile: "cn-primary",
-        apiKey: environment.AMAP_API_KEY ?? "",
-        language: environment.MAP_LANGUAGE ?? "zh-CN",
-        ...(options.fetch ? { fetch: options.fetch } : {}),
+        ...amapOptions,
       })),
       mapProfile: profile,
       ...(options.logger ? { logger: options.logger } : {}),
@@ -194,9 +198,7 @@ export function createConfiguredLocationSearchApi(
     return createLocationSearchApi({
       geocoder: applyPolicy(createHybridGeocoder({
         amap: createAmapGeocoder({
-          profile: "cn-primary",
-          apiKey: environment.AMAP_API_KEY ?? "",
-          language: environment.MAP_LANGUAGE ?? "zh-CN",
+          ...amapOptions,
           ...fetchOption,
         }),
         nominatim: createNominatimGeocoder({ ...nominatimOptions, ...fetchOption }),

@@ -18,6 +18,22 @@
     "./static-map/renderer": {
       "types": "./src/static-map/renderer.ts",
       "default": "./dist/static-map/renderer.js"
+    },
+    "./coordinates": {
+      "types": "./src/coordinates/index.ts",
+      "default": "./dist/coordinates/index.js"
+    },
+    "./coordinates/gcj02": {
+      "types": "./src/coordinates/gcj02.ts",
+      "default": "./dist/coordinates/gcj02.js"
+    },
+    "./directions": {
+      "types": "./src/directions/index.ts",
+      "default": "./dist/directions/index.js"
+    },
+    "./static-map/amap": {
+      "types": "./src/static-map/amap.ts",
+      "default": "./dist/static-map/amap.js"
     }
   },
   "scripts": {

@@ -77,6 +77,13 @@ export interface ApiRuntime {
   readonly locations: LocationService;
   readonly locationCoordinates: LocationCoordinatesApi;
   readonly locationSearch: ReturnType<typeof createConfiguredLocationSearchApi>;
+  readonly mapCapabilities?: Readonly<{
+    readonly map: boolean;
+    readonly geocoding: boolean;
+    readonly reverseGeocoding: boolean;
+    readonly directions: boolean;
+    readonly staticMaps: boolean;
+  }>;
   readonly expenses: ExpenseService;
   readonly attachments: AttachmentUploadService;
   readonly gallery: AttachmentGalleryService;
@@ -203,10 +210,14 @@ export function createProductionRuntime(
     ...(onlineProfile ? {
       policy: {
         store: geocodingStore,
-        cacheTtlSeconds: config.map.nominatim.cacheTtlSeconds,
+        cacheTtlSeconds: config.map.profile === "cn_primary"
+          ? config.map.amap.cacheTtlSeconds
+          : config.map.nominatim.cacheTtlSeconds,
         bucket: {
           capacity: 1,
-          refillPerSecond: config.map.nominatim.rateLimitRps,
+          refillPerSecond: config.map.profile === "cn_primary"
+            ? config.map.amap.rateLimitRps
+            : config.map.nominatim.rateLimitRps,
         },
         bucketKey: publicProvider,
         maxRetries: 1,
@@ -272,6 +283,7 @@ export function createProductionRuntime(
     locations,
     locationCoordinates,
     locationSearch,
+    mapCapabilities: config.map.providerCapabilities,
     expenses,
     attachments,
     gallery,
@@ -292,7 +304,7 @@ export function createProductionRuntime(
         redis: false,
         storage: false,
         clamav: false,
-        mapProvider: true,
+        mapProvider: Object.values(config.map.providerCapabilities).every(Boolean),
       };
       try {
         await database.query("SELECT 1");

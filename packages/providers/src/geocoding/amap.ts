@@ -1,5 +1,11 @@
-import { assertWgs84Point } from "../contracts/validation.js";
 import type { Wgs84Point } from "../contracts/dto.js";
+import {
+  assertGcj02Point,
+  gcj02ToWgs84,
+  wgs84ToGcj02,
+  type Gcj02Point,
+} from "../coordinates/gcj02.js";
+import { assertWgs84Point } from "../contracts/validation.js";
 import { GeocoderError } from "./errors.js";
 import type {
   Geocoder,
@@ -12,10 +18,6 @@ const AMAP_ENDPOINTS = Object.freeze({
   search: "https://restapi.amap.com/v3/place/text",
   reverse: "https://restapi.amap.com/v3/geocode/regeo",
 });
-
-const PI = Math.PI;
-const EARTH_SEMIMAJOR_AXIS = 6_378_245;
-const ECCENTRICITY_SQUARED = 0.006693421622965943;
 
 interface AmapPoi {
   id?: string;
@@ -51,81 +53,6 @@ export interface AmapGeocoderOptions {
   readonly endpoints?: Partial<typeof AMAP_ENDPOINTS>;
 }
 
-function outsideChina(longitude: number, latitude: number): boolean {
-  return longitude < 72.004
-    || longitude > 137.8347
-    || latitude < 0.8293
-    || latitude > 55.8271;
-}
-
-function transformLatitude(longitude: number, latitude: number): number {
-  let result = -100 + (2 * longitude) + (3 * latitude)
-    + (0.2 * latitude * latitude)
-    + (0.1 * longitude * latitude)
-    + (0.2 * Math.sqrt(Math.abs(longitude)));
-  result += ((20 * Math.sin(6 * longitude * PI)) + (20 * Math.sin(2 * longitude * PI))) * 2 / 3;
-  result += ((20 * Math.sin(latitude * PI)) + (40 * Math.sin(latitude / 3 * PI))) * 2 / 3;
-  result += ((160 * Math.sin(latitude / 12 * PI)) + (320 * Math.sin(latitude * PI / 30))) * 2 / 3;
-  return result;
-}
-
-function transformLongitude(longitude: number, latitude: number): number {
-  let result = 300 + longitude + (2 * latitude)
-    + (0.1 * longitude * longitude)
-    + (0.1 * longitude * latitude)
-    + (0.1 * Math.sqrt(Math.abs(longitude)));
-  result += ((20 * Math.sin(6 * longitude * PI)) + (20 * Math.sin(2 * longitude * PI))) * 2 / 3;
-  result += ((20 * Math.sin(longitude * PI)) + (40 * Math.sin(longitude / 3 * PI))) * 2 / 3;
-  result += ((150 * Math.sin(longitude / 12 * PI)) + (300 * Math.sin(longitude / 30 * PI))) * 2 / 3;
-  return result;
-}
-
-export function wgs84ToGcj02(point: Wgs84Point): Wgs84Point {
-  assertWgs84Point(point);
-  if (outsideChina(point.longitude, point.latitude)) return point;
-  let latitudeDelta = transformLatitude(point.longitude - 105, point.latitude - 35);
-  let longitudeDelta = transformLongitude(point.longitude - 105, point.latitude - 35);
-  const radianLatitude = point.latitude / 180 * PI;
-  let magic = Math.sin(radianLatitude);
-  magic = 1 - (ECCENTRICITY_SQUARED * magic * magic);
-  const rootMagic = Math.sqrt(magic);
-  latitudeDelta = latitudeDelta * 180
-    / ((EARTH_SEMIMAJOR_AXIS * (1 - ECCENTRICITY_SQUARED)) / (magic * rootMagic) * PI);
-  longitudeDelta = longitudeDelta * 180
-    / (EARTH_SEMIMAJOR_AXIS / rootMagic * Math.cos(radianLatitude) * PI);
-  return {
-    longitude: point.longitude + longitudeDelta,
-    latitude: point.latitude + latitudeDelta,
-    crs: "WGS84",
-  };
-}
-
-export function gcj02ToWgs84(point: Wgs84Point): Wgs84Point {
-  assertWgs84Point(point);
-  if (outsideChina(point.longitude, point.latitude)) return point;
-  let minimumLongitude = point.longitude - 0.02;
-  let maximumLongitude = point.longitude + 0.02;
-  let minimumLatitude = point.latitude - 0.02;
-  let maximumLatitude = point.latitude + 0.02;
-  let candidate = point;
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    candidate = {
-      longitude: (minimumLongitude + maximumLongitude) / 2,
-      latitude: (minimumLatitude + maximumLatitude) / 2,
-      crs: "WGS84",
-    };
-    const converted = wgs84ToGcj02(candidate);
-    const longitudeDelta = converted.longitude - point.longitude;
-    const latitudeDelta = converted.latitude - point.latitude;
-    if (Math.abs(longitudeDelta) < 1e-7 && Math.abs(latitudeDelta) < 1e-7) break;
-    if (longitudeDelta > 0) maximumLongitude = candidate.longitude;
-    else minimumLongitude = candidate.longitude;
-    if (latitudeDelta > 0) maximumLatitude = candidate.latitude;
-    else minimumLatitude = candidate.latitude;
-  }
-  return candidate;
-}
-
 function singleText(value: string | string[] | undefined): string | undefined {
   if (typeof value === "string" && value.trim()) return value;
   return Array.isArray(value) ? value.find((entry) => entry.trim()) : undefined;
@@ -133,13 +60,13 @@ function singleText(value: string | string[] | undefined): string | undefined {
 
 function parseLocation(value: string | undefined): Wgs84Point {
   const [longitudeText, latitudeText] = value?.split(",") ?? [];
-  const gcj02 = {
+  const gcj02: Gcj02Point = {
     longitude: Number(longitudeText),
     latitude: Number(latitudeText),
-    crs: "WGS84" as const,
+    crs: "GCJ02",
   };
   try {
-    assertWgs84Point(gcj02);
+    assertGcj02Point(gcj02);
   } catch {
     throw new GeocoderError(
       "PROVIDER_RESPONSE_INVALID",
@@ -149,6 +76,8 @@ function parseLocation(value: string | undefined): Wgs84Point {
   }
   return gcj02ToWgs84(gcj02);
 }
+
+export { gcj02ToWgs84, wgs84ToGcj02 } from "../coordinates/gcj02.js";
 
 function normalizePoi(poi: AmapPoi, profile: string, index: number): NormalizedCandidate {
   if (!poi.id || !poi.name) {
@@ -231,7 +160,16 @@ export function createAmapGeocoder(options: AmapGeocoderOptions): Geocoder {
           { retryable: response.status >= 500, status: response.status, provider: "amap" },
         );
       }
-      const payload = await response.json() as AmapPayload;
+      let payload: AmapPayload;
+      try {
+        payload = await response.json() as AmapPayload;
+      } catch {
+        throw new GeocoderError(
+          "PROVIDER_RESPONSE_INVALID",
+          "AMAP returned invalid JSON",
+          { provider: "amap", status: response.status },
+        );
+      }
       if (payload.status !== "1") {
         const code = payload.infocode ?? "";
         if (["10001", "10002", "10003", "10009"].includes(code)) {
@@ -306,6 +244,14 @@ export function createAmapGeocoder(options: AmapGeocoderOptions): Geocoder {
       return payload.pois.map((poi, index) => normalizePoi(poi, options.profile, index));
     },
     async reverse(point, locale) {
+      try {
+        assertWgs84Point(point);
+      } catch {
+        throw new GeocoderError("PROVIDER_REQUEST_INVALID", "A valid WGS84 point is required", {
+          source: "client",
+          provider: "amap",
+        });
+      }
       const gcj02 = wgs84ToGcj02(point);
       const parameters = new URLSearchParams({
         location: `${gcj02.longitude},${gcj02.latitude}`,
