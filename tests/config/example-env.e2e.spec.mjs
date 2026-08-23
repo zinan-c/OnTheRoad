@@ -13,10 +13,26 @@ function parseExample(source) {
       .map((line) => {
         const separator = line.indexOf("=");
         assert.ok(separator > 0, `invalid .env.example line: ${line}`);
-        return [line.slice(0, separator), line.slice(separator + 1)];
+        const rawValue = line.slice(separator + 1);
+        const value = /^(['"])(.*)\1$/u.exec(rawValue)?.[2] ?? rawValue;
+        return [line.slice(0, separator), value];
       }),
   );
 }
+
+test(".env.example quotes values containing whitespace for shell loading", async () => {
+  const source = await readFile(new URL("../../.env.example", import.meta.url), "utf8");
+  for (const line of source.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separator = trimmed.indexOf("=");
+    assert.ok(separator > 0, `invalid .env.example line: ${line}`);
+    const rawValue = trimmed.slice(separator + 1);
+    if (/\s/u.test(rawValue)) {
+      assert.match(rawValue, /^(?:'.*'|".*")$/u, `shell-unsafe value: ${line}`);
+    }
+  }
+});
 
 test("TC-A03-03 .env.example boots with explicit fixture capabilities", async () => {
   const source = await readFile(new URL("../../.env.example", import.meta.url), "utf8");
@@ -28,6 +44,8 @@ test("TC-A03-03 .env.example boots with explicit fixture capabilities", async ()
   assert.equal(environment.AMAP_JS_SECURITY_CODE, "");
   assert.equal(environment.MAP_PROFILE, "fixture");
   assert.equal(environment.OTR_MAP_DEFAULT_LAYER, "amap-street");
+  assert.equal(environment.OTR_DIRECTIONS_ATTRIBUTION, "© 高德地图");
+  assert.equal(environment.OTR_STATIC_MAP_ATTRIBUTION, "© 高德地图");
   assert.equal(environment.OTR_DIRECTIONS_BASE_URL, "https://restapi.amap.com/");
   assert.equal(environment.OTR_STATIC_MAP_BASE_URL, "https://restapi.amap.com/v3/staticmap");
   assert.equal(environment.OTR_NOMINATIM_BASE_URL, "https://nominatim.openstreetmap.org");
