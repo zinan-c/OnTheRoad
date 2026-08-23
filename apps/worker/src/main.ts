@@ -24,7 +24,8 @@ import {
 import { OutboxReconciler } from "./processors/maintenance/outbox-reconciler.js";
 import { PostgresRecoverableOutbox } from "./processors/maintenance/postgres-outbox-repository.js";
 import { recordWorkerPipeline, workerTelemetry } from "./telemetry.js";
-import { createFixtureProvider } from "@on-the-road/providers";
+import { createAmapDirectionsProvider } from "@on-the-road/providers/directions";
+import { createFixtureProvider, type DirectionsProvider } from "@on-the-road/providers";
 import { PostgresGeocodingBatchProcessor } from "./processors/geocoding/postgres-batch-processor.js";
 import {
   createFixtureGeocoder,
@@ -58,10 +59,29 @@ export async function startWorker(
 ) {
   const config = loadProcessConfig("worker", environment);
   if (!config.server) throw new Error("Worker server configuration is required.");
-  const provider = createFixtureProvider();
+  const fixtureProvider = createFixtureProvider();
+  let directions: DirectionsProvider;
+  let directionsProviderName: string;
+  if (config.map.profile === "fixture") {
+    directions = fixtureProvider.directions;
+    directionsProviderName = "fixture";
+  } else if (config.map.profile === "cn_primary") {
+    const apiKey = config.server.providerCredentials.amapApiKey;
+    if (!apiKey) throw new Error("AMAP_API_KEY is required for cn_primary worker directions");
+    directions = createAmapDirectionsProvider({
+      apiKey,
+      baseUrl: config.map.amap.directionsBaseUrl.href,
+      timeoutMs: config.map.amap.directionsTimeoutMs,
+      drivingStrategy: config.map.amap.drivingStrategy,
+      attribution: config.map.amap.directionsAttribution,
+    });
+    directionsProviderName = "amap";
+  } else {
+    throw new Error(`Directions provider is not configured for MAP_PROFILE=${config.map.profile}`);
+  }
   const eventProcessor = new PostgresEventProcessor(
     config.server.databaseUrl.href,
-    { provider: provider.directions, name: "fixture" },
+    { provider: directions, name: directionsProviderName },
   );
   const processRuntime = createQueueProcess({
     redisUrl: config.server.redisUrl.href,
@@ -158,7 +178,7 @@ export async function startWorker(
     databaseUrl: config.server.databaseUrl.href,
     geocoder: {
       provider: geocoder.provider,
-      profile: "fixture-cn",
+      profile: geocoder.profile,
       capabilities: () => geocoder.capabilities(),
       search: (request) => geocoder.search(request),
       reverse: (point, locale) => geocoder.reverse(point, locale),

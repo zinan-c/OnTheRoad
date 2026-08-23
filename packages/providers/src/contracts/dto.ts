@@ -39,6 +39,9 @@ export interface RouteRequest {
   readonly to: Wgs84Point;
   readonly mode: string;
   readonly mapProfile?: string;
+  /** AMap transit city context. Values are provider-facing city names/codes. */
+  readonly city?: string;
+  readonly cityd?: string;
 }
 
 export interface RouteGeometry {

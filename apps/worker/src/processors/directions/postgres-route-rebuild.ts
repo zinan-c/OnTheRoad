@@ -17,16 +17,22 @@ type RouteItemRow = {
   location_status: string | null;
   longitude: number | null;
   latitude: number | null;
+  city: string | null;
+  district: string | null;
   start_location_id: string | null;
   start_location_version: number | null;
   start_location_status: string | null;
   start_longitude: number | null;
   start_latitude: number | null;
+  start_city: string | null;
+  start_district: string | null;
   end_location_id: string | null;
   end_location_version: number | null;
   end_location_status: string | null;
   end_longitude: number | null;
   end_latitude: number | null;
+  end_city: string | null;
+  end_district: string | null;
 };
 
 type DayGenerationRow = {
@@ -43,8 +49,18 @@ type RouteCandidate = {
   sourceVersion: string;
   sourceContext: Record<string, unknown>;
   blockers: string[];
-  fromLocation: { id: string; point: { longitude: number; latitude: number } } | null;
-  toLocation: { id: string; point: { longitude: number; latitude: number } } | null;
+  fromLocation: {
+    id: string;
+    point: { longitude: number; latitude: number };
+    city?: string;
+    district?: string;
+  } | null;
+  toLocation: {
+    id: string;
+    point: { longitude: number; latitude: number };
+    city?: string;
+    district?: string;
+  } | null;
 };
 
 type ResolvedCandidate = RouteCandidate & {
@@ -179,16 +195,22 @@ export class PostgresRouteRebuildProcessor {
          location.geocoding_status AS location_status,
          ST_X(location.geom::geometry) AS longitude,
          ST_Y(location.geom::geometry) AS latitude,
+         location.city,
+         location.district,
          start_location.id AS start_location_id,
          start_location.version AS start_location_version,
          start_location.geocoding_status AS start_location_status,
          ST_X(start_location.geom::geometry) AS start_longitude,
          ST_Y(start_location.geom::geometry) AS start_latitude,
+         start_location.city AS start_city,
+         start_location.district AS start_district,
          end_location.id AS end_location_id,
          end_location.version AS end_location_version,
          end_location.geocoding_status AS end_location_status,
          ST_X(end_location.geom::geometry) AS end_longitude,
-         ST_Y(end_location.geom::geometry) AS end_latitude
+         ST_Y(end_location.geom::geometry) AS end_latitude,
+         end_location.city AS end_city,
+         end_location.district AS end_district
        FROM itinerary_item item
        JOIN trip_day day ON day.id = item.trip_day_id
        LEFT JOIN location ON location.id = item.location_id
@@ -221,6 +243,8 @@ export class PostgresRouteRebuildProcessor {
           row.location_status,
           row.longitude,
           row.latitude,
+          row.city,
+          row.district,
         ),
         startLocation: routeLocation(
           row.start_location_id,
@@ -228,6 +252,8 @@ export class PostgresRouteRebuildProcessor {
           row.start_location_status,
           row.start_longitude,
           row.start_latitude,
+          row.start_city,
+          row.start_district,
         ),
         endLocation: routeLocation(
           row.end_location_id,
@@ -235,6 +261,8 @@ export class PostgresRouteRebuildProcessor {
           row.end_location_status,
           row.end_longitude,
           row.end_latitude,
+          row.end_city,
+          row.end_district,
         ),
       })),
     };
@@ -260,6 +288,8 @@ export async function resolveRouteCandidates(
       to: { ...candidate.toLocation.point, crs: "WGS84" },
       mode: candidate.transportModeCode,
       mapProfile,
+      ...(candidate.fromLocation.city ? { city: candidate.fromLocation.city } : {}),
+      ...(candidate.toLocation.city ? { cityd: candidate.toLocation.city } : {}),
     });
     return {
       ...candidate,
@@ -277,6 +307,8 @@ function routeLocation(
   geocodingStatus: string | null,
   longitude: number | null,
   latitude: number | null,
+  city: string | null,
+  district: string | null,
 ) {
   if (!id) return null;
   return {
@@ -286,6 +318,8 @@ function routeLocation(
     point: longitude === null || latitude === null
       ? null
       : { longitude, latitude, crs: "WGS84" },
+    ...(city ? { city } : {}),
+    ...(district ? { district } : {}),
   };
 }
 
