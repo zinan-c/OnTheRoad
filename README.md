@@ -30,13 +30,14 @@ documented Dev maturity level. Dev Track completion is not production approval:
 full Compose/Linux parity, a real Staging IdP, and the remaining protected
 release checks remain mandatory release gates.
 
-The current post-M4 map decision removes HERE from the active architecture:
-`international_primary` uses public online Nominatim through the API proxy,
-`hybrid` uses AMAP in China and Nominatim overseas, and `dev`/`qa`/`prod` use
-online map runtime by default. CI keeps the explicit `fixture` profile for
-deterministic tests. The current decision and remaining online Directions gate
-are recorded in [`ADR-003`](./docs/adr/003-online-nominatim-map-runtime.md) and
-the [online map migration plan](./docs/reports/nominatim-online-plan.md).
+The current map decision removes HERE from the active architecture:
+`cn_primary` uses official AMap Search/Reverse, Web JS 2.0 layers, Directions
+and Static Map; `fixture` remains the explicit offline/CI profile. The retained
+`international_primary`/`hybrid` profiles use their explicit legacy routing.
+`cn_primary` has no OSM/Geoapify/undocumented-tile fallback, and WGS84↔GCJ02
+conversion is isolated at the AMap boundary. The current decision is recorded
+in [`ADR-005`](./docs/adr/005-amap-primary-online-map-runtime.md); ADR-003 and
+the online Nominatim plan are historical records.
 
 Use the [documentation status index](./docs/README.md) as the canonical current
 status entry point. Detailed evidence is in the [current code review](./docs/reviewer/CODE_REVIEW_0818.md),
@@ -57,7 +58,7 @@ the [M3 Gate report](./docs/reports/m3-gate.md), the
 | `packages/contracts` | OpenAPI contract and generated client |
 | `packages/database` | Pooled PostgreSQL access, migrations, status, and seed |
 | `packages/domain` | Domain invariants and value models |
-| `packages/providers` | Nominatim, AMAP, hybrid, and fixture Provider adapters (target architecture) |
+| `packages/providers` | AMap, Nominatim, hybrid, and fixture Provider adapters |
 | `docs` | Design, development plan, Test Cases, reports, ADRs, and runbooks |
 
 ## Toolchain
@@ -100,9 +101,9 @@ starts the API, Web, and Worker. It retries dependency startup three times and
 stops on any failed prerequisite. It never installs missing system software
 automatically.
 
-本地开发属于 `dev` 运行时：应用默认通过 API proxy 使用公共在线 Nominatim，
-不启动本地 Nominatim 数据库。只有 CI、离线回归或确定性测试才显式设置
-`MAP_PROFILE=fixture`；瓦片和 Directions 仍按独立在线 endpoint 配置。
+本地开发属于 `dev` 运行时：面向中国的在线运行使用 `cn_primary` 和官方高德
+服务；不启动本地地图数据库。只有 CI、离线回归或确定性测试才显式设置
+`MAP_PROFILE=fixture`，该模式不会访问公网地图服务。
 
 To run only the dependency and database preparation checks:
 
@@ -204,29 +205,26 @@ GitHub runs:
 ## Map profiles
 
 `MAP_PROFILE=fixture` is the explicit offline/CI profile and never calls a
-public map service. Local development uses the `dev` online map runtime;
-`dev`/`qa`/`prod` use online map runtime by default;
-online profiles are constructed during API startup and fail closed when the
-required endpoint/configuration is absent:
+public map service. `MAP_PROFILE=cn_primary` is the production-shaped online
+profile and fails closed when required endpoint/configuration is absent:
 
-- `cn_primary` — AMAP with `AMAP_API_KEY`;
-- `international_primary` — public Nominatim through the API proxy;
-- `hybrid` — AMAP in China and public Nominatim overseas.
+- `cn_primary` — official AMap Search/Reverse, Web JS 2.0, Directions and
+  Static Map;
+- `international_primary` — retained explicit Nominatim profile;
+- `hybrid` — retained explicit AMap/Nominatim regional profile.
 
 AMAP coordinates are converted from GCJ-02 to the WGS84 domain model. Provider
 failures never trigger silent fallback or rewrite a Trip's selected profile.
-Nominatim requests use a stable application User-Agent/contact, cache and
-application-wide rate limit; its public API is explicit-search only. Tiles and
-Directions are independently configured online capabilities, not Nominatim
-capabilities. Keys and endpoint details remain server-side.
+The browser receives only the public AMap JS key/security code through the
+same-origin map config endpoint; the Web Service key remains server-side.
 
 ## Release boundary
 
 Dev and release verification intentionally use separate tracks:
 
-- **Dev/QA runtime:** native/Compose/remote dependencies with online
-  Nominatim, tiles and independent Directions configured; controlled online
-  smoke is separate from deterministic fixture tests.
+- **Dev/QA runtime:** native/Compose/remote dependencies with the explicit
+  `cn_primary` AMap runtime or the deterministic `fixture` runtime; controlled
+  online smoke is separate from fixture tests.
 - **CI/Dev Gate:** explicit fixture Providers, development identity/Mock OIDC,
   required Cases, and real local runtime smoke; CI never calls public maps.
 - **Release Gate:** Linux/Compose parity, persistence and recovery, online map

@@ -35,22 +35,21 @@ blocking for a production release.
   commit-bound evidence, PDF Worker round-trip, and clean-checkout smoke.
   Production release approval remains separate. See
   [`reports/m4-gate.md`](./reports/m4-gate.md).
-- **Post-M4 Online Map Workstream:** Planned/open. The target is online
-  Nominatim search/reverse, online tiles, and an independent non-HERE
-  Directions endpoint in `dev`/`qa`/`prod`; the required-case suite remains
-  fixture-backed until the online smoke gate is implemented.
+- **AMap-first online map workstream:** Implemented in the code path. The
+  `cn_primary` profile uses official AMap Search/Reverse, Web JS 2.0,
+  Directions and Static Map with WGS84↔GCJ02 boundary conversion. Live smoke
+  and release approval remain separate; required-case/CI runs stay fixture-
+  backed and offline.
 
 ## Current map-provider decision
 
-The active architecture no longer selects HERE. `international_primary` uses
-public online Nominatim through the API proxy; `hybrid` uses AMAP in China and
-Nominatim overseas. Local development uses the same online `dev` profile as
-the application runtime; `dev`, `qa`, and `prod` use online geocoding and map
-runtime by default. `fixture` remains an explicit CI/offline profile. Tiles
-and Directions are separate online capabilities and are not provided by
-Nominatim; the Directions provider still requires its own implementation and
-real-provider gate. See [`ADR-003`](./adr/003-online-nominatim-map-runtime.md)
-and the [migration plan](./reports/nominatim-online-plan.md).
+The active architecture is AMap-first for `cn_primary`: official AMap
+Search/Reverse, Web JS 2.0 layers, Directions and Static Map. `fixture` remains
+the explicit CI/offline profile; `international_primary` and `hybrid` are
+retained explicit non-CN profiles. Keys remain server-side except the public
+JS key/security code delivered by same-origin `/api/map/config`; no silent
+provider fallback is permitted. See [`ADR-005`](./adr/005-amap-primary-online-map-runtime.md);
+[`ADR-003`](./adr/003-online-nominatim-map-runtime.md) is historical.
 
 ## Authoritative documents
 
@@ -85,7 +84,7 @@ and the [migration plan](./reports/nominatim-online-plan.md).
   `.nvmrc` and `packageManager` pair.
 - Historical M0–M3 reports may mention HERE because it was the Provider under
   test at that time. Those mentions are evidence only; they do not override
-  the current online Nominatim decision in [`adr/003-online-nominatim-map-runtime.md`](./adr/003-online-nominatim-map-runtime.md).
+  the current AMap-first `cn_primary` decision in [`adr/005-amap-primary-online-map-runtime.md`](./adr/005-amap-primary-online-map-runtime.md).
 - The current product-browser suite is `pnpm run test:e2e`. Its accepted
   2026-08-11 run executed E2E-001 through E2E-022 with 22 passed, zero failed,
   and zero skipped. E2E-022 covers the Global/Day map-scope and stable

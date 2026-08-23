@@ -42,30 +42,35 @@ Docker socket, or Compose service name.
 
 ## Online map runtime
 
-The local dependency stack does not run a Nominatim database. Normal local
-development uses the `dev` profile and accesses the public online Nominatim
-endpoint through the same API/Provider proxy used by production; it also uses
-configured online tiles and an independent Directions endpoint. QA and `prod`
-use the same capability contract with their environment-specific endpoint
-values.
+The local dependency stack does not run a map database. For the production-
+shaped China profile, set `MAP_PROFILE=cn_primary` and provide official AMap
+credentials. CI and deterministic local tests explicitly use `fixture` and
+must not access the network.
 
-- `OTR_NOMINATIM_BASE_URL` defaults to the public endpoint only when the
-  environment explicitly enables the online map profile.
-- `OTR_NOMINATIM_USER_AGENT` and `OTR_NOMINATIM_CONTACT` must identify the
-  application; requests are cached and limited by the application-wide token
-  bucket.
-- `OTR_MAP_TILE_URL` and `OTR_MAP_TILE_ATTRIBUTION` are required for online
-  interactive maps.
-- `OTR_DIRECTIONS_BASE_URL` is independent of `MAP_PROFILE`; it must point to
-  a non-HERE online Directions service once route runtime is enabled.
-- CI, offline regression and deterministic local test cases explicitly use
-  `fixture`; ordinary local application sessions use online Nominatim and must
-  not be confused with those deterministic cases.
+- `AMAP_API_KEY` stays in API/Worker/PDF Worker environment variables and is
+  used for official AMap Web Service Search/Reverse, Directions and Static Map.
+- `AMAP_JS_API_KEY` and `AMAP_JS_SECURITY_CODE` are public browser runtime
+  values delivered only by same-origin `/api/map/config`; the endpoint never
+  serializes `AMAP_API_KEY`.
+- `OTR_AMAP_TIMEOUT_MS`, `OTR_AMAP_RATE_LIMIT_RPS` and
+  `OTR_AMAP_CACHE_TTL_SECONDS` apply to Search/Reverse independently of the
+  Directions/PDF timeouts.
+- `OTR_DIRECTIONS_BASE_URL` must be the official AMap Directions base URL in
+  `cn_primary`; `OTR_STATIC_MAP_BASE_URL` must be the official AMap Static Map
+  endpoint. Both require visible `© 高德地图` attribution.
+- `OTR_MAP_DEFAULT_LAYER` selects only `amap-street`, `amap-satellite` or
+  `amap-satellite-labels`. No public OSM tile, undocumented AMap tile host,
+  Geoapify or silent online fallback is allowed in `cn_primary`.
+- AMap errors are reported as unavailable/degraded; they do not mutate the
+  profile or substitute fixture geometry. PDF fallback retains markers,
+  routes, attribution and a manifest degradation reason.
+- `fixture` uses deterministic local Search/Reverse/Directions/Static Map and
+  the local raster route; its tests run with zero network calls.
 
 Online map readiness is separate from PostgreSQL/Redis/MinIO/ClamAV readiness.
-The shared application readiness output must report geocoding, tile and
-Directions capability states without logging query text, address content or
-provider credentials.
+The shared application readiness output reports the actual configured map,
+geocoding, reverse geocoding, Directions and Static Map capability states
+without logging query text, address content, coordinates or provider secrets.
 
 All endpoints bind to loopback in Native Track. Example credentials are
 non-default, local-only values and must never be reused in staging or

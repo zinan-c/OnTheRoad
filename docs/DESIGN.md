@@ -72,7 +72,7 @@ On The Road 是一个以“按天时间线 + 地图轨迹”为核心工作台�
 
 ### 1.6 地点搜索服务假设
 
-- 当前主动决策是移除 HERE：`cn_primary` 使用高德，`international_primary` 使用公共在线 Nominatim，`hybrid` 在中国使用高德、海外使用公共在线 Nominatim。
+- 当前主动决策是移除 HERE：`cn_primary` 使用官方高德 Search/Reverse、Web JS 2.0、Directions 和 Static Map，`international_primary` 使用公共在线 Nominatim，`hybrid` 在中国使用高德、海外使用公共在线 Nominatim。
 - Trip 创建时持久化 `mapProfile`。Provider 按 profile 和固定国家/边界规则决定，并把决定写入 Location/Route，不因超时、429 或空结果静默切换 Provider。
 - 公共 Nominatim 通过 On The Road API 代理访问，适用于个人产品的低频显式搜索和反查；全应用遵守最多约 1 req/s、稳定 User-Agent/联系方式、缓存和 attribution 政策。
 - Nominatim 不承担实时 autocomplete 或常规 Excel 批量解析。地点输入采用“提交搜索 → 候选 → 用户确认”；批量导入中的未解析地点进入受控任务和人工确认流程。
@@ -115,14 +115,14 @@ On The Road 是一个以“按天时间线 + 地图轨迹”为核心工作台�
 |---|---|---|---|
 | Q1 | MVP 是个人工具还是需要团队空间？ | 单账号单所有者，预留成员表 | 团队空间会增加邀请、角色、审计和行级权限 |
 | Q2 | `TotalDays` 手动调整的准确语义是什么？ | 日期范围权威，修改 EndDate 调整 | 手动 Day 需定义无日期/跳日规则，并影响导出和排序 |
-| Q3 | 首发市场与地图覆盖范围？ | `cn_primary` 为高德，`international_primary` 为公共 Nominatim，`hybrid` 为中国高德/海外 Nominatim；每个 Trip 持久化 profile | 决定坐标系、公共服务政策、缓存/限流和测试矩阵；不做静默自动故障切换 |
-| Q4 | 是否接受在线地点搜索不提供 autocomplete？ | 接受；所有环境使用显式搜索/反查，CI 使用 fixture | Nominatim 不支持本产品的 autocomplete 交互；地点输入 UX 必须以提交搜索为主 |
+| Q3 | 首发市场与地图覆盖范围？ | `cn_primary` 为官方高德全链路，`international_primary` 为公共 Nominatim，`hybrid` 为中国高德/海外 Nominatim；每个 Trip 持久化 profile | 决定坐标系、服务政策、缓存/限流和测试矩阵；不做静默自动故障切换 |
+| Q4 | 是否接受在线地点搜索不提供 autocomplete？ | 接受；所有环境使用显式搜索/反查，CI 使用 fixture | AMap/Nominatim 都不启用本产品的 autocomplete 交互；地点输入 UX 必须以提交搜索为主 |
 | Q5 | 工作日是否需要中国法定调休和国际假日？ | MVP 周一至周五 + 人工覆盖 | 接入假日日历需国家、地区和年份数据源 |
 | Q6 | Excel 导入遇到“疑似同一行程”时如何处理？ | 跳过并提示，不自动覆盖 | 自动更新需要外部 ID 或人工匹配界面 |
 | Q7 | 是否允许从 ImageURLs 自动下载图片？ | 默认关闭；用户确认后受控下载 | 涉及 SSRF、版权、隐私、失败重试和存储成本 |
 | Q8 | 图片/PDF 的保留周期和单项目配额？ | 原图长期；导出文件 30 天可重建 | 影响对象存储费用和生命周期策略 |
 | Q9 | 是否需要公开分享链接？ | 二期 | 需要匿名访问令牌、撤销、脱敏与搜索引擎策略 |
-| Q10 | 真实路线是否是 MVP 硬要求？ | dev/qa/prod 目标使用独立在线 Directions；provider 需另行确定；不可用时明确降级 | Nominatim 不提供路线；在真实 Directions gate 通过前，生产在线路线仍是发布阻塞项 |
+| Q10 | 真实路线是否是 MVP 硬要求？ | `cn_primary` dev/qa/prod 使用官方 AMap Directions；不可用时明确降级 | 真实 key、配额和公网 smoke 仍是发布门禁；任何失败不得静默变成 fixture |
 | Q11 | PDF 目录是否必须带准确页码？ | 必须；Sprint 0 验证实现路径，失败则采用两遍排版 | 可能需要 Paged.js/Vivliostyle 或两遍排版，但不能以不准确页码交付 |
 | Q12 | 数据驻留和删除时限？ | 单区域部署；删除后 30 天内清除备份外副本 | 影响区域架构、备份、供应商与合规流程 |
 | Q13 | 预期单 Trip 最大规模？ | 30 天、300 行程、1,000 图片 | 决定地图聚合、分页、PDF 切分与压测基线 |
@@ -501,18 +501,19 @@ flowchart TB
 
 | 能力 | dev | qa | prod | 责任边界 |
 |---|---|---|---|---|
-| 地点搜索/反查 | 公共在线 Nominatim | 公共在线 Nominatim | 公共在线 Nominatim | API proxy、缓存、全应用限流 |
-| 交互式瓦片 | 在线 OSM-derived source | 在线 OSM-derived source | 在线 OSM-derived source | Web MapLibre；展示 attribution |
-| 路径规划 | 独立在线 Directions endpoint | 独立在线 Directions endpoint | 独立在线 Directions endpoint | Worker/API；不得使用 HERE |
-| 静态地图/PDF | allowlisted online source 或几何降级 | allowlisted online source 或几何降级 | allowlisted online source 或几何降级 | PDF Worker；禁止公共瓦片批量预取 |
+| 地点搜索/反查 | 官方 AMap Web Service（`cn_primary`） | 官方 AMap Web Service（`cn_primary`） | 官方 AMap Web Service（`cn_primary`） | API proxy、独立缓存/限流；其他 profile 保留显式 Nominatim |
+| 交互式图层 | 官方 AMap JS 2.0 标准/卫星/RoadNet | 官方 AMap JS 2.0 标准/卫星/RoadNet | 官方 AMap JS 2.0 标准/卫星/RoadNet | Web 同源运行时配置；不使用未文档化 XYZ |
+| 路径规划 | AMap Directions API 2.0 | AMap Directions API 2.0 | AMap Directions API 2.0 | Worker；WGS84/GCJ02 只在边界转换 |
+| 静态地图/PDF | AMap Static Map 或几何降级 | AMap Static Map 或几何降级 | AMap Static Map 或几何降级 | PDF Worker 服务端调用；禁止浏览器任意 URL |
 
-地图运行时配置使用 `OTR_NOMINATIM_BASE_URL`、`OTR_MAP_TILE_URL`、
-`OTR_MAP_TILE_ATTRIBUTION`、`OTR_DIRECTIONS_BASE_URL` 和对应 attribution。
-浏览器只获得必要的公开地图配置，不获得数据库、Session 或 Provider secret。
+`cn_primary` 地图运行时使用 `AMAP_API_KEY`、浏览器公开的
+`AMAP_JS_API_KEY`/`AMAP_JS_SECURITY_CODE`、`OTR_MAP_DEFAULT_LAYER`、
+`OTR_DIRECTIONS_BASE_URL`、`OTR_STATIC_MAP_BASE_URL` 和对应 attribution。
+浏览器只获得同源端点提供的 JS 配置，不获得数据库、Session 或 Web Service key。
 
-Nominatim 只负责 geocoding/search/reverse；瓦片和 Directions 是独立 provider。
-瓦片请求必须遵守实际服务的 User-Agent/Referer、缓存、attribution 和预取政策。
-Directions provider 仍需单独完成实现和真实 smoke；在该 gate 通过前，不能把 fixture 或直线/弧线描述为生产真实导航。
+AMap Web Service 只负责显式 Search/Reverse，Web JS 负责交互式图层，Directions 与
+Static Map 分别由 Worker/PDF Worker 调用。所有请求必须遵守独立 timeout、缓存/限流、
+attribution 和响应上限；Provider 失败只能进入可解释 error/degraded 状态。
 
 ## 8. 同步流程
 
@@ -1865,7 +1866,7 @@ Compose: application integration probes
          service-DNS postgres/postgis + redis + minio + clamav
 ```
 
-- `dev/qa/prod` 默认使用在线 Nominatim、在线瓦片和独立在线 Directions；Provider 使用 mock/fixture 只在 CI、离线回归或明确降级模式启用。
+- `cn_primary` 的 `dev/qa/prod` 使用在线 AMap；Provider 使用 mock/fixture 只在 CI、离线回归或明确降级模式启用。
 - 本地开发和 QA 不启动本地 Nominatim；通过环境配置访问公共 endpoint，并将真实在线 smoke 与确定性 required-case 分离。
 - 两条轨道执行同一套 migration、bucket initializer、Redis/S3/PostGIS/ClamAV 探针和固定五日 fixture。
 - ClamAV 统一通过 TCP adapter 访问；应用不得依赖 macOS binary 路径、Unix socket 或 Compose service name。
@@ -1880,7 +1881,7 @@ Compose: application integration probes
 - Geocoding/Direction Worker 按配额而非纯 CPU 扩容。
 - Import Worker 按内存与队列长度扩容。
 - PDF Worker 独立节点池，限制每实例 Chromium 并发，防止内存争抢。
-- 在线地图运行时由 API/Worker 统一代理：Nominatim 使用全应用令牌桶和缓存，瓦片使用可配置 URL/attribution，Directions 使用独立在线 endpoint。公共地图服务异常时必须保留可解释降级状态，不能静默切换为 fixture。
+- 在线地图运行时由 API/Worker/PDF Worker 统一代理：AMap Search/Reverse 使用独立令牌桶和缓存，Web 只接收公开 JS 配置，Directions/Static Map 使用服务端官方 endpoint。高德异常时必须保留可解释降级状态，不能静默切换为 fixture。
 
 ### 16.3 发布和数据库
 

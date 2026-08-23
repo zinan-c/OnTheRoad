@@ -9,39 +9,43 @@ database, object-storage or session secrets.
 
 Copy `.env.example` to an ignored local environment file and replace values
 only when required. The checked-in example stays fixture-backed so CI and
-offline tests never access public map services; local `.env` should override it
-to an online Nominatim profile:
+offline tests never access public map services; local `.env` may override it to
+the online AMap profile:
 
 ```sh
 cp .env.example .env
 pnpm run toolchain:check
 ```
 
-For local online-map development, the target profile is for example:
+For local China online-map development, the target profile is for example:
 
 ```dotenv
-MAP_PROFILE=international_primary
-OTR_NOMINATIM_BASE_URL=https://nominatim.openstreetmap.org
-OTR_NOMINATIM_USER_AGENT=on-the-road-dev/1.0
-OTR_NOMINATIM_CONTACT=you@example.com
+MAP_PROFILE=cn_primary
+AMAP_API_KEY=server-web-service-key
+AMAP_JS_API_KEY=browser-js-key
+AMAP_JS_SECURITY_CODE=browser-security-code
+OTR_MAP_DEFAULT_LAYER=amap-street
 ```
 
-Use a real contact value for an actual run. Configure the online tile and
-Directions endpoints as well when exercising the complete map/runtime path.
+`AMAP_API_KEY` is server-only. The browser receives only
+`AMAP_JS_API_KEY`, `AMAP_JS_SECURITY_CODE`, the selected layer, provider and
+attribution from same-origin `/api/map/config`. Never put the Web Service key
+in a `NEXT_PUBLIC_*` variable or browser markup.
 
 Runtime configuration has three deployment environments and one explicit
 offline/fixture mode:
 
 - local `dev`: native or Compose Postgres, Redis, MinIO, ClamAV and local Node
-  processes; it does not start a local Nominatim database and uses the online
-  map runtime by default.
+  processes; it does not start a local map database. Use `cn_primary` for the
+  AMap online runtime or `fixture` for deterministic work.
 - `dev`: native/local Postgres, Redis, MinIO, ClamAV and local Node processes;
-  Docker is not checked. The map runtime is online by default.
+  Docker is not checked. The selected profile is explicit.
 - `qa`: native, container or remote can be selected independently per service.
   Copy `config/profiles/qa.env.example` to `config/profiles/qa.env`, then run
   commands with `bash scripts/run-profile.sh qa -- ...`. The map runtime is
-  online by default.
-- `prod`: production configuration. The map runtime is online by default;
+  selected explicitly for the run.
+- `prod`: production configuration. `cn_primary` is the production-shaped
+  AMap runtime;
   release validation is a workflow against `prod`, not a fourth runtime
   environment.
 
@@ -60,33 +64,36 @@ In QA, `OTR_QA_<SERVICE>_MODE` accepts `native`, `container` or `remote` for
 the selected endpoints must still be supplied and reachable. This keeps QA
 flexible without moving the A02 Docker gate into ordinary development runs.
 
-The default capability response for local `dev`, `dev`, `qa`, and `prod` is:
+The capability response is derived from the validated provider configuration:
 
-- online geocoding and reverse geocoding: enabled when the endpoint readiness
-  check passes;
-- online interactive tiles: enabled when the configured tile URL and
-  attribution are valid;
-- online Directions: enabled only when its independent endpoint is configured
-  and the real-provider gate has passed;
-- autocomplete: disabled for Nominatim;
-- public Nominatim batch geocoding: disabled;
-- fixture geocoding, Directions, tiles and static-map assets: enabled only for
-  the explicit `fixture`/offline profile and CI.
+- `cn_primary`: AMap Web Service search/reverse, AMap JS 2.0 layers, AMap
+  Directions and AMap Static Map are enabled only when their credentials and
+  validated URLs are present;
+- `fixture`: fixture search/reverse/Directions/static maps and the local
+  deterministic raster are enabled; no network request is made;
+- autocomplete is always disabled and batch geocoding is not a public
+  capability;
+- `international_primary` and `hybrid` retain their explicit Nominatim path
+  for non-CN deployments and never alter `cn_primary`.
 
-The active geocoder configuration is public online Nominatim, not HERE:
+The active `cn_primary` geocoder configuration is official AMap:
 
-- `OTR_NOMINATIM_BASE_URL` (default target:
-  `https://nominatim.openstreetmap.org`);
-- `OTR_NOMINATIM_USER_AGENT` and `OTR_NOMINATIM_CONTACT`;
-- `OTR_NOMINATIM_TIMEOUT_MS`, `OTR_NOMINATIM_RATE_LIMIT_RPS` and
-  `OTR_NOMINATIM_CACHE_TTL_SECONDS`;
-- `OTR_MAP_TILE_URL` and `OTR_MAP_TILE_ATTRIBUTION`;
-- `OTR_DIRECTIONS_BASE_URL` and `OTR_DIRECTIONS_ATTRIBUTION`.
+- `AMAP_API_KEY` for server-side Search/Reverse, Directions and Static Map;
+- `AMAP_JS_API_KEY` and `AMAP_JS_SECURITY_CODE` for the official Web JS 2.0
+  runtime, exposed only through `/api/map/config`;
+- `OTR_AMAP_TIMEOUT_MS`, `OTR_AMAP_RATE_LIMIT_RPS` and
+  `OTR_AMAP_CACHE_TTL_SECONDS` for Search/Reverse;
+- `OTR_DIRECTIONS_BASE_URL`, `OTR_DIRECTIONS_TIMEOUT_MS`,
+  `OTR_DIRECTIONS_ATTRIBUTION` and `OTR_AMAP_DRIVING_STRATEGY`;
+- `OTR_STATIC_MAP_BASE_URL` and `OTR_STATIC_MAP_ATTRIBUTION`;
+- `OTR_MAP_DEFAULT_LAYER` (`amap-street`, `amap-satellite` or
+  `amap-satellite-labels`).
 
-All online map requests go through the API/Provider boundary so the product
-can enforce the public Nominatim policy, cache repeated queries, and keep a
-configuration-only endpoint switch. Nominatim does not provide tiles or
-Directions; those capabilities are independently configured.
+For `cn_primary`, Web map requests go only to the official AMap JS SDK and
+server requests go only to the configured official AMap Web Service endpoints.
+No public OSM tile endpoint, undocumented `webrd*.is.autonavi.com` host,
+Geoapify or Nominatim fallback is permitted for this profile. A provider error
+is surfaced as an error/degraded state; it does not change the profile.
 
 ## Validation and redaction
 
@@ -98,14 +105,16 @@ free-form nested messages.
 
 Production startup rejects secrets containing development patterns such as
 `local`, `change-me`, or `dev-only`. The `hybrid` map profile requires
-`AMAP_API_KEY` and a valid online Nominatim/tile/Directions configuration; it
-does not require a HERE key. A single Provider failure never silently changes
-the configured profile or changes online results to fixture results.
+`AMAP_API_KEY` and valid explicit Nominatim configuration for its non-CN leg;
+`cn_primary` additionally requires both browser AMap credentials. A single
+Provider failure never silently changes the configured profile or changes
+online results to fixture results.
 
-The public Nominatim endpoint must receive a stable identifying User-Agent and
-contact information. The application must not send personal or confidential
-address data, must not implement autocomplete, and must keep the aggregate
-request rate within the current public-service policy.
+AMap keys and security values are never included in readiness or capability
+diagnostics. Logs contain provider, mode, status, duration and safe field names,
+not query text, coordinates, keys or full upstream URLs with credentials. The
+application must not implement autocomplete, and every AMap request has a
+separate timeout/rate/cache policy.
 
 ## Required server variables
 
@@ -120,8 +129,8 @@ files. API, Worker and PDF Worker require:
 - `OTR_ENV_SESSION_SECRET` (exported to the process as `SESSION_SECRET`).
 
 Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities;
-it receives tile URL/attribution and provider capability information, never
-database credentials or Provider secrets.
+it receives the public AMap JS key/security code and layer catalog, never
+`AMAP_API_KEY`, database credentials or storage/session secrets.
 For `pnpm run dev`, the launcher defaults to the Native dependency track. Pass
 `pnpm run dev -- -native` or `pnpm run dev -- -compose` to select the track;
 the accepted `-componse` spelling is retained as an alias. The launcher

@@ -12,10 +12,9 @@
 >
 > Boundary: this result closes the M0–M3 browser acceptance cases defined here. M4–M6 features and production release gates remain outside the completion claim.
 
-> Online map boundary: `dev`、`qa`、`prod` use online Nominatim search/reverse,
-> online tiles and an independent online Directions endpoint by default after
-> the post-M4 map workstream is implemented. The deterministic browser suite
-> in this document remains fixture-backed; online provider checks are separate
+> Online map boundary: `cn_primary` uses official AMap Search/Reverse, Web JS
+> 2.0 layers, Directions and Static Map. The deterministic browser suite in
+> this document remains fixture-backed; online provider checks are separate
 > controlled smoke cases and do not change the historical 22/22 result.
 
 ## 1. Purpose
@@ -82,7 +81,7 @@ Every case archives at least:
 - All 22 cases are `Passed`, with zero failures and zero skips in the accepted run.
 - Former `Partial` product entry-point gaps are closed by real UI workflows; no accepted business write is API-seeded.
 - E2E-016 and E2E-017 passed as mandatory route/map re-acceptance cases.
-- Automation may use fixture Providers, but Staging/Release still requires separate smoke tests against real Nominatim, tile and non-HERE Directions endpoints. CI must never call public map services.
+- Automation may use fixture Providers, but Staging/Release still requires separate smoke tests against official AMap Search/Reverse, JS runtime, Directions and Static Map. CI must never call public map services.
 
 ---
 

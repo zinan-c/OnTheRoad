@@ -7,7 +7,7 @@
 > 文档用途：研发排期、TDD、里程碑评审、演示验收及 Go/No-Go 签署。
 > 执行状态：M0–M4 已完成 Dev Track Gate；M5–M6 尚未宣称完成。当前成熟度和 Gate 入口见 [文档状态索引](./README.md)。
 
-> Post-M4 地图决策：HERE 不再是当前 Provider。`international_primary` 使用公共在线 Nominatim，`hybrid` 使用中国高德/海外 Nominatim；本地开发使用 `dev` profile，`dev`、`qa`、`prod` 默认使用在线 geocoding、瓦片和独立 Directions endpoint，CI/离线回归使用显式 `fixture`。当前决策见 [`ADR-003`](./adr/003-online-nominatim-map-runtime.md)。
+> 当前地图决策：`cn_primary` 使用官方 AMap Search/Reverse、Web JS 2.0、Directions 和 Static Map；`international_primary` 保留显式 Nominatim，`hybrid` 保留中国 AMap/海外 Nominatim。`fixture` 专用于 CI/离线回归；当前决策见 [`ADR-005`](./adr/005-amap-primary-online-map-runtime.md)，ADR-003 为历史记录。
 
 ## 0. 需求理解、假设与执行口径
 
@@ -24,7 +24,7 @@ MVP 必须形成真实、可恢复、可验证的完整链路：
 1. 日期范围是权威事实，`TotalDays` 派生；缩短日期且受影响 Day 有内容时必须阻止或显式迁移/删除。
 2. MVP 为单所有者模型，但所有业务查询从第一天按 `owner_id` 约束。
 3. 领域坐标统一为 WGS84；GCJ-02/BD-09 转换只能存在于 Provider Adapter。
-4. 公共 Nominatim 用于 dev/qa/prod 的低频显式搜索/反查，不用于自动补全或常规批量解析；三环境的瓦片和 Directions 也必须走在线 endpoint。
+4. `cn_primary` 的 AMap 用于 dev/qa/prod 的低频显式搜索/反查、Web 图层、Directions 和 PDF Static Map；不启用 autocomplete 或在线批量解析；三环境公网 smoke 与 fixture required-case 分离。
 5. 地点可只保存文字；歧义地点不得静默选中，未确认坐标不得生成可用路线。
 6. 导入先进入 staging；无稳定 ExternalId 不更新既有 Item。
 7. ImageURLs 默认不下载，必须经用户批准和 SSRF-safe 媒体流水线。
@@ -51,7 +51,7 @@ MVP 必须形成真实、可恢复、可验证的完整链路：
 | M2 行程编辑与地点确认 | Sprint 2，2 周 | B05–B09、C02、C04–C06、D02、D04、E01–E02 | 55 | Dev Track Done | 可持久编辑的一天、地点确认、媒体安全底座、导入入口 |
 | M3 路线、图片、费用与导入 staging | Sprint 3，2 周 | C07–C09、D03、D05、E03–E05 | 36 | Dev Track Done | 地图路线联动、图片 UX、费用统计、Excel 校验预览 |
 | M4 Excel 闭环与 PDF 骨架 | Sprint 4，2 周 | E06–E09、F01–F03、F05 | 40 | Done for Dev Track / release gates separate | 幂等正式导入、媒体子任务、冻结快照、可运行打印 Worker |
-| Post-M4 在线地图运行时 | M4 后、生产发布前 | MAP-01–MAP-04 | 待估 | Planned | 公共 Nominatim、在线瓦片、独立 Directions、三环境 smoke 与 HERE 清理 |
+| AMap-first 在线地图运行时 | M4 后、生产发布前 | MAP-01–MAP-04 | 已实现 | Implemented in code; live smoke/release separate | AMap Search/Reverse、Web JS 2.0、Directions、Static Map、fixture 隔离与 smoke |
 | M5 PDF 闭环与功能冻结 | Sprint 5，2 周 | F04、F06–F07、G01 | 15 | Planned | 中文完整 PDF、下载/取消/重试、完整五日样例 |
 | M6 稳定、灰度与 GA 门禁 | 稳定/灰度 2 周 | G02–G07 | 23 | Planned | E2E/安全/容量证据、监控 Runbook、发布签署 |
 
@@ -448,7 +448,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 - **优先级**：`P0 / Critical`
 - **目标**：实现符合供应商能力/政策、可缓存限流重试的地点搜索与反查。
 - **实现范围**：AMAP 与公共 Nominatim adapter、capability discovery、context 排序、Redis 缓存、Provider token bucket、错误映射和 attribution。
-- **不在范围内**：自动 Provider 故障切换、公共 Nominatim 自动补全/常规批处理、Directions provider 实现。
+- **不在范围内**：自动 Provider 故障切换、AMap/Nominatim 自动补全/常规批处理、其他区域 Directions provider 实现。
 - **预计修改的文件**：`packages/providers/src/geocoding/*`、`apps/api/src/modules/locations/search.*`、`apps/worker/src/processors/geocoding/*`、`packages/config/src/map-profile.*`。
 - **异常情况**：AMAP key 或在线 endpoint 配置缺失、401/403、429/Retry-After、5xx、超时、同名跨国、无结果、Provider payload 变化。
 - **测试要求**：provider contract、mock server 故障、缓存键 context 隔离、限流时间测试、少量 staging smoke。
@@ -459,7 +459,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / High`
 - **目标**：让用户从文字输入可靠进入候选确认或可恢复失败状态。
-- **实现范围**：显式搜索（Nominatim 不逐键请求）、未来可扩展的 capability-aware 输入、候选地理上下文、ambiguous/failed 状态、重搜/重定位/地图选点/手工坐标/暂存文字。
+- **实现范围**：显式搜索（AMap/Nominatim 不逐键请求）、未来可扩展的 capability-aware 输入、候选地理上下文、ambiguous/failed 状态、重搜/重定位/地图选点/手工坐标/暂存文字。
 - **不在范围内**：地图画面本身、批量导入地点审核。
 - **预计修改的文件**：`apps/web/features/locations/components/location-input.*`、`candidate-list.*`、`resolution-status.*`、`apps/web/features/locations/api.*`。
 - **异常情况**：输入过短、请求乱序、候选过期、同名高相似候选、无网络、Provider 不支持 autocomplete、零结果。
@@ -483,7 +483,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / Critical`
 - **目标**：允许用户在地图上创建/修正地点，并保证晚到 Provider 响应不覆盖人工事实。
-- **实现范围**：click-to-pick、在线 Nominatim/AMAP reverse、draggable Marker、手工经纬度、version/If-Match、`manuallyAdjusted=true`、审计和地图回中。
+- **实现范围**：click-to-pick、在线 AMap/Nominatim reverse、draggable Marker、手工经纬度、version/If-Match、`manuallyAdjusted=true`、审计和地图回中。
 - **不在范围内**：手动画路线、离线地图编辑。
 - **预计修改的文件**：`apps/web/features/map/components/location-picker.*`、`apps/api/src/modules/locations/coordinates.*`、`packages/application/src/location/adjust-coordinates.*`、`apps/web/e2e/location-map.*`。
 - **异常情况**：反查失败、拖出合法范围、并发拖动、geocode 晚到、保存失败、地图点击误触、0 纬度/经度。
@@ -948,7 +948,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / High`
 - **目标**：让 API、Provider、Import、PDF、Storage 和 Queue 的用户影响可见且可处置。
-- **实现范围**：五类 Dashboard、核心 5xx/队列 age/Job failure/Nominatim 429/tile/Directions failure/upload/outbox 告警、七类 Runbook、演练记录。
+- **实现范围**：五类 Dashboard、核心 5xx/队列 age/Job failure/AMap/Nominatim 429/JS/Static Map/Directions failure/upload/outbox 告警、七类 Runbook、演练记录。
 - **不在范围内**：全自动修复、跨区域灾备编排。
 - **预计修改的文件**：`infra/monitoring/dashboards/*`、`infra/monitoring/alerts/*`、`docs/runbooks/*`、`docs/reports/operations-drill.md`。
 - **异常情况**：高基数标签、告警风暴、第三方短暂失败触发实例重启、Runbook 无权限/命令失效。
@@ -960,7 +960,7 @@ Case 通过，Compose 已完成本地双轨证据（健康、持久化、幂等�
 
 - **优先级**：`P0 / Normal`
 - **目标**：让新成员在干净环境可启动、测试、切换 Provider 并排查导入/PDF。
-- **实现范围**：README、架构/目录、dev/qa/prod 在线地图配置、Nominatim policy、tile attribution/cache、Directions endpoint、fixture/降级、seed、测试、migration、字体/Chromium、队列恢复、常见错误。
+- **实现范围**：README、架构/目录、dev/qa/prod AMap-first 在线地图配置、显式 Search policy、JS/Static Map/Directions attribution/cache、fixture/降级、seed、测试、migration、字体/Chromium、队列恢复、常见错误。
 - **不在范围内**：面向最终用户的完整帮助中心、多语言文档。
 - **预计修改的文件**：`README.md`、`.env.example`、`docs/configuration.md`、`docs/providers.md`、`docs/pdf-operations.md`、`docs/testing.md`。
 - **异常情况**：文档命令过期、隐藏前置依赖、示例密钥、不同 CPU 架构、无公网环境。
@@ -1054,7 +1054,7 @@ stateDiagram-v2
 | R06 | Provider 候选同名导致静默误选 | 返回两个相近候选（跨城市/国家）；断言状态为 ambiguous、无正式坐标写入、UI 无默认选中 | 关闭自动 resolve；强制候选选择、地图点选或纯文字保存 |
 | R07 | 地理编码晚到覆盖 Marker 手调 | barrier：先启动 geocode，再保存手调坐标，最后释放 Provider；断言旧 response CAS 影响 0 行 | 暂停后台自动写回，仅展示候选；人工坐标作为最高优先级事实 |
 | R08 | 坐标系混用导致中国大陆 Marker 偏移 | 对 golden 点分别输入 WGS84/GCJ-02/BD-09，验证 adapter 输出 WGS84 误差阈值；业务 DTO 不接受未声明 CRS | 禁用有问题 Provider/profile；使用 fixture/手工点选并标示“坐标待复核” |
-| R09 | Nominatim 429/政策限制或在线地图能力缺失 | 429+Retry-After、tile/Directions timeout、capability=false；断言不自动补全、不静默切换、文本可保存且限流等待可见 | 显式搜索 + 地图点选 + 手工坐标；路线进入 pending/manual 并标注示意线；fixture 仅用于 CI/离线 |
+| R09 | AMap 429/政策限制或在线地图能力缺失 | 429+Retry-After、JS/Static Map/Directions timeout、capability=false；断言不自动补全、不静默切换、文本可保存且限流等待可见 | 显式搜索 + 地图点选 + 手工坐标；路线进入 pending/manual 并标注示意线；fixture 仅用于 CI/离线 |
 | R10 | 缓存上下文污染匹配到错误国家 | 相同 query 在不同 trip country/city/bbox 下请求；断言 cache key/排序结果隔离 | 暂停共享搜索缓存，缩短 TTL；只缓存 provider 原始规范结果并逐请求重排 |
 | R11 | 无 Location/未确认 Location 被路线跨越 | 构造 A→缺地点 B→C；断言存在 blocker，绝不生成 A→C；未确认两端只允许 pending | 地图只显示已确认 Marker 和缺口清单，不显示连续假路线 |
 | R12 | 旧 rebuild 在新顺序后提交 | barrier 强制 generation N+1 先完成、N 后完成；断言 N 不产生 active/approximate 段 | 暂停 Directions，客户端仅按当前 confirmed 点画临时线；后台全量重建 |

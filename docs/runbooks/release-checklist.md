@@ -16,36 +16,38 @@ partially completed workflow is not release evidence.
 
 ## Online map runtime gate
 
-This gate applies to the current post-M4 architecture. HERE is not an accepted
-Provider. `dev`, `qa`, and `prod` use online map runtime by default; CI
-required-case runs remain fixture-backed and do not replace this gate.
+This gate applies to the current AMap-first architecture. HERE is not an
+accepted Provider. `cn_primary` uses official AMap Search/Reverse, Web JS 2.0,
+Directions and Static Map; CI required-case runs remain fixture-backed and do
+not replace this gate.
 
-- [ ] `international_primary` resolves search/reverse through public Nominatim;
-      `hybrid` uses AMAP in China and Nominatim overseas.
-- [ ] `dev`, `qa`, and `prod` each have an endpoint smoke record for search,
-      reverse, tile readiness and Directions readiness.
-- [ ] Nominatim requests go through the API proxy with a stable User-Agent,
-      contact information, application-wide rate limit and cache.
-- [ ] No autocomplete request is generated; public Nominatim is not used for
-      regular batch geocoding or periodic synthetic traffic.
-- [ ] Online tile URL, attribution, User-Agent/Referer and cache behavior are
-      validated; no public tile prefetch or offline archive is enabled.
-- [ ] Directions uses an independent non-HERE endpoint and a real Worker →
-      Route API → MapLibre smoke has passed. Nominatim is not treated as a
-      routing service.
-- [ ] Tile/Directions/Nominatim failure produces an explicit degraded,
-      pending or manual state and never silently rewrites `mapProfile` or
-      claims a real route.
-- [ ] PDF/static-map tile hosts are allowlisted and the renderer does not
-      bulk-prefetch public tiles.
+- [ ] `cn_primary` startup validates `AMAP_API_KEY`, `AMAP_JS_API_KEY`,
+      `AMAP_JS_SECURITY_CODE`, HTTPS AMap Directions/Static Map URLs and both
+      attribution fields.
+- [ ] Each target environment has an opt-in live smoke record for official
+      AMap Search, Reverse, Web JS map/layers, Directions and Static Map.
+- [ ] Search/Reverse use the AMap timeout, cache and aggregate rate policy;
+      autocomplete is not requested and no batch fallback is enabled.
+- [ ] Web `/api/map/config` contains only the public JS key/security/provider/
+      layer/attribution fields and never `AMAP_API_KEY`.
+- [ ] WGS84↔GCJ02 conversion is covered at every AMap boundary; persisted
+      Route API and database geometry remain WGS84.
+- [ ] Directions mode mapping, transit city context, HTTP/auth/429/timeout
+      errors and explicit approximate modes have passed deterministic tests.
+- [ ] Worker → Route API → Web AMap JS smoke has passed with persisted WGS84
+      geometry, marker/route selection and layer switching.
+- [ ] Static Map URL/response size and content type are bounded; failure
+      produces geometry + neutral grid + attribution + manifest reason.
+- [ ] AMap failure produces an explicit degraded, pending or manual state and
+      never silently rewrites `mapProfile` or switches to fixture/OSM.
 - [ ] Provider logs, metrics and release artifacts contain no address text,
-      query parameters, credentials or signed URLs.
-- [ ] HERE configuration, secrets and active provider registry entries are
-      absent; historical HERE mentions are labeled as historical evidence.
+      coordinates, query parameters, credentials or signed URLs.
+- [ ] Geoapify, Nominatim and undocumented AMap tile hosts are absent from the
+      active `cn_primary` path; historical ADR/report mentions are labeled.
 
 Any unchecked item blocks production release. The detailed decision and
-implementation sequence are in [`ADR-003`](../adr/003-online-nominatim-map-runtime.md)
-and [`nominatim-online-plan.md`](../reports/nominatim-online-plan.md).
+implementation sequence are in [`ADR-005`](../adr/005-amap-primary-online-map-runtime.md);
+[`ADR-003`](../adr/003-online-nominatim-map-runtime.md) remains historical.
 
 ## A02 Compose parity gate
 

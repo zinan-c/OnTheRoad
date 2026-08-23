@@ -47,7 +47,7 @@ A05 同样使用双轨状态：Dev Identity/Mock OIDC Track 的登录、会话�
 | `LOCK-FIXTURE` | 五日 seed、Excel/PDF golden、共享图片/地图资产 | 测试可读并行；更新 golden/seed 必须串行且附原因 |
 | `LOCK-WEB-SHELL` | Trip workspace layout、全局 Query/store/provider、路由骨架 | feature 组件可并行；共享 shell 合并串行 |
 | `LOCK-MAP-CORE` | MapLibre wrapper、统一选中 store、route layer source | Location picker、route style、print map 只在接口冻结后并行 |
-| `LOCK-MAP-ONLINE` | Nominatim/tile/Directions runtime config、provider routing、online smoke | Provider adapter、环境配置和真实 smoke 契约必须串行冻结；fixture 测试可并行 |
+| `LOCK-MAP-ONLINE` | AMap Web Service/JS/Static Map/Directions runtime config、provider routing、online smoke | Provider adapter、环境配置和真实 smoke 契约必须串行冻结；fixture 测试可并行 |
 | `LOCK-IMPORT-SCHEMA` | ImportJob/Row/Ledger/Claim/MediaTask 状态与 migration | E04 冻结核心 schema 后，E06–E09 可分模块并行；状态字段变更串行 |
 | `LOCK-PDF-TEMPLATE` | print route、print CSS、分页锚点、字体 | F03/F04 接口先后执行；F05 可并行改 Worker，不直接改模板 |
 | `LOCK-CI` | `.github/workflows/*`、全局 required checks | 测试文件可并行；workflow 合并由一个 agent 串行处理 |

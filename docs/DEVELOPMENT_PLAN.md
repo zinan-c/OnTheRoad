@@ -6,16 +6,15 @@
 > 计划口径：可直接进入排期的工作包；工期为理想人日，不含产品方等待时间。
 > 执行状态：M0–M4 已完成 Dev Track Gate；M5–M6 尚未宣称完成。当前状态与证据见 [文档状态索引](./README.md)。
 
-> Post-M4 Provider 决策：HERE 从当前架构移除。`international_primary` 使用公共在线 Nominatim，`hybrid` 使用中国高德/海外 Nominatim；本地开发使用 `dev` profile，`dev`、`qa`、`prod` 默认使用在线 geocoding、瓦片和独立 Directions endpoint，CI/离线回归使用显式 `fixture`。详见 [`ADR-003`](./adr/003-online-nominatim-map-runtime.md)。
+> 当前 Provider 决策：`cn_primary` 采用官方 AMap Search/Reverse、Web JS 2.0、Directions 和 Static Map；`international_primary` 保留显式 Nominatim，`hybrid` 保留中国 AMap/海外 Nominatim。`fixture` 是 CI/离线回归的唯一公网隔离模式；当前首版见 [`ADR-005`](./adr/005-amap-primary-online-map-runtime.md)，ADR-003 仅保留历史记录。
 
 ## 0. 计划摘要
 
 完整 P0 当前有效任务表合计约 **223 理想人日**（含 Spike、QA 自动化与上线加固；排期预留仍按 220–230 管理）。建议按 1 周 Sprint 0 + 5 个两周功能 Sprint + 2 周稳定/灰度执行，以 **13 周目标、第 14 周显式缓冲**管理，前提是采用下列团队：
 
-Post-M4 Online Map Workstream（MAP-01–MAP-04）是本次 Provider 迁移新增的
-跨里程碑工作包，尚未纳入上述 223 理想人日；它必须在生产发布前完成，具体切片和
-Gate 见 [`DEVELOP_EXECUTION_PLAN.md`](./DEVELOP_EXECUTION_PLAN.md) 与
-[`reports/nominatim-online-plan.md`](./reports/nominatim-online-plan.md)。
+AMap-first Online Map Workstream（MAP-01–MAP-04）已在当前代码路径完成；它仍不计入
+历史 223 理想人日和 required-case 分母。真实 key、配额和公网 smoke 属于独立发布门禁，
+具体验收见 [`TEST_CASES.md`](./TEST_CASES.md) 与 [`runbooks/release-checklist.md`](./runbooks/release-checklist.md)。
 
 - 产品经理/交付负责人：1 人
 - UX/UI：前 8 周 1 人，后续 0.5 人
@@ -1090,7 +1089,7 @@ async function renderPdf(jobId) {
 
 | 风险 | 概率/影响 | 早期信号 | 缓解 | Owner |
 |---|---|---|---|---|
-| 公共 Nominatim 被误作自动补全或批量 provider | 高/高 | 429、阻断、政策不符 | explicit-search UX；capability flag；全应用 1 req/s + 缓存；CI 不访问公网 | BE/PM |
+| AMap 被误作自动补全或批量 provider | 高/高 | 429、阻断、政策不符 | explicit-search UX；capability flag；独立 AMap 限流/缓存；CI 不访问公网 | BE/PM |
 | 中国/国际坐标系混用 | 中/高 | Marker 偏移、路线不对齐 | WGS84 领域标准；adapter 转换；golden 点测试 | Map owner |
 | PDF 中文缺字或分页失控 | 中/高 | CI golden 差异、大文档空白 | Sprint 0 Spike；固定字体；分页 suite | FE/PDF |
 | Excel 恶意/畸形文件耗尽资源 | 中/高 | Worker OOM、队列阻塞 | 限额、隔离 Worker、流式解析、超时 | BE/Sec |
@@ -1108,9 +1107,9 @@ async function renderPdf(jobId) {
 
 ### 13.1 环境
 
-- Local/dev：默认 Native Track；在线 Nominatim、在线瓦片和独立 Directions endpoint 通过环境配置访问。fixture 只由离线/回归模式显式选择。
+- Local/dev：默认 Native Track；中国在线运行使用 `cn_primary` 官方 AMap，fixture 只由离线/回归模式显式选择。
 - QA：Native、Compose 或 remote dependency track 均使用在线地图配置；在线 smoke 与 fixture required-case 分离，不能让 CI 并发请求公共地图服务。
-- Production：Web/API/Worker 分开伸缩，PDF 独立节点池；Nominatim 通过 API proxy/cache/rate-limit 访问，瓦片和 Directions 使用独立 endpoint。
+- Production：Web/API/Worker 分开伸缩，PDF 独立节点池；`cn_primary` 的 AMap Web Service 由 API/Worker/PDF 服务端调用，Web 只拿同源公开 JS 配置。
 - Release：只表示针对 `prod` 的发布验证，不作为第四个运行环境。
 
 ### 13.2 上线顺序
@@ -1168,7 +1167,7 @@ G08 已标记为 Deprecated，不再设 cohort Owner、测试账号池或真实�
 
 1. 建立 ADR-001：日期范围权威，TotalDays 由日期派生。
 2. 建立 ADR-002：WGS84 为领域坐标，Provider Adapter 负责转换。
-3. 采用 ADR-003：公共 Nominatim 仅显式搜索，不做自动补全；瓦片和 Directions 独立配置。
+3. 采用 ADR-005：`cn_primary` 全部能力使用官方 AMap；显式 Search、不做 autocomplete；fixture 与真实公网 smoke 分离。
 4. 建立 monorepo、CI 和原生开发 + Compose 验证双轨依赖栈。
 5. 固化 OpenAPI 错误格式、ID/时间/并发/幂等约定。
 6. 实现 Trip/Day migration 和日期属性测试。
