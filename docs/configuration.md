@@ -84,7 +84,9 @@ The active `cn_primary` geocoder configuration is official AMap:
 - `OTR_AMAP_TIMEOUT_MS`, `OTR_AMAP_RATE_LIMIT_RPS` and
   `OTR_AMAP_CACHE_TTL_SECONDS` for Search/Reverse;
 - `OTR_DIRECTIONS_BASE_URL`, `OTR_DIRECTIONS_TIMEOUT_MS`,
-  `OTR_DIRECTIONS_ATTRIBUTION` and `OTR_AMAP_DRIVING_STRATEGY`;
+  `OTR_DIRECTIONS_ATTRIBUTION` and `OTR_AMAP_DRIVING_STRATEGY` (AMap v5
+  accepts `0` through `20`; do not use the `32+` values from the separate
+  Route Planning 2.0 API);
 - `OTR_STATIC_MAP_BASE_URL` and `OTR_STATIC_MAP_ATTRIBUTION`;
 - `OTR_MAP_DEFAULT_LAYER` (`amap-street`, `amap-satellite` or
   `amap-satellite-labels`).

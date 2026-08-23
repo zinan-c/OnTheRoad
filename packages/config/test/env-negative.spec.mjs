@@ -67,6 +67,17 @@ describe("TC-A03-02 secret and error redaction", () => {
       "OTR_DIRECTIONS_BASE_URL",
     ],
     [
+      "AMap v5 driving strategy outside the supported range",
+      {
+        MAP_PROFILE: "cn_primary",
+        AMAP_API_KEY: "amap-server-key",
+        AMAP_JS_API_KEY: "amap-browser-key",
+        AMAP_JS_SECURITY_CODE: "amap-security-code",
+        OTR_AMAP_DRIVING_STRATEGY: "32",
+      },
+      "OTR_AMAP_DRIVING_STRATEGY",
+    ],
+    [
       "Nominatim search without identity",
       {
         MAP_PROFILE: "international_primary",
