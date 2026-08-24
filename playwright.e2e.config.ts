@@ -3,6 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 const externalStack = process.env.OTR_PLAYWRIGHT_EXTERNAL_STACK === "1";
 const webOrigin = process.env.OTR_PLAYWRIGHT_WEB_ORIGIN ?? "http://127.0.0.1:3100";
 
+if (externalStack && process.env.OTR_E2E_MODE !== "1") {
+  throw new Error("External product E2E requires OTR_E2E_MODE=1 and a disposable E2E database.");
+}
+if (process.env.OTR_E2E_MODE === "1" && (process.env.OTR_E2E_WRITE_TOKEN?.length ?? 0) < 32) {
+  throw new Error("E2E mode requires OTR_E2E_WRITE_TOKEN with at least 32 characters.");
+}
+
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.spec.ts",
@@ -24,6 +31,11 @@ export default defineConfig({
     trace: "on",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    ...(process.env.OTR_E2E_MODE === "1" ? {
+      extraHTTPHeaders: {
+        "x-otr-e2e-write-token": process.env.OTR_E2E_WRITE_TOKEN,
+      },
+    } : {}),
   },
   ...(externalStack ? {} : {
     webServer: {

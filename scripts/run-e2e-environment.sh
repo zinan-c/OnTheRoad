@@ -6,6 +6,7 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 PROFILE_FILE="${REPO_ROOT}/config/profiles/dev.env"
 STACK_FILE="${REPO_ROOT}/infra/local-stack.env"
 E2E_DATABASE_NAME="on_the_road_playwright_e2e"
+E2E_WRITE_TOKEN="${OTR_E2E_WRITE_TOKEN:-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')}"
 
 if [[ ! -f "${PROFILE_FILE}" ]]; then
   echo "Missing ${PROFILE_FILE}; run pnpm run dev:prepare once before the browser suite." >&2
@@ -29,6 +30,8 @@ env OTR_ENV_DATABASE_URL="${E2E_DATABASE_URL}" DATABASE_URL="${E2E_DATABASE_URL}
 env OTR_ENV_DATABASE_URL="${E2E_DATABASE_URL}" DATABASE_URL="${E2E_DATABASE_URL}" pnpm run db:seed
 
 export NEXT_PUBLIC_API_ORIGIN="http://127.0.0.1:3101"
+export OTR_E2E_MODE=1
+export OTR_E2E_WRITE_TOKEN="${E2E_WRITE_TOKEN}"
 pnpm exec turbo run build --force \
   --filter=@on-the-road/api \
   --filter=@on-the-road/worker \
@@ -42,7 +45,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-bash "${SCRIPT_DIR}/run-profile.sh" dev -- env OTR_ENV_DATABASE_URL="${E2E_DATABASE_URL}" DATABASE_URL="${E2E_DATABASE_URL}" API_PORT=3101 APP_ORIGIN=http://127.0.0.1:3100 API_BASE_URL=http://127.0.0.1:3101/api/v1 pnpm run start:api & pids+=("$!")
+bash "${SCRIPT_DIR}/run-profile.sh" dev -- env OTR_ENV_DATABASE_URL="${E2E_DATABASE_URL}" DATABASE_URL="${E2E_DATABASE_URL}" OTR_E2E_MODE=1 OTR_E2E_WRITE_TOKEN="${E2E_WRITE_TOKEN}" API_PORT=3101 APP_ORIGIN=http://127.0.0.1:3100 API_BASE_URL=http://127.0.0.1:3101/api/v1 pnpm run start:api & pids+=("$!")
 bash "${SCRIPT_DIR}/run-profile.sh" dev -- env OTR_ENV_DATABASE_URL="${E2E_DATABASE_URL}" DATABASE_URL="${E2E_DATABASE_URL}" APP_ORIGIN=http://127.0.0.1:3100 API_BASE_URL=http://127.0.0.1:3101/api/v1 pnpm run start:worker & pids+=("$!")
 bash "${SCRIPT_DIR}/run-profile.sh" dev -- env PORT=3100 WEB_PORT=3100 APP_ORIGIN=http://127.0.0.1:3100 API_BASE_URL=http://127.0.0.1:3101/api/v1 pnpm run start:web & pids+=("$!")
 wait

@@ -1351,9 +1351,32 @@ export async function createApiApplication(
   });
   app.useGlobalFilters(new ApiExceptionFilter());
   installHttpTelemetry(app, options.telemetry ?? apiTelemetry);
+  installE2eWriteGuard(app, runtime);
   app.enableShutdownHooks();
   await app.init();
   return app;
+}
+
+function installE2eWriteGuard(app: NestFastifyApplication, runtime: ApiRuntime): void {
+  if (!runtime.e2eWriteGuard) return;
+  const server = app.getHttpAdapter().getInstance();
+  server.addHook("onRequest", async (request, reply) => {
+    const path = request.url.split("?", 1)[0] ?? request.url;
+    if (!path.startsWith("/api/v1/") || path.startsWith("/api/v1/identity/")) return;
+    if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return;
+    if (request.headers["x-otr-e2e-write-token"] !== runtime.e2eWriteGuard?.token) {
+      reply
+        .status(403)
+        .type("application/problem+json")
+        .send({
+          type: "https://on-the-road.invalid/problems/e2e-write-forbidden",
+          title: "E2E writes are not enabled for this request",
+          status: 403,
+          code: "E2E_WRITE_FORBIDDEN",
+          detail: "Use a disposable E2E database and the test-run write token.",
+        });
+    }
+  });
 }
 
 function installHttpTelemetry(app: NestFastifyApplication, telemetry: ApiTelemetry) {

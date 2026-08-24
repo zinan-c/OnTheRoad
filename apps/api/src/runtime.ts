@@ -96,6 +96,10 @@ export interface ApiRuntime {
   readonly importPreview: ImportPreviewService;
   readonly routes: PostgresRouteRepository;
   readonly exports: PostgresExportService;
+  readonly e2eWriteGuard?: Readonly<{
+    readonly token: string;
+    readonly databaseName: string;
+  }>;
   referenceData(): unknown;
   checkReadiness(): Promise<Record<string, boolean>>;
   close(): Promise<void>;
@@ -133,12 +137,39 @@ export async function storageReachable(
   }
 }
 
+/**
+ * Browser E2E is allowed to mutate only a disposable, explicitly named
+ * database. Keeping this check in the API composition root makes an unsafe
+ * external-stack configuration fail before any request can be served.
+ */
+export function assertE2eWriteDatabase(
+  databaseUrl: URL,
+  environment: Readonly<Record<string, string | undefined>>,
+): { readonly token: string; readonly databaseName: string } | undefined {
+  if (environment.OTR_E2E_MODE?.trim() !== "1") return undefined;
+  const token = environment.OTR_E2E_WRITE_TOKEN?.trim() ?? "";
+  if (token.length < 32) {
+    throw new Error("OTR_E2E_WRITE_TOKEN must contain at least 32 characters.");
+  }
+  const databaseName = decodeURIComponent(databaseUrl.pathname.replace(/^\//u, ""));
+  if (
+    databaseName !== "on_the_road_playwright_e2e"
+    && !/^on_the_road_e2e_[a-z0-9-]+$/u.test(databaseName)
+  ) {
+    throw new Error(
+      "OTR_E2E_MODE requires a disposable database named on_the_road_playwright_e2e or on_the_road_e2e-<run-id>.",
+    );
+  }
+  return { token, databaseName };
+}
+
 export function createProductionRuntime(
   environment: Readonly<Record<string, string | undefined>>,
 ): ApiRuntime {
   const config = loadProcessConfig("api", environment);
   if (!config.server) throw new Error("API server configuration is required.");
   const server = config.server;
+  const e2eWriteGuard = assertE2eWriteDatabase(server.databaseUrl, environment);
   const database = new PostgresExecutor({
     databaseUrl: server.databaseUrl.href,
     role: "api",
@@ -296,6 +327,7 @@ export function createProductionRuntime(
     importPreview,
     routes,
     exports,
+    ...(e2eWriteGuard ? { e2eWriteGuard } : {}),
     referenceData: createReferenceDataResponse,
     async checkReadiness() {
       const checks: Record<string, boolean> = {
