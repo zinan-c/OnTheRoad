@@ -147,6 +147,15 @@
             "$ref": "#/components/parameters/Limit"
           },
           {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
             "name": "search",
             "in": "query",
             "required": false,
@@ -170,6 +179,24 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/TripStatus"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["lastActivityAt", "createdAt", "updatedAt", "startDate", "name"]
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"]
             }
           }
         ],
@@ -742,6 +769,43 @@
         }
       }
     },
+    "/identity/password-session": {
+      "post": {
+        "operationId": "createPasswordSession",
+        "summary": "Create a local password session",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordSessionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated local session",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/SessionCookie"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordSessionResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/identity/oidc/authorize": {
       "get": {
         "operationId": "beginOidcAuthorization",
@@ -844,6 +908,37 @@
             "headers": {
               "Set-Cookie": {
                 "$ref": "#/components/headers/SessionCookie"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/identity/password": {
+      "put": {
+        "operationId": "changePassword",
+        "summary": "Change the current local account password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordSessionResult"
+                }
               }
             }
           },
@@ -3335,6 +3430,23 @@
           }
         }
       },
+      "PasswordSessionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "password": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        }
+      },
+      "PasswordChangeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["password"],
+        "properties": {
+          "password": { "type": "string", "minLength": 12, "maxLength": 1024 }
+        }
+      },
       "Principal": {
         "type": "object",
         "additionalProperties": false,
@@ -3371,6 +3483,15 @@
           "expiresAt": {
             "$ref": "#/components/schemas/UtcDateTime"
           }
+        }
+      },
+      "PasswordSessionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["principal", "mustChangePassword"],
+        "properties": {
+          "principal": { "$ref": "#/components/schemas/Principal" },
+          "mustChangePassword": { "type": "boolean" }
         }
       },
       "TripDateChangeInput": {

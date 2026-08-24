@@ -8,6 +8,7 @@ import {
   TripNotFoundError,
   TripVersionConflictError,
 } from "@on-the-road/domain/trip";
+import { encodeTripCursor, TRIP_LIST_SORTS, tripListQueryKey } from "./cursor.mjs";
 
 /** @param {unknown} error */
 function mapDatabaseError(error) {
@@ -66,43 +67,74 @@ export class PostgresTripRepository {
     return result;
   }
 
-  /** @param {string} ownerId @param {{search?: string, currency?: string, status?: string, limit?: number}} filters */
+  /** @param {string} ownerId @param {{search?: string, currency?: string, status?: string, sort?: string, order?: string, cursor?: {sort: string, order: string, value: string, id: string, queryKey: string} | null, queryKey?: string, limit?: number}} filters */
   async list(ownerId, filters) {
-    return this.#json(
-      `WITH matching AS (
-        SELECT t.*
-        FROM trip t
-        WHERE t.owner_id = $1
-          AND t.status = COALESCE(NULLIF($4, ''), 'active')
-          AND (
-            NULLIF($3, '') IS NULL
-            OR t.default_currency = $3
-          )
-          AND (
-            NULLIF($2, '') IS NULL
-            OR t.name ILIKE '%' || $2 || '%'
-            OR EXISTS (
-              SELECT 1 FROM destination d
-              WHERE d.trip_id = t.id
-                AND d.name ILIKE '%' || $2 || '%'
-            )
-        )
-        ORDER BY t.updated_at DESC, t.id
-        LIMIT $5::integer
-      )
-      SELECT jsonb_build_object(
-        'items', COALESCE(jsonb_agg(trip_as_json(m.id) ORDER BY m.updated_at DESC, m.id), '[]'::jsonb),
-        'nextCursor', NULL
-      )
-      FROM matching m`,
-      [
-        ownerId,
-        filters.search ?? "",
-        filters.currency ?? "",
-        filters.status ?? "active",
-        filters.limit ?? 20,
-      ],
+    const sort = filters.sort ?? "lastActivityAt";
+    const order = filters.order ?? "desc";
+    const definition = TRIP_LIST_SORTS[sort];
+    if (!definition || !["asc", "desc"].includes(order)) {
+      throw new Error("Invalid trip list ordering");
+    }
+    const comparator = order === "asc" ? ">" : "<";
+    const cursorClause = filters.cursor
+      ? `AND (
+          t.${definition.column} ${comparator} $6::${definition.cast}
+          OR (t.${definition.column} = $6::${definition.cast} AND t.id ${comparator} $7::uuid)
+        )`
+      : "";
+    const values = [
+      ownerId,
+      filters.search ?? "",
+      filters.currency ?? "",
+      filters.status ?? "active",
+      (filters.limit ?? 20) + 1,
+      ...(filters.cursor ? [filters.cursor.value, filters.cursor.id] : []),
+    ];
+    const result = await this.#query(
+      `SELECT
+         trip_as_json(t.id) AS trip,
+         ${definition.expression} AS cursor_value,
+         t.id AS cursor_id
+       FROM trip t
+       WHERE t.owner_id = $1
+         AND t.status = COALESCE(NULLIF($4, ''), 'active')
+         AND (NULLIF($3, '') IS NULL OR t.default_currency = $3)
+         AND (
+           NULLIF($2, '') IS NULL
+           OR t.name ILIKE '%' || $2 || '%'
+           OR EXISTS (
+             SELECT 1 FROM destination d
+             WHERE d.trip_id = t.id AND d.name ILIKE '%' || $2 || '%'
+           )
+         )
+         ${cursorClause}
+       ORDER BY t.${definition.column} ${order.toUpperCase()}, t.id ${order.toUpperCase()}
+       LIMIT $5::integer`,
+      values,
     );
+    const limit = filters.limit ?? 20;
+    const hasMore = result.rows.length > limit;
+    const rows = result.rows.slice(0, limit);
+    const last = rows.at(-1);
+    const queryKey = filters.queryKey ?? tripListQueryKey({
+      search: filters.search ?? "",
+      currency: filters.currency ?? "",
+      status: filters.status ?? "active",
+      sort,
+      order,
+    });
+    return {
+      items: rows.map((row) => row.trip),
+      nextCursor: hasMore && last
+        ? encodeTripCursor({
+          sort,
+          order,
+          value: last.cursor_value instanceof Date ? last.cursor_value.toISOString() : String(last.cursor_value),
+          id: String(last.cursor_id),
+          queryKey,
+        })
+        : null,
+    };
   }
 
   /** @param {string} ownerId @param {string} tripId @param {number} expectedVersion @param {Record<string, unknown>} patch */
@@ -164,6 +196,15 @@ export class PostgresTripRepository {
   async #json(sql, values = []) {
     try {
       return await this.database.json(sql, values);
+    } catch (error) {
+      throw mapDatabaseError(error);
+    }
+  }
+
+  /** @param {string} sql @param {readonly unknown[]} [values] */
+  async #query(sql, values = []) {
+    try {
+      return await this.database.query(sql, values);
     } catch (error) {
       throw mapDatabaseError(error);
     }

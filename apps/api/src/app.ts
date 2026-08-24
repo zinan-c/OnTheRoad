@@ -360,9 +360,12 @@ class ApiController {
   ) {
     return this.runtime.trips.listTrips(await owner(this.runtime, request), {
       ...(query.limit ? { limit: Number(query.limit) } : {}),
+      ...(query.cursor ? { cursor: query.cursor } : {}),
       ...(query.search ? { search: query.search } : {}),
       ...(query.currency ? { currency: query.currency } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.sort ? { sort: query.sort } : {}),
+      ...(query.order ? { order: query.order } : {}),
     });
   }
 
