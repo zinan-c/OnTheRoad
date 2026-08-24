@@ -9,6 +9,8 @@ API_PID=""
 WORKER_PID=""
 PDF_WORKER_PID=""
 WEB_PID=""
+LOCAL_CI_STACK_ENV=""
+LOCAL_CI_COMPOSE_PROJECT=""
 
 stop_runtime() {
   local runtime_pid="$1"
@@ -25,7 +27,14 @@ cleanup() {
   stop_runtime "${PDF_WORKER_PID}"
   stop_runtime "${WEB_PID}"
   if [[ "${STACK_STARTED}" -eq 1 ]]; then
-    bash "${SCRIPT_DIR}/dev-down.sh" --track compose
+    docker compose \
+      --env-file "${LOCAL_CI_STACK_ENV}" \
+      -f "${REPO_ROOT}/infra/compose/docker-compose.yml" \
+      -p "${LOCAL_CI_COMPOSE_PROJECT}" \
+      down --volumes --remove-orphans
+  fi
+  if [[ -n "${LOCAL_CI_STACK_ENV}" ]]; then
+    rm -f -- "${LOCAL_CI_STACK_ENV}"
   fi
 }
 trap cleanup EXIT
@@ -74,13 +83,39 @@ echo "Initializing the required-case diagnostic report..."
 OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}" \
   node scripts/initialize-required-case-report.mjs
 
+LOCAL_CI_STACK_ENV="$(mktemp "${TMPDIR:-/tmp}/otr-local-ci-stack.XXXXXX")"
+source_stack_env="${OTR_LOCAL_STACK_ENV:-${REPO_ROOT}/infra/local-stack.env}"
+if [[ ! -f "${source_stack_env}" ]]; then
+  source_stack_env="${REPO_ROOT}/infra/local-stack.env.example"
+fi
+local_ci_database="on_the_road_e2e_local"
+while IFS= read -r line || [[ -n "${line}" ]]; do
+  case "${line}" in
+    POSTGRES_DB=*) printf 'POSTGRES_DB=%s\n' "${local_ci_database}" ;;
+    DATABASE_URL=*)
+      source_database_url="${line#DATABASE_URL=}"
+      local_ci_database_url="$(node -e '
+        const url = new URL(process.argv[1]);
+        url.pathname = `/${process.argv[2]}`;
+        process.stdout.write(url.href);
+      ' "${source_database_url}" "${local_ci_database}")"
+      printf 'DATABASE_URL=%s\n' "${local_ci_database_url}"
+      ;;
+    *) printf '%s\n' "${line}" ;;
+  esac
+done < "${source_stack_env}" > "${LOCAL_CI_STACK_ENV}"
+chmod 600 "${LOCAL_CI_STACK_ENV}"
+export OTR_LOCAL_STACK_ENV="${LOCAL_CI_STACK_ENV}"
+LOCAL_CI_COMPOSE_PROJECT="on-the-road-ci-$(git rev-parse --short HEAD)-$$"
+export COMPOSE_PROJECT_NAME="${LOCAL_CI_COMPOSE_PROJECT}"
+
 STACK_STARTED=1
 export OTR_COMPOSE_PULL_POLICY="${OTR_COMPOSE_PULL_POLICY:-never}"
 bash scripts/dev-up.sh --track compose
 
 set -a
 # shellcheck disable=SC1091
-source infra/local-stack.env
+source "${OTR_LOCAL_STACK_ENV}"
 set +a
 
 : "${DATABASE_URL:?infra/local-stack.env must define DATABASE_URL}"

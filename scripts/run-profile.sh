@@ -43,11 +43,12 @@ elif [[ "${profile}" != "dev" && "${requested_profile_env}" != "${profile}" ]]; 
     exit 3
   fi
 fi
-if [[ -f "${REPO_ROOT}/infra/local-stack.env" ]]; then
+local_stack_file="${OTR_LOCAL_STACK_ENV:-${REPO_ROOT}/infra/local-stack.env}"
+if [[ -f "${local_stack_file}" ]]; then
   # Native service values describe the stack that is actually running. A user
   # .env loaded below may still explicitly override them.
   # shellcheck disable=SC1091
-  source "${REPO_ROOT}/infra/local-stack.env"
+  source "${local_stack_file}"
   # Map the selected stack into the canonical profile namespace here. Without
   # this step, OTR_ENV_* placeholders loaded from .env.example win over the
   # authenticated local-stack values in a clean checkout such as CI.

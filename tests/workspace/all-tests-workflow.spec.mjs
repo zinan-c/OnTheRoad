@@ -96,6 +96,36 @@ test("dev profile resolves example, profile, local-stack, then user overrides", 
       sessionSecret: "user-session-secret",
     });
 
+    const alternateStack = resolve(fixtureRoot, "alternate-local-stack.env");
+    await writeFile(alternateStack, [
+      "DATABASE_URL=postgresql://alternate:password@127.0.0.1:35432/on_the_road_e2e_fixture",
+      "REDIS_URL=redis://default:alternate@127.0.0.1:36379/0",
+      "S3_ENDPOINT=http://127.0.0.1:39000",
+      "S3_ACCESS_KEY=alternate-access",
+      "S3_SECRET_KEY=alternate-secret",
+      "MINIO_BUCKET=alternate-bucket",
+      "S3_REGION=alternate-region",
+      "CLAMAV_HOST=127.0.0.3",
+      "CLAMAV_PORT=33310",
+      "",
+    ].join("\n"));
+    const alternateResult = spawnSync("bash", [
+      resolve(fixtureRoot, "scripts/run-profile.sh"),
+      "dev",
+      "--",
+      process.execPath,
+      "-e",
+      environmentProbe,
+    ], {
+      encoding: "utf8",
+      env: { ...process.env, OTR_LOCAL_STACK_ENV: alternateStack },
+    });
+    assert.equal(alternateResult.status, 0, alternateResult.stderr);
+    assert.equal(
+      JSON.parse(alternateResult.stdout).database,
+      "postgresql://alternate:password@127.0.0.1:35432/on_the_road_e2e_fixture",
+    );
+
     await unlink(resolve(fixtureRoot, ".env"));
 
     const injected = {
@@ -286,6 +316,12 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /export NEXT_PUBLIC_API_ORIGIN="\$\{API_ORIGIN\}"/);
   assert.match(localCi, /export OTR_PLAYWRIGHT_API_ORIGIN="\$\{API_ORIGIN\}"/);
   assert.match(localCi, /export OTR_PLAYWRIGHT_WEB_ORIGIN="\$\{WEB_ORIGIN\}"/);
+  assert.match(localCi, /local_ci_database="on_the_road_e2e_local"/);
+  assert.match(localCi, /export OTR_LOCAL_STACK_ENV="\$\{LOCAL_CI_STACK_ENV\}"/);
+  assert.match(localCi, /LOCAL_CI_COMPOSE_PROJECT="on-the-road-ci-\$\(git rev-parse --short HEAD\)-\$\$"/);
+  assert.match(localCi, /down --volumes --remove-orphans/);
+  assert.match(testWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
+  assert.match(productE2eWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "Worker" "\$\{WORKER_PID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "PDF Worker" "\$\{PDF_WORKER_PID\}"/);

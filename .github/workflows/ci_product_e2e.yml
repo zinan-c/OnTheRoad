@@ -58,6 +58,9 @@ jobs:
           if [ ! -f infra/local-stack.env ]; then
             install -m 600 infra/local-stack.env.example infra/local-stack.env
           fi
+          e2e_database="on_the_road_e2e_${GITHUB_RUN_ID}"
+          sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=${e2e_database}/" infra/local-stack.env
+          sed -i -E "s#^(DATABASE_URL=postgresql://[^/]+/).*#\\1${e2e_database}#" infra/local-stack.env
           set -a
           source infra/local-stack.env
           set +a
