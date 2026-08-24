@@ -282,7 +282,8 @@ if [[ "${product_e2e_status}" -ne 0 || "${product_e2e_evidence_status}" -ne 0 ]]
 fi
 
 echo "Running the clean-checkout smoke gate..."
-OTR_IGNORE_USER_ENV="" pnpm run ci:smoke
+OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" OTR_IGNORE_USER_ENV="" \
+  pnpm run ci:smoke
 
 git diff --exit-code
 echo "Local push CI passed for $(git rev-parse --short HEAD)."

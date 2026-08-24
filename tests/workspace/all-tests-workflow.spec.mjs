@@ -345,7 +345,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
     /OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" OTR_IGNORE_USER_ENV=""[\s\\]*pnpm run test:cases:required/,
   );
   assert.match(localCi, /export OTR_IGNORE_USER_ENV="1"/);
-  assert.match(localCi, /OTR_IGNORE_USER_ENV="" pnpm run ci:smoke/);
+  assert.match(
+    localCi,
+    /OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" OTR_IGNORE_USER_ENV=""[\s\\]*pnpm run ci:smoke/,
+  );
   assert.match(testWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
   assert.match(productE2eWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);
