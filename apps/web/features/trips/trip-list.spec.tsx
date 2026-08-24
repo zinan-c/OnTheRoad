@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -59,6 +59,39 @@ const deletedTrip = {
 };
 
 describe("E2E-008 Trip list and recycle bin", () => {
+  test("ignores stale responses and isolates cached pages by query", async () => {
+    const activeTrip = { ...deletedTrip, id: "active-1", name: "Active result", status: "active" as const };
+    const first = deferred<{ items: readonly typeof activeTrip[]; nextCursor: string | null }>();
+    const second = deferred<{ items: readonly typeof activeTrip[]; nextCursor: string | null }>();
+    const trash = deferred<{ items: readonly typeof activeTrip[]; nextCursor: string | null }>();
+    const list = vi.fn((query: Parameters<TripListGateway["list"]>[0]) => {
+      if (query.status === "deleted") return trash.promise;
+      if (query.search === "first") return first.promise;
+      if (query.search === "second") return second.promise;
+      return Promise.resolve({ items: [activeTrip], nextCursor: null });
+    });
+    const gateway: TripListGateway = { list, restore: vi.fn() };
+    render(<TripList gateway={gateway} />);
+    const user = userEvent.setup();
+    expect(await screen.findByText("Active result")).toBeTruthy();
+
+    await user.type(screen.getByRole("textbox", { name: "Search trips" }), "first");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.clear(screen.getByRole("textbox", { name: "Search trips" }));
+    await user.type(screen.getByRole("textbox", { name: "Search trips" }), "second");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    second.resolve({ items: [{ ...activeTrip, name: "Second result" }], nextCursor: null });
+    expect(await screen.findByText("Second result")).toBeTruthy();
+    first.resolve({ items: [{ ...activeTrip, name: "Stale result" }], nextCursor: null });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("Stale result")).toBeNull();
+
+    await user.click(screen.getByRole("tab", { name: "Trash" }));
+    await waitFor(() => expect(screen.queryByText("Second result")).toBeNull());
+    trash.resolve({ items: [{ ...activeTrip, name: "Trash result", status: "deleted" }], nextCursor: null });
+    expect(await screen.findByText("Trash result")).toBeTruthy();
+  });
+
   test("keeps list state in the URL and resets the cursor for a new search", async () => {
     const list = vi.fn(async () => ({ items: [], nextCursor: "cursor-page-2" }));
     const gateway: TripListGateway = {
@@ -108,3 +141,11 @@ describe("E2E-008 Trip list and recycle bin", () => {
     expect(list).toHaveBeenCalledWith(expect.objectContaining({ status: "active", sort: "lastActivityAt", order: "desc" }));
   });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
+}

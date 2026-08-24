@@ -2,7 +2,7 @@
 
 import { OnTheRoadClient } from "@on-the-road/contracts";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { TripSettingsRecord } from "../../features/trips/trip-settings";
 
@@ -117,6 +117,9 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [previousCursors, setPreviousCursors] = useState<readonly string[]>([]);
+  const requestSequence = useRef(0);
+  const queryKey = tripListUrl(query);
+  const [loadedQueryKey, setLoadedQueryKey] = useState<string>();
 
   useEffect(() => {
     setDraftSearch(query.search);
@@ -127,18 +130,25 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
   }, [router]);
 
   const load = useCallback(async (nextQuery: TripListQuery) => {
+    const requestId = ++requestSequence.current;
     setPending(true);
     setError(undefined);
     try {
-      setPage(await activeGateway.list(nextQuery));
+      const loaded = await activeGateway.list(nextQuery);
+      if (requestId !== requestSequence.current) return;
+      setPage(loaded);
+      setLoadedQueryKey(tripListUrl(nextQuery));
     } catch {
+      if (requestId !== requestSequence.current) return;
       setError("Unable to load trips.");
     } finally {
+      if (requestId !== requestSequence.current) return;
       setPending(false);
     }
   }, [activeGateway]);
 
   useEffect(() => {
+    setLoadedQueryKey(undefined);
     void load(query);
   }, [load, query]);
 
@@ -168,9 +178,9 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
   }
 
   function nextPage() {
-    if (!page.nextCursor || pending) return;
+    if (!visiblePage.nextCursor || pending) return;
     setPreviousCursors((current) => [...current, query.cursor ?? ""]);
-    replaceQuery({ ...query, cursor: page.nextCursor });
+    replaceQuery({ ...query, cursor: visiblePage.nextCursor });
   }
 
   function previousPage() {
@@ -181,19 +191,25 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
   }
 
   async function restore(trip: TripSettingsRecord) {
+    const requestId = ++requestSequence.current;
     setPending(true);
     setError(undefined);
     try {
       const restored = await activeGateway.restore(trip.id, trip.version);
+      if (requestId !== requestSequence.current) return;
       setMessage(`“${restored.name}” was restored with all related content.`);
+      setPage({ items: [], nextCursor: null });
+      setLoadedQueryKey(undefined);
       setPreviousCursors([]);
       replaceQuery({ ...resetCursor(query), status: "active" });
     } catch {
+      if (requestId !== requestSequence.current) return;
       setError("Restore failed. Reload Trash and try again.");
       setPending(false);
     }
   }
 
+  const visiblePage = loadedQueryKey === queryKey ? page : { items: [], nextCursor: null };
   const pageLabel = query.cursor ? "More trips" : "Recent trips";
   return (
     <section className="tripListPage">
@@ -235,10 +251,10 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       {message ? <p role="status" className="status statusReady">{message}</p> : null}
       {error ? <p role="alert" className="formError">{error}</p> : null}
       {pending ? <p className="status">Loading…</p> : null}
-      {!pending && page.items.length === 0 ? <p className="emptyState">No trips here yet.</p> : null}
+      {!pending && visiblePage.items.length === 0 ? <p className="emptyState">No trips here yet.</p> : null}
       <p className="tripListPageLabel">{pageLabel}</p>
       <ul className="tripList" aria-label={query.status === "active" ? "Active trips" : "Deleted trips"}>
-        {page.items.map((trip) => (
+        {visiblePage.items.map((trip) => (
           <li key={trip.id} id={`trip-card-${trip.id}`}>
             <div>
               <h2>{trip.name}</h2>
@@ -254,7 +270,7 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       </ul>
       <nav className="tripListPagination" aria-label="Trip pages">
         <button className="secondary" disabled={pending || previousCursors.length === 0} onClick={previousPage}>Previous</button>
-        <button className="primary" disabled={pending || !page.nextCursor} onClick={nextPage}>Next</button>
+        <button className="primary" disabled={pending || !visiblePage.nextCursor} onClick={nextPage}>Next</button>
       </nav>
     </section>
   );
