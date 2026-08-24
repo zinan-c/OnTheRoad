@@ -4,6 +4,9 @@ import { signIn } from "../e2e/helpers";
 test("TC-B04-03 creates a Trip and Item through the UI and restores its session", async ({
   page,
 }) => {
+  // This case logs out, so replace the shared storage-state session first.
+  // Deleting the shared session would invalidate every later Playwright context.
+  await signIn(page, "/");
   await page.goto("/");
   await expect(page.getByTestId("service-readiness")).toHaveAttribute("data-status", "ready");
   await page.getByTestId("create-trip-link").click();
@@ -37,8 +40,8 @@ test("TC-B04-03 creates a Trip and Item through the UI and restores its session"
   await page.getByTestId("sign-out").click();
   await expect(page.getByTestId("session-ended")).toBeVisible();
   await page.reload();
-  await expect(page.getByTestId("session-ended")).toBeVisible();
-  await page.getByTestId("sign-in-again").click();
+  await expect(page).toHaveURL(/\/login\?returnTo=/u);
+  await expect(page.getByRole("form", { name: "登录" })).toBeVisible();
   await signIn(page, tripPath);
   await expect(page.getByTestId("trip-title")).toHaveText("Playwright 东海之旅");
 });
