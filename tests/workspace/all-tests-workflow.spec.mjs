@@ -96,6 +96,20 @@ test("dev profile resolves example, profile, local-stack, then user overrides", 
       sessionSecret: "user-session-secret",
     });
 
+    const ignoredUserEnvironment = spawnSync("bash", [
+      resolve(fixtureRoot, "scripts/run-profile.sh"),
+      "dev",
+      "--",
+      process.execPath,
+      "-e",
+      environmentProbe,
+    ], {
+      encoding: "utf8",
+      env: { ...process.env, OTR_IGNORE_USER_ENV: "1" },
+    });
+    assert.equal(ignoredUserEnvironment.status, 0, ignoredUserEnvironment.stderr);
+    assert.equal(JSON.parse(ignoredUserEnvironment.stdout).storageRegion, "stack-region");
+
     const alternateStack = resolve(fixtureRoot, "alternate-local-stack.env");
     await writeFile(alternateStack, [
       "DATABASE_URL=postgresql://alternate:password@127.0.0.1:35432/on_the_road_e2e_fixture",
@@ -322,8 +336,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /down --volumes --remove-orphans/);
   assert.match(
     localCi,
-    /OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" pnpm run test:cases:required/,
+    /OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" OTR_IGNORE_USER_ENV=""[\s\\]*pnpm run test:cases:required/,
   );
+  assert.match(localCi, /export OTR_IGNORE_USER_ENV="1"/);
+  assert.match(localCi, /OTR_IGNORE_USER_ENV="" pnpm run ci:smoke/);
   assert.match(testWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
   assert.match(productE2eWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);

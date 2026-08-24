@@ -81,7 +81,7 @@ if [[ -f "${local_stack_file}" ]]; then
   export OTR_ENV_OBJECT_STORAGE_SECRET_KEY OTR_ENV_OBJECT_STORAGE_BUCKET
   export OTR_ENV_OBJECT_STORAGE_REGION OTR_ENV_CLAMAV_HOST OTR_ENV_CLAMAV_PORT
 fi
-if [[ -f "${REPO_ROOT}/.env" ]]; then
+if [[ "${OTR_IGNORE_USER_ENV:-}" != "1" && -f "${REPO_ROOT}/.env" ]]; then
   # shellcheck disable=SC1091
   source "${REPO_ROOT}/.env"
 fi

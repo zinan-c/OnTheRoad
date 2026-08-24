@@ -120,7 +120,12 @@ test(
       const install = spawnSync(
         "pnpm",
         ["install", "--frozen-lockfile"],
-        { cwd: checkout, encoding: "utf8", env: environment },
+        {
+          cwd: checkout,
+          encoding: "utf8",
+          env: environment,
+          maxBuffer: 64 * 1024 * 1024,
+        },
       );
       assert.equal(install.status, 0, `${install.stdout}${install.stderr}`);
 
@@ -128,6 +133,7 @@ test(
         cwd: checkout,
         encoding: "utf8",
         env: environment,
+        maxBuffer: 64 * 1024 * 1024,
       });
       assert.equal(quality.status, 0, `${quality.stdout}${quality.stderr}`);
       const after = await sourceSnapshot(checkout);

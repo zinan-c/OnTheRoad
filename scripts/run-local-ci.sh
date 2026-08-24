@@ -121,6 +121,7 @@ set +a
 : "${DATABASE_URL:?infra/local-stack.env must define DATABASE_URL}"
 : "${REDIS_URL:?infra/local-stack.env must define REDIS_URL}"
 export OTR_E2E_MODE="1"
+export OTR_IGNORE_USER_ENV="1"
 export OTR_E2E_WRITE_TOKEN="${OTR_E2E_WRITE_TOKEN:-e2e-local-write-token-change-per-run-123456}"
 export OTR_E2E_USERNAME="${OTR_E2E_USERNAME:-e2e_playwright}"
 export OTR_E2E_PASSWORD="${OTR_E2E_PASSWORD:-E2e_Playwright_1234!}"
@@ -234,7 +235,8 @@ for attempt in $(seq 1 60); do
 done
 
 echo "Running every required M0-M4 case without skips..."
-OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" pnpm run test:cases:required
+OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" OTR_IGNORE_USER_ENV="" \
+  pnpm run test:cases:required
 pnpm run test:cases:evidence
 
 echo "Running the real PDF Worker queue round-trip smoke..."
@@ -280,7 +282,7 @@ if [[ "${product_e2e_status}" -ne 0 || "${product_e2e_evidence_status}" -ne 0 ]]
 fi
 
 echo "Running the clean-checkout smoke gate..."
-pnpm run ci:smoke
+OTR_IGNORE_USER_ENV="" pnpm run ci:smoke
 
 git diff --exit-code
 echo "Local push CI passed for $(git rev-parse --short HEAD)."
