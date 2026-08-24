@@ -2,11 +2,14 @@ import { defineConfig, devices } from "@playwright/test";
 
 const externalStack = process.env.OTR_PLAYWRIGHT_EXTERNAL_STACK === "1";
 const webOrigin = process.env.OTR_PLAYWRIGHT_WEB_ORIGIN ?? "http://127.0.0.1:3100";
+const e2eMode = process.env.OTR_E2E_MODE === "1" || !externalStack;
+const e2eWriteToken = process.env.OTR_E2E_WRITE_TOKEN
+  ?? "e2e-local-write-token-change-per-run-123456";
 
 if (externalStack && process.env.OTR_E2E_MODE !== "1") {
   throw new Error("External product E2E requires OTR_E2E_MODE=1 and a disposable E2E database.");
 }
-if (process.env.OTR_E2E_MODE === "1" && (process.env.OTR_E2E_WRITE_TOKEN?.length ?? 0) < 32) {
+if (e2eMode && e2eWriteToken.length < 32) {
   throw new Error("E2E mode requires OTR_E2E_WRITE_TOKEN with at least 32 characters.");
 }
 
@@ -25,16 +28,19 @@ export default defineConfig({
     ["html", { outputFolder: "test-results/e2e-report", open: "never" }],
   ],
   outputDir: "test-results/e2e-artifacts",
+  globalSetup: "./tests/e2e/global-setup.ts",
   use: {
     baseURL: webOrigin,
     viewport: { width: 1440, height: 900 },
     trace: "on",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    ...(process.env.OTR_E2E_MODE === "1" ? {
+    ...(e2eMode ? {
       extraHTTPHeaders: {
-        "x-otr-e2e-write-token": process.env.OTR_E2E_WRITE_TOKEN,
+        "x-otr-e2e-write-token": e2eWriteToken,
       },
+      storageState: process.env.OTR_PRODUCT_E2E_STORAGE_STATE
+        ?? "test-results/e2e-storage-state.json",
     } : {}),
   },
   ...(externalStack ? {} : {
