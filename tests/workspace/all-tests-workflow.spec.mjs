@@ -320,6 +320,10 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /export OTR_LOCAL_STACK_ENV="\$\{LOCAL_CI_STACK_ENV\}"/);
   assert.match(localCi, /LOCAL_CI_COMPOSE_PROJECT="on-the-road-ci-\$\(git rev-parse --short HEAD\)-\$\$"/);
   assert.match(localCi, /down --volumes --remove-orphans/);
+  assert.match(
+    localCi,
+    /OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" pnpm run test:cases:required/,
+  );
   assert.match(testWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
   assert.match(productE2eWorkflow, /e2e_database="on_the_road_e2e_\$\{GITHUB_RUN_ID\}"/);
   assert.match(localCi, /fail_if_runtime_exited "API" "\$\{API_PID\}"/);

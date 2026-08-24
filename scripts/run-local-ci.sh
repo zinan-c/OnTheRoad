@@ -234,7 +234,7 @@ for attempt in $(seq 1 60); do
 done
 
 echo "Running every required M0-M4 case without skips..."
-pnpm run test:cases:required
+OTR_LOCAL_STACK_ENV="" COMPOSE_PROJECT_NAME="" pnpm run test:cases:required
 pnpm run test:cases:evidence
 
 echo "Running the real PDF Worker queue round-trip smoke..."

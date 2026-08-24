@@ -12,8 +12,11 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   const username = process.env.OTR_E2E_USERNAME ?? DEFAULT_USERNAME;
   const password = process.env.OTR_E2E_PASSWORD ?? DEFAULT_PASSWORD;
   const token = process.env.OTR_E2E_WRITE_TOKEN ?? DEFAULT_TOKEN;
+  const configuredStorageState = config.projects[0]?.use.storageState;
   const storageState = process.env.OTR_PRODUCT_E2E_STORAGE_STATE
-    ?? "test-results/e2e-storage-state.json";
+    ?? (typeof configuredStorageState === "string"
+      ? configuredStorageState
+      : "test-results/e2e-storage-state.json");
   const context = await request.newContext({
     baseURL: apiOrigin,
     extraHTTPHeaders: { "x-otr-e2e-write-token": token },
