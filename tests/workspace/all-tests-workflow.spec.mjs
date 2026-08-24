@@ -291,6 +291,12 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(testWorkflow, /export NEXT_PUBLIC_API_ORIGIN="\$api_origin"/);
   assert.match(testWorkflow, /export OTR_PLAYWRIGHT_API_ORIGIN="\$api_origin"/);
   assert.match(testWorkflow, /export OTR_PLAYWRIGHT_WEB_ORIGIN="\$web_origin"/);
+  assert.match(playwrightConfig, /const apiOrigin = process\.env\.OTR_PLAYWRIGHT_API_ORIGIN/);
+  assert.match(playwrightConfig, /APP_ORIGIN: webOrigin/);
+  assert.match(playwrightConfig, /API_BASE_URL: `\$\{apiOrigin\}\/api\/v1`/);
+  assert.match(playwrightConfig, /NEXT_PUBLIC_API_ORIGIN: apiOrigin/);
+  assert.match(playwrightConfig, /MAP_PROFILE: "fixture"/);
+  assert.match(playwrightConfig, /MAP_EXPLICIT_SEARCH_ENABLED: "false"/);
   assert.match(testWorkflow, /export OTR_C07_DATABASE_URL="\$DATABASE_URL"/);
   assert.match(testWorkflow, /export OTR_E04_DATABASE_URL="\$DATABASE_URL"/);
   assert.match(

@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 const webOrigin = process.env.OTR_PLAYWRIGHT_WEB_ORIGIN ?? "http://127.0.0.1:3000";
 const webPort = Number(new URL(webOrigin).port);
+const defaultApiUrl = new URL(webOrigin);
+defaultApiUrl.port = String(webPort + 1);
+const apiOrigin = process.env.OTR_PLAYWRIGHT_API_ORIGIN ?? defaultApiUrl.origin;
 const e2eMode = process.env.OTR_E2E_MODE === "1";
 const e2eWriteToken = process.env.OTR_E2E_WRITE_TOKEN
   ?? "e2e-local-write-token-change-per-run-123456";
@@ -35,7 +38,18 @@ export default defineConfig({
     port: webPort,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: { PORT: String(webPort) },
+    env: {
+      PORT: String(webPort),
+      WEB_PORT: String(webPort),
+      APP_ORIGIN: webOrigin,
+      API_BASE_URL: `${apiOrigin}/api/v1`,
+      NEXT_PUBLIC_API_ORIGIN: apiOrigin,
+      OTR_RUNTIME_PROFILE: "dev",
+      MAP_PROFILE: "fixture",
+      MAP_AUTOCOMPLETE_ENABLED: "false",
+      MAP_EXPLICIT_SEARCH_ENABLED: "false",
+      OTR_MAP_DEFAULT_LAYER: "amap-street",
+    },
   },
   projects: [
     {
