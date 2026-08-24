@@ -32,7 +32,8 @@ test("E2E-016 — Full runtime route-to-MapLibre happy path", async ({ page }) =
   await expect(map).toBeVisible();
   await expect(map).toHaveAttribute("data-route-count", "2", { timeout: 30_000 });
   await tileRequest;
-  await expect(page.getByText("Map data © On The Road fixture", { exact: true })).toBeVisible();
+  await expect(map.locator(".maplibregl-ctrl-attrib"))
+    .toContainText("Map data © On The Road fixture");
   await expect(page.getByRole("list", { name: "Route mode legend" })).toContainText("WALK");
   await expect(page.getByRole("list", { name: "Route mode legend" })).toContainText("METRO");
 

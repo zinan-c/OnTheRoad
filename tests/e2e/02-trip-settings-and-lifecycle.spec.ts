@@ -84,7 +84,7 @@ test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page
   await expect(page).toHaveURL(/\/trips$/u);
   await expect(page.locator(`#trip-card-${tripId}`)).toHaveCount(0);
   await page.getByRole("tab", { name: "Trash" }).click();
-  const recycleBin = page.getByRole("list", { name: "Deleted trips" });
+  const recycleBin = page.getByRole("list", { name: "Trash" });
   const tripCard = recycleBin.locator(`#trip-card-${tripId}`);
   await expect(tripCard.locator("h2")).toHaveText(updatedName);
   await tripCard.getByRole("button", { name: "Restore trip" }).click();

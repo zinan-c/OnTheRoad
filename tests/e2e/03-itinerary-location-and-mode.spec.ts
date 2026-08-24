@@ -170,7 +170,8 @@ test("E2E-011 — Copy, edit copied Item and soft delete", async ({ page }) => {
 });
 
 test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ page, browser }) => {
-  const tripId = await createTrip(page, { name: caseName("E2E-012", "reorder") });
+  const name = caseName("E2E-012", "reorder");
+  const tripId = await createTrip(page, { name });
   for (const target of ["A", "B", "C", "D"]) await createSimpleItem(page, target, { kind: "attraction" });
   const workspaceMode = await page.getByRole("region", { name: "Daily itinerary", exact: true }).count() > 0;
   if (workspaceMode) await page.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();
