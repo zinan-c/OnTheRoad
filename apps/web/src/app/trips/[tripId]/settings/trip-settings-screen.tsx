@@ -34,19 +34,8 @@ export function TripSettingsScreen({ tripId }: { readonly tripId: string }) {
     void load();
   }, [load]);
 
-  async function login() {
-    try {
-      await client.request("createDevelopmentSession", {
-        body: { subject: "browser-demo-owner" },
-      });
-      await load();
-    } catch {
-      setStatus("error");
-    }
-  }
-
   if (status === "loading") return <p className="status">Loading trip settings…</p>;
-  if (status === "signed-out") return <section className="emptyState"><h1>Session ended</h1><p>Sign in again to manage this trip.</p><button className="primary" onClick={login}>Sign in again</button></section>;
+  if (status === "signed-out") return <section className="emptyState"><h1>Session ended</h1><p>Sign in again to manage this trip.</p><a className="primary" href={"/login?returnTo=" + encodeURIComponent("/trips/" + tripId + "/settings")}>Sign in again</a></section>;
   if (status === "error" || !trip) return <p role="alert">Trip settings are temporarily unavailable.</p>;
 
   return (

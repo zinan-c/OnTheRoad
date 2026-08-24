@@ -1,4 +1,5 @@
 import { TripSettingsScreen } from "./trip-settings-screen";
+import { AuthGate } from "../../../../features/identity/auth-gate";
 
 export default async function TripSettingsPage({
   params,
@@ -15,7 +16,7 @@ export default async function TripSettingsPage({
           <a className="secondary" href="/trips">Trips</a>
         </div>
       </nav>
-      <TripSettingsScreen tripId={tripId} />
+      <AuthGate><TripSettingsScreen tripId={tripId} /></AuthGate>
     </main>
   );
 }

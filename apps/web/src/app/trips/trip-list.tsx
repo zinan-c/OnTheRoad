@@ -22,9 +22,6 @@ export function browserTripListGateway(): TripListGateway {
   const client = new OnTheRoadClient(apiOrigin());
   return {
     async list(status) {
-      await client.request("createDevelopmentSession", {
-        body: { subject: "browser-demo-owner" },
-      });
       const response = await client.request("listTrips", { query: { status, limit: 100 } });
       return (response.data as TripPage).items;
     },

@@ -1,4 +1,5 @@
 import { TripCreateForm } from "../../../features/trips/trip-create-form";
+import { AuthGate } from "../../../features/identity/auth-gate";
 
 export default function NewTripPage() {
   return (
@@ -11,7 +12,7 @@ export default function NewTripPage() {
         <p className="eyebrow">New journey</p>
         <h1>Create a new journey</h1>
         <p className="lead">Choose the dates and destinations, and an editable plan will be prepared for every day.</p>
-        <TripCreateForm />
+        <AuthGate><TripCreateForm /></AuthGate>
       </section>
     </main>
   );

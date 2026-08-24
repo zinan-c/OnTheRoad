@@ -27,9 +27,6 @@ export function browserTripCreationGateway(): TripCreationGateway {
   const client = new OnTheRoadClient(apiOrigin());
   return {
     async create(input, { idempotencyKey }) {
-      await client.request("createDevelopmentSession", {
-        body: { subject: "browser-demo-owner" },
-      });
       const response = await client.request("createTrip", {
         headers: { "Idempotency-Key": idempotencyKey },
         body: input,

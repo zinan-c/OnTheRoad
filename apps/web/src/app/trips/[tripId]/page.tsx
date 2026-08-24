@@ -1,4 +1,5 @@
 import { TripDetail } from "./trip-detail";
+import { AuthGate } from "../../../features/identity/auth-gate";
 
 export default async function TripPage({
   params,
@@ -15,7 +16,7 @@ export default async function TripPage({
           <a className="newTrip" href="/trips/new">New trip</a>
         </div>
       </nav>
-      <TripDetail tripId={tripId} />
+      <AuthGate><TripDetail tripId={tripId} /></AuthGate>
     </main>
   );
 }

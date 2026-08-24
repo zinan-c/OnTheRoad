@@ -36,24 +36,13 @@ export function TripDetail({ tripId }: { readonly tripId: string }) {
     setStatus("signed-out");
   }
 
-  async function login() {
-    try {
-      await client.request("createDevelopmentSession", {
-        body: { subject: "browser-demo-owner" },
-      });
-      await load();
-    } catch {
-      setStatus("error");
-    }
-  }
-
   if (status === "loading") return <p className="status">Loading trip…</p>;
   if (status === "signed-out") {
     return (
       <section className="emptyState">
         <h1 data-testid="session-ended">Session ended</h1>
         <p>Sign in again to continue editing this trip.</p>
-        <button className="primary" data-testid="sign-in-again" onClick={login}>Sign in again</button>
+        <a className="primary" data-testid="sign-in-again" href={"/login?returnTo=" + encodeURIComponent("/trips/" + tripId)}>Sign in again</a>
       </section>
     );
   }
