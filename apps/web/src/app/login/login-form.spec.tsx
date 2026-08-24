@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
+import { generatedOperations } from "@on-the-road/contracts";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 
@@ -31,7 +32,7 @@ test("posts credentials without persisting the password and routes forced change
   await user.click(screen.getByRole("button", { name: "登录" }));
 
   expect(fetchMock).toHaveBeenCalledWith(
-    expect.stringContaining("/api/v1/identity/password-session"),
+    expect.stringContaining(generatedOperations.createPasswordSession.path),
     expect.objectContaining({
       method: "POST",
       credentials: "include",
@@ -43,7 +44,14 @@ test("posts credentials without persisting the password and routes forced change
 });
 
 test("uses one generic error for rejected credentials", async () => {
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 401 }));
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    type: "about:blank",
+    title: "Invalid credentials",
+    status: 401,
+    code: "IDENTITY_INVALID_CREDENTIALS",
+    traceId: "login-test",
+    errors: [],
+  }), { status: 401, headers: { "content-type": "application/problem+json" } }));
   const user = userEvent.setup();
   render(<LoginForm />);
   await user.type(screen.getByLabelText("用户名"), "adminA");

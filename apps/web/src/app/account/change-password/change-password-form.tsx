@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiProblemError, OnTheRoadClient } from "@on-the-road/contracts";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -41,20 +42,15 @@ export function ChangePasswordForm() {
     setPending(true);
     setError(undefined);
     try {
-      const response = await fetch(API_ORIGIN + "/api/v1/identity/password", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ password }),
+      await new OnTheRoadClient(API_ORIGIN).request("changePassword", {
+        body: { password },
       });
-      if (!response.ok) {
-        setError("密码修改失败，请检查密码要求后重试。");
-        return;
-      }
       const returnTo = safeReturnTo(new URL(window.location.href).searchParams.get("returnTo"));
       router.replace(returnTo);
-    } catch {
-      setError("密码修改服务暂时不可用，请稍后重试。");
+    } catch (caught) {
+      setError(caught instanceof ApiProblemError
+        ? "密码修改失败，请检查密码要求后重试。"
+        : "密码修改服务暂时不可用，请稍后重试。");
     } finally {
       setPending(false);
     }

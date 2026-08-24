@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiProblemError, OnTheRoadClient } from "@on-the-road/contracts";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -15,14 +16,16 @@ export type CurrentSession = {
 };
 
 export async function getCurrentSession(): Promise<CurrentSession | null> {
-  const response = await fetch(API_ORIGIN + "/api/v1/identity/session", {
-    cache: "no-store",
-    credentials: "include",
-    headers: { accept: "application/json" },
-  });
-  if (response.status === 401) return null;
-  if (!response.ok) throw new Error("Session request failed: " + response.status);
-  return response.json() as Promise<CurrentSession>;
+  try {
+    const identityClient = new OnTheRoadClient(API_ORIGIN, {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    });
+    const response = await identityClient.request("getSession");
+    return response.data as CurrentSession;
+  } catch (caught) {
+    if (caught instanceof ApiProblemError && caught.problem.status === 401) return null;
+    throw caught;
+  }
 }
 
 export function safeReturnTo(value: string | null | undefined, fallback = "/trips"): string {

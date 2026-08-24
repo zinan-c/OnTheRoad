@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiProblemError, OnTheRoadClient } from "@on-the-road/contracts";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
@@ -22,24 +23,19 @@ export function LoginForm() {
     setPending(true);
     setError(undefined);
     try {
-      const response = await fetch(API_ORIGIN + "/api/v1/identity/password-session", {
-        method: "POST",
-        credentials: "include",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ username, password }),
+      const response = await new OnTheRoadClient(API_ORIGIN).request("createPasswordSession", {
+        body: { username, password },
       });
-      if (!response.ok) {
-        setError("用户名或密码错误，或账号暂时不可用。");
-        return;
-      }
-      const result = await response.json() as { mustChangePassword?: boolean };
+      const result = response.data as { mustChangePassword?: boolean };
       if (result.mustChangePassword) {
         router.replace("/account/change-password?returnTo=" + encodeURIComponent(returnTo));
       } else {
         router.replace(returnTo);
       }
-    } catch {
-      setError("登录服务暂时不可用，请稍后重试。");
+    } catch (caught) {
+      setError(caught instanceof ApiProblemError
+        ? "用户名或密码错误，或账号暂时不可用。"
+        : "登录服务暂时不可用，请稍后重试。");
     } finally {
       setPending(false);
     }

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
+import { generatedOperations } from "@on-the-road/contracts";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 
@@ -42,7 +43,7 @@ test("changes the forced password without putting it in a URL or local storage",
   await user.click(screen.getByRole("button", { name: "保存新密码" }));
 
   expect(fetchMock).toHaveBeenCalledWith(
-    expect.stringContaining("/api/v1/identity/password"),
+    expect.stringContaining(generatedOperations.changePassword.path),
     expect.objectContaining({
       method: "PUT",
       credentials: "include",
