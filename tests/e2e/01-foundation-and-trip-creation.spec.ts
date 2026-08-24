@@ -37,7 +37,7 @@ test("E2E-001 — Clean-stack readiness and capability discovery", async ({ page
   await expect(page.getByText(/Service ready/u)).toBeVisible();
 });
 
-test("E2E-002 — Development login, session persistence and re-login", async ({ page, context }) => {
+test("E2E-002 — Temporary-account login, session persistence and re-login", async ({ page, context }) => {
   const name = caseName("E2E-002", "session");
   const tripId = await createTrip(page, { name });
   const tripUrl = `/trips/${tripId}`;

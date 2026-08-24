@@ -47,13 +47,13 @@
     },
     {
       "id": "E2E-002",
-      "title": "Development login, session persistence and re-login",
+      "title": "Temporary-account login, session persistence and re-login",
       "uiActions": [
-        { "documentPhrase": "Click “Log in again.”", "sourceMarkers": ["Sign in again", "context.clearCookies"] },
+        { "documentPhrase": "Sign in again", "sourceMarkers": ["signIn(page, tripUrl)", "context.clearCookies"] },
         { "documentPhrase": "Click “Log out.”", "sourceMarkers": ["Sign out", "clearCookies"] }
       ],
       "readOnlyApiVerification": ["GET /identity/session", "GET protected Trip detail after browser login"],
-      "dataMatrix": { "profile": "dev", "owner": "browser-demo-owner", "sameOriginTabs": 2, "refreshes": 2 },
+      "dataMatrix": { "profile": "dev", "owner": "temporary E2E account", "sameOriginTabs": 2, "refreshes": 2 },
       "finalBusinessFacts": ["The browser session survives refresh and a same-origin tab.", "Logout removes access and re-login restores the same Trip."],
       "deviceProjects": ["chromium"]
     },
