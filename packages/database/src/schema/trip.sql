@@ -27,9 +27,9 @@ CREATE TABLE IF NOT EXISTS trip (
 );
 
 CREATE INDEX IF NOT EXISTS trip_owner_status_activity_idx
-  ON trip (owner_id, status, last_activity_at DESC, id);
+  ON trip (owner_id, status, last_activity_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS trip_owner_currency_idx
-  ON trip (owner_id, default_currency, last_activity_at DESC, id);
+  ON trip (owner_id, default_currency, last_activity_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS destination (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
