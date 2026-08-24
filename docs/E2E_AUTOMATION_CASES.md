@@ -130,37 +130,39 @@ Every assertion must pass without an automatic restart, skipped dependency, or s
 
 ---
 
-## E2E-002 — Development login, session persistence and re-login
+## E2E-002 — Temporary-account login, session persistence and re-login
 
 - **Status**: `Passed`
 - **Coverage**: M1; A05; identity, cookies, and owner session
-- **Goal**: verify browser development login, refresh persistence, logout, and re-login end to end.
+- **Goal**: verify password login, refresh persistence, logout, and re-login end to end.
 
 ### Preconditions and data
 
-- Dev Profile, using the Web URL printed by `pnpm run dev`, with the API configured to allow that exact local origin.
-- Pre-create a Trip owned by `browser-demo-owner`, or run E2E-003 first.
+- The isolated E2E runner has created the disposable `on_the_road_playwright_e2e` database and a temporary account.
+- `OTR_E2E_USERNAME` and `OTR_E2E_PASSWORD` identify that account; do not reuse `adminA` or a development demo owner.
+- Use the Web URL printed by the E2E runner, with the API configured to allow that exact local origin.
 
 ### Manual steps
 
 1. Clear site cookies and directly open the Trip detail URL.
-2. Confirm that the page shows “Signed out,” rather than a blank page or generic 500.
-3. Click “Log in again.”
-4. Wait for Trip detail to load.
+2. Confirm that the protected route redirects to `/login?returnTo=...`, rather than showing a blank page or generic 500.
+3. Enter the temporary account credentials and submit “登录”.
+4. Wait for Trip detail to load at the return URL.
 5. Refresh twice and open the same Trip in a new same-origin tab.
 6. Click “Log out.”
-7. Refresh and confirm that the signed-out state persists.
-8. Click “Log in again” and confirm that access to the original Trip is restored.
+7. Refresh and confirm that the protected route redirects to the login page.
+8. Sign in again and confirm that access to the original Trip is restored.
 
 ### Automation requirements
 
-- Do not pre-inject authentication through Playwright `storageState`.
-- Actually call the development-session endpoint and let the browser manage cookies.
+- Run only through `scripts/run-e2e-environment.sh`; it recreates the disposable database for each run and seeds the temporary account.
+- The global setup calls the password-session endpoint, and browser tests use the resulting storage state only for the isolated E2E account.
+- E2E mode must set `OTR_E2E_MODE=1` and a write token of at least 32 characters; the API refuses ordinary development, QA, or production database names.
 - Never read or print cookie values; observe authentication results only.
 
 ### Detailed checks
 
-- An unauthenticated protected Trip enters the signed-out UI state and the protected API returns 401.
+- An unauthenticated protected Trip redirects to the login page and the protected API returns 401.
 - After Development Session creation, `GET /identity/session` returns the current principal.
 - The browser stores the cookie in HTTP Dev; refresh and a same-origin tab retain the session.
 - After logout, the old cookie no longer authorizes access.

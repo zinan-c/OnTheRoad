@@ -161,7 +161,7 @@ export function assertE2eWriteDatabase(
     && !/^on_the_road_e2e_[a-z0-9-]+$/u.test(databaseName)
   ) {
     throw new Error(
-      "OTR_E2E_MODE requires a disposable database named on_the_road_playwright_e2e or on_the_road_e2e-<run-id>.",
+      "OTR_E2E_MODE requires a disposable database named on_the_road_playwright_e2e or on_the_road_e2e_<run-id>.",
     );
   }
   return { token, databaseName };
