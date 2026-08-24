@@ -232,18 +232,19 @@ export async function runCleanup(options, environment = process.env) {
     manualDeletes.jobRun = (await client.query(
       "DELETE FROM job_run WHERE event_id IN ("
       + "SELECT o.event_id FROM job_outbox o JOIN trip_day d ON d.id::text = o.aggregate_id "
-      + "WHERE d.trip_id = ANY($1::uuid[]))",
+      + "WHERE d.trip_id = ANY($1::uuid[]) AND o.aggregate_type IN ('trip_day', 'route_window'))",
       [validated.ids],
     )).rowCount;
     manualDeletes.jobInbox = (await client.query(
       "DELETE FROM job_inbox WHERE event_id IN ("
       + "SELECT o.event_id FROM job_outbox o JOIN trip_day d ON d.id::text = o.aggregate_id "
-      + "WHERE d.trip_id = ANY($1::uuid[]))",
+      + "WHERE d.trip_id = ANY($1::uuid[]) AND o.aggregate_type IN ('trip_day', 'route_window'))",
       [validated.ids],
     )).rowCount;
     manualDeletes.jobOutbox = (await client.query(
       "DELETE FROM job_outbox o USING trip_day d "
-      + "WHERE d.id::text = o.aggregate_id AND d.trip_id = ANY($1::uuid[])",
+      + "WHERE d.id::text = o.aggregate_id AND d.trip_id = ANY($1::uuid[]) "
+      + "AND o.aggregate_type IN ('trip_day', 'route_window')",
       [validated.ids],
     )).rowCount;
     manualDeletes.importInspectJob = (await client.query(
@@ -364,9 +365,9 @@ async function countIndirectRows(client, ids) {
     import_row: "SELECT count(*)::int AS count FROM import_row r JOIN import_job j ON j.id = r.import_job_id WHERE j.trip_id = ANY($1::uuid[])",
     export_job_asset: "SELECT count(*)::int AS count FROM export_job_asset a JOIN export_job j ON j.id = a.export_job_id WHERE j.trip_id = ANY($1::uuid[])",
     import_inspect_job_all: "SELECT count(*)::int AS count FROM import_inspect_job j WHERE j.trip_id = ANY($1::uuid[]) OR j.attachment_id IN (SELECT a.id FROM attachment a WHERE a.trip_id = ANY($1::uuid[]))",
-    job_outbox: "SELECT count(*)::int AS count FROM job_outbox o JOIN trip_day d ON d.id::text = o.aggregate_id WHERE d.trip_id = ANY($1::uuid[])",
-    job_inbox: "SELECT count(*)::int AS count FROM job_inbox i JOIN job_outbox o ON o.event_id = i.event_id JOIN trip_day d ON d.id::text = o.aggregate_id WHERE d.trip_id = ANY($1::uuid[])",
-    job_run: "SELECT count(*)::int AS count FROM job_run r JOIN job_outbox o ON o.event_id = r.event_id JOIN trip_day d ON d.id::text = o.aggregate_id WHERE d.trip_id = ANY($1::uuid[])",
+    job_outbox: "SELECT count(*)::int AS count FROM job_outbox o JOIN trip_day d ON d.id::text = o.aggregate_id WHERE d.trip_id = ANY($1::uuid[]) AND o.aggregate_type IN ('trip_day', 'route_window')",
+    job_inbox: "SELECT count(*)::int AS count FROM job_inbox i JOIN job_outbox o ON o.event_id = i.event_id JOIN trip_day d ON d.id::text = o.aggregate_id WHERE d.trip_id = ANY($1::uuid[]) AND o.aggregate_type IN ('trip_day', 'route_window')",
+    job_run: "SELECT count(*)::int AS count FROM job_run r JOIN job_outbox o ON o.event_id = r.event_id JOIN trip_day d ON d.id::text = o.aggregate_id WHERE d.trip_id = ANY($1::uuid[]) AND o.aggregate_type IN ('trip_day', 'route_window')",
   };
   const counts = {};
   for (const [name, query] of Object.entries(queries)) {
