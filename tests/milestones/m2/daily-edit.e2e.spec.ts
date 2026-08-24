@@ -51,7 +51,7 @@ describe("TC-M2-INT-01 Daily edit and reorder persistence", () => {
   afterAll(async () => {
     await cleanOwner(ownerId);
     await cleanOwner(otherOwnerId);
-  });
+  }, 60_000);
 
   liveTest(
     "creates the fixed five-day Trip from an empty account, edits a full Day, reorders three ways, rolls back 409, and reloads",
