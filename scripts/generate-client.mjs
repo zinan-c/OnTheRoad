@@ -113,7 +113,7 @@ export function generateClientSource(contract) {
 
 /** @typedef {{ id: string, date: string }} ExampleResource */
 /** @typedef {{ id: string, name: string, countryCode: string | null, city: string | null, region: string | null, sortOrder: number, createdAt: string, updatedAt: string }} Destination */
-/** @typedef {{ id: string, ownerId: string, name: string, startDate: string, endDate: string, totalDays: number, travelers: number, defaultCurrency: string, budget: string | null, timezone: string, mapProfile: "cn_primary" | "international_primary" | "hybrid", description: string | null, status: "draft" | "active" | "archived" | "deleted", version: number, createdAt: string, updatedAt: string, deletedAt: string | null, destinations: Destination[] }} Trip */
+/** @typedef {{ id: string, ownerId: string, name: string, startDate: string, endDate: string, totalDays: number, travelers: number, defaultCurrency: string, budget: string | null, timezone: string, mapProfile: "cn_primary" | "international_primary" | "hybrid", description: string | null, status: "draft" | "active" | "archived" | "deleted", version: number, createdAt: string, updatedAt: string, lastActivityAt: string, deletedAt: string | null, destinations: Destination[] }} Trip */
 /** @typedef {{ items: Trip[], nextCursor: string | null }} TripPage */
 /** @typedef {{ id: string, tripId: string, ownerId: string, tripDayId: string, itemType: "activity" | "attraction" | "dining" | "hotel" | "transport" | "other", timeKind: "clock" | "range" | "period" | "unscheduled", startTime: string | null, endTime: string | null, endDayOffset: 0 | 1, timeZone: string | null, timePeriod: string | null, target: string | null, description: string | null, durationMinutes: number | null, destinationId: string | null, locationId: string | null, startLocationId: string | null, endLocationId: string | null, transportModeCode: string | null, bookingInfo: unknown, contactInfo: unknown, remark: string | null, externalSource: string | null, externalId: string | null, dining: Record<string, unknown> | null, accommodation: Record<string, unknown> | null, sortOrder: number, version: number, createdAt: string, updatedAt: string, deletedAt: string | null }} ItineraryItem */
 /** @typedef {{ tripDayId: string, version: number, orderedIds: string[], eventId: string }} ItineraryReorderResult */
@@ -148,7 +148,7 @@ export function parseExampleResponse(value) {
 /** @param {unknown} value @returns {Trip} */
 export function parseTripResponse(value) {
   const object = asObject(value, "Trip");
-  for (const field of ["id", "ownerId", "name", "startDate", "endDate", "defaultCurrency", "timezone", "mapProfile", "status", "createdAt", "updatedAt"]) {
+  for (const field of ["id", "ownerId", "name", "startDate", "endDate", "defaultCurrency", "timezone", "mapProfile", "status", "createdAt", "updatedAt", "lastActivityAt"]) {
     if (typeof object[field] !== "string" || object[field].length === 0) {
       throw new TypeError(\`Trip.\${field} must be a non-empty string\`);
     }
@@ -212,6 +212,7 @@ export function parseTripResponse(value) {
     version: Number(object.version),
     createdAt: /** @type {string} */ (object.createdAt),
     updatedAt: /** @type {string} */ (object.updatedAt),
+    lastActivityAt: /** @type {string} */ (object.lastActivityAt),
     deletedAt: typeof object.deletedAt === "string" ? object.deletedAt : null,
     destinations,
   };

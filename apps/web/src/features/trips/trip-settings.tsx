@@ -18,6 +18,7 @@ export interface TripSettingsRecord {
   readonly description: string | null;
   readonly status: "draft" | "active" | "archived" | "deleted";
   readonly version: number;
+  readonly lastActivityAt?: string;
 }
 
 interface TripDayRecord {

@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS trip (
   version integer NOT NULL DEFAULT 1 CHECK (version > 0),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  last_activity_at timestamptz NOT NULL DEFAULT now(),
   deleted_at timestamptz,
   CHECK (end_date >= start_date),
   CHECK (
@@ -25,10 +26,10 @@ CREATE TABLE IF NOT EXISTS trip (
   )
 );
 
-CREATE INDEX IF NOT EXISTS trip_owner_status_updated_idx
-  ON trip (owner_id, status, updated_at DESC, id);
+CREATE INDEX IF NOT EXISTS trip_owner_status_activity_idx
+  ON trip (owner_id, status, last_activity_at DESC, id);
 CREATE INDEX IF NOT EXISTS trip_owner_currency_idx
-  ON trip (owner_id, default_currency, updated_at DESC, id);
+  ON trip (owner_id, default_currency, last_activity_at DESC, id);
 
 CREATE TABLE IF NOT EXISTS destination (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -92,6 +93,7 @@ AS $$
     'version', t.version,
     'createdAt', to_char(t.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
     'updatedAt', to_char(t.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+    'lastActivityAt', to_char(t.last_activity_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
     'deletedAt', CASE
       WHEN t.deleted_at IS NULL THEN NULL
       ELSE to_char(t.deleted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
@@ -240,7 +242,8 @@ BEGIN
       ELSE description
     END,
     version = next_version,
-    updated_at = clock_timestamp()
+    updated_at = clock_timestamp(),
+    last_activity_at = clock_timestamp()
   WHERE id = p_trip_id;
 
   IF p_patch ? 'destinations' THEN
@@ -304,7 +307,8 @@ BEGIN
     status = p_target_status,
     deleted_at = CASE WHEN p_target_status = 'deleted' THEN clock_timestamp() ELSE NULL END,
     version = next_version,
-    updated_at = clock_timestamp()
+    updated_at = clock_timestamp(),
+    last_activity_at = clock_timestamp()
   WHERE id = p_trip_id;
   INSERT INTO trip_audit (trip_id, owner_id, action, version, changes)
   VALUES (

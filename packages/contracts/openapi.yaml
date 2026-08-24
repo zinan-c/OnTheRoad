@@ -2622,6 +2622,7 @@
               "version",
               "createdAt",
               "updatedAt",
+              "lastActivityAt",
               "deletedAt"
             ],
             "properties": {
@@ -2653,6 +2654,9 @@
                 "$ref": "#/components/schemas/UtcDateTime"
               },
               "updatedAt": {
+                "$ref": "#/components/schemas/UtcDateTime"
+              },
+              "lastActivityAt": {
                 "$ref": "#/components/schemas/UtcDateTime"
               },
               "deletedAt": {
