@@ -4,9 +4,43 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { TripList, type TripListGateway } from "../../src/app/trips/trip-list";
+const navigation = vi.hoisted(() => ({
+  search: "",
+  subscribers: new Set<(value: string) => void>(),
+}));
 
-afterEach(cleanup);
+vi.mock("next/navigation", async () => {
+  const React = await import("react");
+  return {
+    useRouter: () => ({
+      replace(url: string) {
+        navigation.search = url.includes("?") ? url.slice(url.indexOf("?") + 1) : "";
+        for (const subscriber of navigation.subscribers) subscriber(navigation.search);
+      },
+    }),
+    useSearchParams: () => {
+      const [value, setValue] = React.useState(navigation.search);
+      React.useEffect(() => {
+        navigation.subscribers.add(setValue);
+        return () => navigation.subscribers.delete(setValue);
+      }, []);
+      return React.useMemo(() => new URLSearchParams(value), [value]);
+    },
+  };
+});
+
+import {
+  parseTripListQuery,
+  TripList,
+  tripListUrl,
+  type TripListGateway,
+} from "../../src/app/trips/trip-list";
+
+afterEach(() => {
+  cleanup();
+  navigation.search = "";
+  navigation.subscribers.clear();
+});
 
 const deletedTrip = {
   id: "trip-8",
@@ -25,10 +59,38 @@ const deletedTrip = {
 };
 
 describe("E2E-008 Trip list and recycle bin", () => {
+  test("keeps list state in the URL and resets the cursor for a new search", async () => {
+    const list = vi.fn(async () => ({ items: [], nextCursor: "cursor-page-2" }));
+    const gateway: TripListGateway = {
+      list,
+      restore: vi.fn(),
+    };
+    render(<TripList gateway={gateway} />);
+    const user = userEvent.setup();
+    await screen.findByText("No trips here yet.");
+    await user.type(screen.getByRole("textbox", { name: "Search trips" }), "beach");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ search: "beach" }));
+    expect(tripListUrl({
+      status: "active",
+      search: "beach",
+      sort: "lastActivityAt",
+      order: "desc",
+    })).toBe("/trips?search=beach");
+    expect(parseTripListQuery(new URLSearchParams("view=deleted&sort=name&order=asc&search=x"))).toEqual({
+      status: "deleted",
+      search: "x",
+      sort: "name",
+      order: "asc",
+    });
+  });
+
   test("keeps deleted trips out of the default list and restores the same id", async () => {
-    const list = vi.fn(async (status: "active" | "deleted") => (
-      status === "deleted" ? [deletedTrip] : []
-    ));
+    const list = vi.fn(async (query: Parameters<TripListGateway["list"]>[0]) => ({
+      items: query.status === "deleted" ? [deletedTrip] : [],
+      nextCursor: null,
+    }));
     const gateway: TripListGateway = {
       list,
       restore: vi.fn().mockResolvedValue({ ...deletedTrip, status: "active", version: 4 }),
@@ -43,6 +105,6 @@ describe("E2E-008 Trip list and recycle bin", () => {
 
     expect(gateway.restore).toHaveBeenCalledWith("trip-8", 3);
     expect((await screen.findByRole("status")).textContent).toContain("was restored");
-    expect(list).toHaveBeenCalledWith("active");
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ status: "active", sort: "lastActivityAt", order: "desc" }));
   });
 });

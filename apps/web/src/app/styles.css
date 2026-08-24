@@ -280,6 +280,11 @@ select {
 .tripListPage h1 { font-size: clamp(2.4rem, 6vw, 4.8rem); }
 .tripListPage [role="tab"] { border: 1px solid rgb(22 51 45 / 20%); border-radius: 999px; padding: .65rem 1rem; background: white; }
 .tripListPage [role="tab"][aria-selected="true"] { color: white; background: #1d6151; }
+.tripListControls { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin: 1rem 0; }
+.tripListControls label { display: grid; gap: .3rem; min-width: 10rem; color: #52645e; font-size: .84rem; }
+.tripListControls input, .tripListControls select { min-height: 2.5rem; border: 1px solid #c4cfdd; border-radius: .5rem; padding: .45rem .65rem; background: #fff; font: inherit; }
+.tripListPageLabel { color: #667085; font-size: .88rem; }
+.tripListPagination { display: flex; justify-content: space-between; gap: .75rem; margin-top: 1rem; }
 .tripList { display: grid; gap: 1rem; padding: 0; list-style: none; }
 .tripList li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; padding: 1rem; background: rgb(255 255 255 / 84%); }
 .tripList h2 { margin: 0; }
