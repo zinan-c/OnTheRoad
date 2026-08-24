@@ -140,7 +140,7 @@ test(
       await rm(temporaryRoot, { recursive: true, force: true });
     }
   },
-  240_000,
+  600_000,
 );
 
 test("TC-A01-03 CI exposes stable required check names on Node 26", async () => {

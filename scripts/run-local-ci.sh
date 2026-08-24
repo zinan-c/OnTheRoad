@@ -85,6 +85,13 @@ set +a
 
 : "${DATABASE_URL:?infra/local-stack.env must define DATABASE_URL}"
 : "${REDIS_URL:?infra/local-stack.env must define REDIS_URL}"
+export OTR_E2E_MODE="1"
+export OTR_E2E_WRITE_TOKEN="${OTR_E2E_WRITE_TOKEN:-e2e-local-write-token-change-per-run-123456}"
+export OTR_E2E_USERNAME="${OTR_E2E_USERNAME:-e2e_playwright}"
+export OTR_E2E_PASSWORD="${OTR_E2E_PASSWORD:-E2e_Playwright_1234!}"
+export OTR_BOOTSTRAP_ADMIN_USERNAME="${OTR_E2E_USERNAME}"
+export OTR_BOOTSTRAP_ADMIN_PASSWORD="${OTR_E2E_PASSWORD}"
+export OTR_BOOTSTRAP_ADMIN_FORCE_PASSWORD_CHANGE="false"
 
 echo "Applying and verifying the unified database schema..."
 pnpm run db:migrate

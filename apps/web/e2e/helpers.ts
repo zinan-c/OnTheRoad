@@ -1,5 +1,17 @@
 import { expect, type Page } from "@playwright/test";
 
+const E2E_USERNAME = process.env.OTR_E2E_USERNAME ?? "e2e_playwright";
+const E2E_PASSWORD = process.env.OTR_E2E_PASSWORD ?? "E2e_Playwright_1234!";
+
+export async function signIn(page: Page, returnTo: string): Promise<void> {
+  await page.goto(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  const form = page.getByRole("form", { name: "登录" });
+  await form.getByLabel("用户名").fill(E2E_USERNAME);
+  await form.getByLabel("密码").fill(E2E_PASSWORD);
+  await form.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(new RegExp(`${returnTo.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
+}
+
 async function createTrip(page: Page, name: string, endDate?: string) {
   await page.goto("/");
   await page.getByTestId("create-trip-link").click();

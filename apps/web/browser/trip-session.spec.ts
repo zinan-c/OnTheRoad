@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signIn } from "../e2e/helpers";
 
 test("TC-B04-03 creates a Trip and Item through the UI and restores its session", async ({
   page,
@@ -13,6 +14,7 @@ test("TC-B04-03 creates a Trip and Item through the UI and restores its session"
   await page.getByTestId("create-trip-submit").click();
 
   await expect(page).toHaveURL(/\/trips\/[0-9a-f-]+$/u);
+  const tripPath = new URL(page.url()).pathname;
   await expect(page.getByTestId("trip-title")).toHaveText("Playwright 东海之旅");
   await page.getByRole("button", { name: /^Day 1,/u }).click();
   await page.getByTestId("add-itinerary-item").click();
@@ -37,6 +39,7 @@ test("TC-B04-03 creates a Trip and Item through the UI and restores its session"
   await page.reload();
   await expect(page.getByTestId("session-ended")).toBeVisible();
   await page.getByTestId("sign-in-again").click();
+  await signIn(page, tripPath);
   await expect(page.getByTestId("trip-title")).toHaveText("Playwright 东海之旅");
 });
 

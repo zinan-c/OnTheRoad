@@ -17,6 +17,14 @@ jobs:
     name: "Product E2E / required 22"
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      OTR_E2E_MODE: "1"
+      OTR_E2E_WRITE_TOKEN: e2e-ci-write-token-change-per-run-123456
+      OTR_E2E_USERNAME: e2e_playwright
+      OTR_E2E_PASSWORD: E2e_Playwright_1234!
+      OTR_BOOTSTRAP_ADMIN_USERNAME: e2e_playwright
+      OTR_BOOTSTRAP_ADMIN_PASSWORD: E2e_Playwright_1234!
+      OTR_BOOTSTRAP_ADMIN_FORCE_PASSWORD_CHANGE: "false"
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4.4.0
