@@ -70,7 +70,7 @@ describe("E2E-008 Trip list and recycle bin", () => {
       if (query.search === "second") return second.promise;
       return Promise.resolve({ items: [activeTrip], nextCursor: null });
     });
-    const gateway: TripListGateway = { list, restore: vi.fn() };
+    const gateway: TripListGateway = { list, restore: vi.fn(), transition: vi.fn() };
     render(<TripList gateway={gateway} />);
     const user = userEvent.setup();
     expect(await screen.findByText("Active result")).toBeTruthy();
@@ -119,6 +119,22 @@ describe("E2E-008 Trip list and recycle bin", () => {
     });
   });
 
+  test("exposes draft and archived tabs with safe activation controls", async () => {
+    const draftTrip = { ...deletedTrip, id: "draft-1", name: "Draft trip", status: "draft" as const };
+    const list = vi.fn(async (query: Parameters<TripListGateway["list"]>[0]) => ({
+      items: query.status === "draft" ? [draftTrip] : [],
+      nextCursor: null,
+    }));
+    const transition = vi.fn().mockResolvedValue({ ...draftTrip, status: "active" as const });
+    const gateway: TripListGateway = { list, restore: vi.fn(), transition };
+    render(<TripList gateway={gateway} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Drafts" }));
+    expect(await screen.findByText("Draft trip")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Activate" }));
+    expect(transition).toHaveBeenCalledWith("draft-1", 3, "active");
+  });
+
   test("keeps deleted trips out of the default list and restores the same id", async () => {
     const list = vi.fn(async (query: Parameters<TripListGateway["list"]>[0]) => ({
       items: query.status === "deleted" ? [deletedTrip] : [],
@@ -127,6 +143,7 @@ describe("E2E-008 Trip list and recycle bin", () => {
     const gateway: TripListGateway = {
       list,
       restore: vi.fn().mockResolvedValue({ ...deletedTrip, status: "active", version: 4 }),
+      transition: vi.fn(),
     };
     render(<TripList gateway={gateway} />);
     const user = userEvent.setup();

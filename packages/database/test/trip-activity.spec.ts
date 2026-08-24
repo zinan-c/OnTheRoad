@@ -11,5 +11,6 @@ describe("trip activity tracking migration", () => {
     expect(migration?.sql).toContain("CREATE OR REPLACE FUNCTION touch_trip_last_activity()");
     expect(migration?.sql).toContain("AFTER INSERT OR UPDATE OR DELETE");
     expect(migration?.sql).toContain("import_media_task");
+    expect(migration?.sql).not.toContain("status_before_delete");
   });
 });

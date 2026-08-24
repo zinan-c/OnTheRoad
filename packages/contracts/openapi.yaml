@@ -374,6 +374,50 @@
         }
       }
     },
+    "/trips/{tripId}/status": {
+      "patch": {
+        "operationId": "transitionTripStatus",
+        "summary": "Move a trip between draft, active, and archived lifecycle states",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TripId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripStatusChangeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trip lifecycle state changed",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/trips/{tripId}/days/{tripDayId}/itinerary-items": {
       "parameters": [
         {
@@ -2465,6 +2509,17 @@
           "archived",
           "deleted"
         ]
+      },
+      "TripStatusChangeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["draft", "active", "archived"]
+          }
+        }
       },
       "DestinationInput": {
         "type": "object",

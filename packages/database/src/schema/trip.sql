@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS trip (
   description text CHECK (description IS NULL OR char_length(description) <= 5000),
   status text NOT NULL DEFAULT 'active'
     CHECK (status IN ('draft', 'active', 'archived', 'deleted')),
+  status_before_delete text
+    CHECK (status_before_delete IS NULL OR status_before_delete IN ('draft', 'active', 'archived')),
   version integer NOT NULL DEFAULT 1 CHECK (version > 0),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -21,8 +23,8 @@ CREATE TABLE IF NOT EXISTS trip (
   deleted_at timestamptz,
   CHECK (end_date >= start_date),
   CHECK (
-    (status = 'deleted' AND deleted_at IS NOT NULL)
-    OR (status <> 'deleted' AND deleted_at IS NULL)
+    (status = 'deleted' AND deleted_at IS NOT NULL AND status_before_delete IS NOT NULL)
+    OR (status <> 'deleted' AND deleted_at IS NULL AND status_before_delete IS NULL)
   )
 );
 
@@ -279,8 +281,9 @@ DECLARE
   current_trip trip%ROWTYPE;
   next_version integer;
   action_name text;
+  resolved_target_status text;
 BEGIN
-  IF p_target_status NOT IN ('active', 'deleted') THEN
+  IF p_target_status NOT IN ('draft', 'active', 'archived', 'deleted', 'restore') THEN
     RAISE EXCEPTION 'INVALID_TRIP_TRANSITION' USING ERRCODE = 'P0001';
   END IF;
   SELECT * INTO current_trip
@@ -293,19 +296,28 @@ BEGIN
   IF current_trip.version <> p_expected_version THEN
     RAISE EXCEPTION 'VERSION_CONFLICT' USING ERRCODE = 'P0001';
   END IF;
-  IF current_trip.status = p_target_status THEN
-    RETURN trip_as_json(p_trip_id);
+  IF p_target_status = 'restore' THEN
+    IF current_trip.status <> 'deleted' THEN
+      RAISE EXCEPTION 'INVALID_TRIP_TRANSITION' USING ERRCODE = 'P0001';
+    END IF;
+    resolved_target_status := COALESCE(current_trip.status_before_delete, 'active');
+  ELSE
+    resolved_target_status := p_target_status;
   END IF;
-  IF p_target_status = 'active' AND current_trip.status <> 'deleted' THEN
-    RAISE EXCEPTION 'INVALID_TRIP_TRANSITION' USING ERRCODE = 'P0001';
+  IF current_trip.status = resolved_target_status THEN
+    RETURN trip_as_json(p_trip_id);
   END IF;
 
   next_version := current_trip.version + 1;
-  action_name := CASE WHEN p_target_status = 'deleted' THEN 'trip.deleted' ELSE 'trip.restored' END;
+  action_name := CASE WHEN resolved_target_status = 'deleted' THEN 'trip.deleted' ELSE 'trip.restored' END;
   UPDATE trip
   SET
-    status = p_target_status,
-    deleted_at = CASE WHEN p_target_status = 'deleted' THEN clock_timestamp() ELSE NULL END,
+    status = resolved_target_status,
+    status_before_delete = CASE
+      WHEN resolved_target_status = 'deleted' THEN current_trip.status
+      ELSE NULL
+    END,
+    deleted_at = CASE WHEN resolved_target_status = 'deleted' THEN clock_timestamp() ELSE NULL END,
     version = next_version,
     updated_at = clock_timestamp(),
     last_activity_at = clock_timestamp()
@@ -313,7 +325,10 @@ BEGIN
   INSERT INTO trip_audit (trip_id, owner_id, action, version, changes)
   VALUES (
     p_trip_id, p_owner_id, action_name, next_version,
-    jsonb_build_object('status', p_target_status)
+    jsonb_build_object(
+      'status', resolved_target_status,
+      'previousStatus', current_trip.status
+    )
   );
   RETURN trip_as_json(p_trip_id);
 END;

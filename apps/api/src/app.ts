@@ -431,6 +431,24 @@ class ApiController {
     return trip;
   }
 
+  @Patch("trips/:tripId/status")
+  async transitionTripStatus(
+    @Req() request: FastifyRequest,
+    @Param("tripId") tripId: string,
+    @Headers("if-match") ifMatch: string | undefined,
+    @Body() body: { status?: string },
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const trip = await this.runtime.trips.transitionTrip(
+      await owner(this.runtime, request),
+      tripId,
+      body.status ?? "",
+      { expectedVersion: version(ifMatch) },
+    );
+    reply.header("etag", String(trip.version));
+    return trip;
+  }
+
   @Patch("trips/:tripId/dates")
   async changeTripDates(
     @Req() request: FastifyRequest,

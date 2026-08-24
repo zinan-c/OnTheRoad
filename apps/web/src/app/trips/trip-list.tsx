@@ -6,7 +6,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 
 import type { TripSettingsRecord } from "../../features/trips/trip-settings";
 
-export type TripListStatus = "active" | "deleted";
+export type TripListStatus = "draft" | "active" | "archived" | "deleted";
 export type TripListSort = "lastActivityAt" | "createdAt" | "updatedAt" | "startDate" | "name";
 export type TripListOrder = "asc" | "desc";
 
@@ -26,6 +26,7 @@ export interface TripPage {
 export interface TripListGateway {
   list(query: TripListQuery): Promise<TripPage>;
   restore(tripId: string, version: number): Promise<TripSettingsRecord>;
+  transition(tripId: string, version: number, status: Exclude<TripListStatus, "deleted">): Promise<TripSettingsRecord>;
 }
 
 const DEFAULT_QUERY: TripListQuery = {
@@ -62,11 +63,20 @@ export function browserTripListGateway(): TripListGateway {
       });
       return response.data as TripSettingsRecord;
     },
+    async transition(tripId, version, status) {
+      const response = await client.request("transitionTripStatus", {
+        path: { tripId },
+        headers: { "If-Match": String(version) },
+        body: { status },
+      });
+      return response.data as TripSettingsRecord;
+    },
   };
 }
 
 function asStatus(value: string | null): TripListStatus {
-  return value === "deleted" ? "deleted" : "active";
+  if (value === "draft" || value === "archived" || value === "deleted") return value;
+  return "active";
 }
 
 function asSort(value: string | null): TripListSort {
@@ -209,15 +219,41 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     }
   }
 
+  async function transition(trip: TripSettingsRecord, status: Exclude<TripListStatus, "deleted">) {
+    const requestId = ++requestSequence.current;
+    setPending(true);
+    setError(undefined);
+    try {
+      const updated = await activeGateway.transition(trip.id, trip.version, status);
+      if (requestId !== requestSequence.current) return;
+      setMessage(`“${updated.name}” is now ${status}.`);
+      setPage({ items: [], nextCursor: null });
+      setLoadedQueryKey(undefined);
+      setPreviousCursors([]);
+      replaceQuery({ ...resetCursor(query), status });
+    } catch {
+      if (requestId !== requestSequence.current) return;
+      setError("Trip status update failed. Reload and try again.");
+      setPending(false);
+    }
+  }
+
   const visiblePage = loadedQueryKey === queryKey ? page : { items: [], nextCursor: null };
   const pageLabel = query.cursor ? "More trips" : "Recent trips";
+  const tabs: readonly { status: TripListStatus; label: string }[] = [
+    { status: "active", label: "Active trips" },
+    { status: "draft", label: "Drafts" },
+    { status: "archived", label: "Archived" },
+    { status: "deleted", label: "Trash" },
+  ];
   return (
     <section className="tripListPage">
       <p className="eyebrow">Your journeys</p>
       <h1>Trips</h1>
       <div className="actions" role="tablist" aria-label="Trip list view">
-        <button role="tab" aria-selected={query.status === "active"} onClick={() => chooseView("active")}>Active trips</button>
-        <button role="tab" aria-selected={query.status === "deleted"} onClick={() => chooseView("deleted")}>Trash</button>
+        {tabs.map((tab) => (
+          <button key={tab.status} role="tab" aria-selected={query.status === tab.status} onClick={() => chooseView(tab.status)}>{tab.label}</button>
+        ))}
       </div>
       <form className="tripListControls" onSubmit={submitSearch} role="search">
         <label>
@@ -253,15 +289,22 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       {pending ? <p className="status">Loading…</p> : null}
       {!pending && visiblePage.items.length === 0 ? <p className="emptyState">No trips here yet.</p> : null}
       <p className="tripListPageLabel">{pageLabel}</p>
-      <ul className="tripList" aria-label={query.status === "active" ? "Active trips" : "Deleted trips"}>
+      <ul className="tripList" aria-label={tabs.find((tab) => tab.status === query.status)?.label ?? "Trips"}>
         {visiblePage.items.map((trip) => (
           <li key={trip.id} id={`trip-card-${trip.id}`}>
             <div>
               <h2>{trip.name}</h2>
               <p>{trip.startDate} — {trip.endDate} · {trip.totalDays} days</p>
             </div>
-            {query.status === "active" ? (
-              <a className="primary" href={`/trips/${trip.id}`}>Open trip</a>
+            {query.status !== "deleted" ? (
+              <div className="tripListActions">
+                <a className="primary" href={`/trips/${trip.id}`}>Open trip</a>
+                {query.status === "active" ? (
+                  <button className="secondary" disabled={pending} onClick={() => transition(trip, "archived")}>Archive</button>
+                ) : (
+                  <button className="secondary" disabled={pending} onClick={() => transition(trip, "active")}>Activate</button>
+                )}
+              </div>
             ) : (
               <button className="primary" disabled={pending} onClick={() => restore(trip)}>Restore trip</button>
             )}

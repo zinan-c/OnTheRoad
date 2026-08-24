@@ -12,10 +12,32 @@ ALTER TABLE trip
 DROP INDEX IF EXISTS trip_owner_status_updated_idx;
 DROP INDEX IF EXISTS trip_owner_currency_idx;
 
--- Re-apply the trip JSON and mutation functions after adding the column. This
--- keeps older databases compatible while ensuring newly deployed instances use
--- the same source-of-truth functions.
-\ir ../schema/trip.sql
+CREATE INDEX IF NOT EXISTS trip_owner_status_activity_idx
+  ON trip (owner_id, status, last_activity_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS trip_owner_currency_idx
+  ON trip (owner_id, default_currency, last_activity_at DESC, id DESC);
+
+-- Keep this migration independent from future trip schema changes. The full
+-- lifecycle function set is re-applied by migration 0028 after its column is
+-- present; this version only needs the activity-aware JSON projection.
+\ir ../schema/trip-activity-json.sql
+
+CREATE OR REPLACE FUNCTION set_trip_last_activity_before_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.last_activity_at IS NOT DISTINCT FROM OLD.last_activity_at THEN
+    NEW.last_activity_at := clock_timestamp();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trip_set_last_activity_before_update ON trip;
+CREATE TRIGGER trip_set_last_activity_before_update
+BEFORE UPDATE ON trip
+FOR EACH ROW EXECUTE FUNCTION set_trip_last_activity_before_update();
 
 CREATE OR REPLACE FUNCTION touch_trip_last_activity()
 RETURNS trigger

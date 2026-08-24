@@ -288,6 +288,7 @@ select {
 .tripList { display: grid; gap: 1rem; padding: 0; list-style: none; }
 .tripList li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid rgb(22 51 45 / 10%); border-radius: 1rem; padding: 1rem; background: rgb(255 255 255 / 84%); }
 .tripList h2 { margin: 0; }
+.tripListActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
 .expenseWorkspace { display: grid; gap: 1rem; }
 .expenseForm, .exchangeRateForm { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; }
 .expenseForm input, .expenseForm select, .exchangeRateForm input, .exchangeRateForm select { flex: 1 1 10rem; }

@@ -106,7 +106,20 @@ export class TripService {
       assertOwnerId(ownerId),
       tripId,
       assertVersion(expectedVersion),
-      "active",
+      "restore",
+    );
+  }
+
+  /** @param {unknown} ownerId @param {string} tripId @param {string} targetStatus @param {{expectedVersion: unknown}} options */
+  transitionTrip(ownerId, tripId, targetStatus, { expectedVersion }) {
+    if (!["draft", "active", "archived"].includes(targetStatus)) {
+      throw new TripListQueryError("unsupported trip lifecycle status");
+    }
+    return this.repository.transition(
+      assertOwnerId(ownerId),
+      tripId,
+      assertVersion(expectedVersion),
+      targetStatus,
     );
   }
 }
