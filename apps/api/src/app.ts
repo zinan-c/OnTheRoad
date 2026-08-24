@@ -189,6 +189,25 @@ class ApiController {
     return { principal: result.principal };
   }
 
+  @Post("identity/password-session")
+  @HttpCode(HttpStatus.OK)
+  async passwordSession(
+    @Body() body: { username?: string; password?: string },
+    @Headers("origin") origin: string | undefined,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const result = await this.runtime.identity.loginWithPassword({
+      username: body.username ?? "",
+      password: body.password ?? "",
+      origin: origin ?? "",
+    });
+    reply.header("set-cookie", result.setCookie);
+    return {
+      principal: result.principal,
+      mustChangePassword: (result as typeof result & { mustChangePassword?: boolean }).mustChangePassword === true,
+    };
+  }
+
   @Get("identity/oidc/authorize")
   async beginOidcAuthorization(
     @Res() reply: FastifyReply,
@@ -245,9 +264,34 @@ class ApiController {
 
   @Get("identity/session")
   async session(@Req() request: FastifyRequest) {
-    return { principal: await this.runtime.identity.authenticate(
+    const session = await this.runtime.identity.currentSession(
       cookie(request, this.runtime.identity.sessionCookieName) ?? "",
-    ) };
+    );
+    return {
+      principal: session.principal,
+      ...(session.username ? {
+        account: {
+          username: session.username,
+          role: session.role,
+          mustChangePassword: session.mustChangePassword === true,
+        },
+      } : {}),
+    };
+  }
+
+  @Put("identity/password")
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Req() request: FastifyRequest,
+    @Body() body: { password?: string },
+    @Headers("origin") origin: string | undefined,
+  ) {
+    const result = await this.runtime.identity.changePassword({
+      token: cookie(request, this.runtime.identity.sessionCookieName) ?? "",
+      password: body.password ?? "",
+      origin: origin ?? "",
+    });
+    return { principal: result.principal, mustChangePassword: false };
   }
 
   @Delete("identity/session")
@@ -258,7 +302,7 @@ class ApiController {
   ) {
     const result = await this.runtime.identity.logout({
       token: cookie(request, this.runtime.identity.sessionCookieName) ?? "",
-      origin: origin ?? this.runtime.appOrigin,
+      origin: origin ?? "",
     });
     reply.header("set-cookie", result.setCookie).status(HttpStatus.NO_CONTENT);
   }

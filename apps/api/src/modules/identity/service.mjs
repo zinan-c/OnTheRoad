@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { hashPassword, verifyPassword } from "@on-the-road/database/password";
 import { pkceChallenge, randomValue, signPayload, verifyPayload } from "./crypto.mjs";
 import {
   IdentityConfigurationError,
@@ -13,6 +14,8 @@ const TRANSACTION_COOKIE = "__Host-otr_oidc";
 const DEVELOPMENT_SESSION_COOKIE = "otr_dev_session";
 const DEVELOPMENT_TRANSACTION_COOKIE = "otr_dev_oidc";
 const SUBJECT_PATTERN = /^[A-Za-z0-9._:@/-]{1,255}$/u;
+const USERNAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$/u;
+const DUMMY_PASSWORD_HASH = "scrypt$32768$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 /**
  * @typedef {{id: string, issuer: string, subject: string}} Principal
@@ -77,10 +80,18 @@ export class IdentityService {
    *  transactionTtlMs?: number,
    *  clock?: () => number,
    *  audit?: (event: Record<string, unknown>) => void,
+   *  localIssuer?: string,
+   *  accountStore?: {
+   *    findByUsername: Function,
+   *    recordLoginFailure: Function,
+   *    recordLoginSuccess: Function,
+   *    changePassword: Function
+   *  },
    *  store?: {
    *    putSession: Function,
    *    getSession: Function,
    *    deleteSession: Function,
+   *    deleteSessionsForPrincipal?: Function,
    *    putTransaction: Function,
    *    consumeTransaction: Function
    *  }
@@ -93,6 +104,8 @@ export class IdentityService {
     signingKeys,
     sessionTtlMs = 8 * 60 * 60 * 1000,
     transactionTtlMs = 5 * 60 * 1000,
+    localIssuer = "https://identity.on-the-road.local",
+    accountStore,
     clock = Date.now,
     audit = () => {},
     store = new MemoryIdentityStore(),
@@ -119,6 +132,11 @@ export class IdentityService {
     this.developmentIdentityEnabled = developmentIdentityEnabled;
     const parsedAppOrigin = new URL(appOrigin);
     this.appOrigin = parsedAppOrigin.origin;
+    const parsedLocalIssuer = new URL(localIssuer);
+    if (parsedLocalIssuer.protocol !== "https:" || parsedLocalIssuer.search || parsedLocalIssuer.hash) {
+      throw new IdentityConfigurationError("LOCAL_ISSUER_INVALID", "Local identity issuer must be an HTTPS URL");
+    }
+    this.localIssuer = parsedLocalIssuer.href;
     this.secureCookies = parsedAppOrigin.protocol === "https:";
     if (!this.secureCookies && environment !== "development") {
       throw new IdentityConfigurationError(
@@ -138,6 +156,7 @@ export class IdentityService {
     this.#clock = clock;
     this.#audit = audit;
     this.store = store;
+    this.accountStore = accountStore;
   }
 
   /** @param {() => number} clock */
@@ -174,6 +193,44 @@ export class IdentityService {
       );
     }
     return this.#createSession(createPrincipal({ issuer: DEV_ISSUER, subject }), "development");
+  }
+
+  /** @param {{username: string, password: string, origin: string}} input */
+  async loginWithPassword({ username, password, origin }) {
+    assertOrigin(origin, this.appOrigin);
+    const normalizedUsername = normalizeUsername(username);
+    const account = this.accountStore
+      ? await this.accountStore.findByUsername(normalizedUsername)
+      : null;
+    const accountStore = this.accountStore;
+    const now = this.#clock();
+    const locked = account?.lockedUntil && Date.parse(account.lockedUntil) > now;
+    const passwordMatches = await verifyPassword(
+      typeof password === "string" ? password : "",
+      account?.passwordHash ?? DUMMY_PASSWORD_HASH,
+    );
+    if (
+      !account
+      || account.status !== "active"
+      || locked
+      || !passwordMatches
+    ) {
+      if (account && !locked && this.accountStore) await this.accountStore.recordLoginFailure(account.id);
+      throw new SessionError("PASSWORD_AUTH_INVALID", "Username or password is invalid");
+    }
+    if (!accountStore) throw new IdentityConfigurationError("PASSWORD_PROVIDER_UNAVAILABLE", "Password login is unavailable");
+    await accountStore.recordLoginSuccess(account.id);
+    const principal = Object.freeze({
+      id: account.principalId,
+      issuer: this.localIssuer,
+      subject: account.id,
+    });
+    return this.#createSession(principal, "password", {
+      accountId: account.id,
+      username: account.username,
+      role: account.role,
+      mustChangePassword: account.mustChangePassword,
+    });
   }
 
   /** @param {{provider: OidcProvider}} input */
@@ -249,6 +306,45 @@ export class IdentityService {
 
   /** @param {string} token */
   async authenticate(token) {
+    return (await this.#readSession(token)).principal;
+  }
+
+  /** @param {string} token */
+  async currentSession(token) {
+    return this.#readSession(token);
+  }
+
+  /** @param {{token: string, origin: string, accountId?: string, password: string}} input */
+  async changePassword({ token, origin, accountId, password }) {
+    assertOrigin(origin, this.appOrigin);
+    const session = await this.#readSession(token);
+    const targetAccountId = accountId ?? session.accountId;
+    if (!targetAccountId || !this.accountStore || targetAccountId !== session.accountId) {
+      throw new SessionError("PASSWORD_CHANGE_UNAVAILABLE", "Password change is unavailable");
+    }
+    const normalizedPassword = typeof password === "string" ? password : "";
+    if (normalizedPassword.length < 12) {
+      throw new SessionError("PASSWORD_TOO_WEAK", "Password must contain at least 12 characters");
+    }
+    await this.accountStore.changePassword(targetAccountId, await hashPassword(normalizedPassword));
+    const { sessionId, ...storedSession } = session;
+    await this.store.putSession(
+      sessionId,
+      { ...storedSession, mustChangePassword: false },
+      Math.max(1, session.expiresAt - this.#clock()),
+    );
+    if (this.store.deleteSessionsForPrincipal) {
+      await this.store.deleteSessionsForPrincipal(session.principal.id, sessionId);
+    }
+    this.#audit({
+      action: "identity.password.changed",
+      principalId: session.principal.id,
+    });
+    return { ...session, mustChangePassword: false };
+  }
+
+  /** @param {string} token */
+  async #readSession(token) {
     const rawPayload = verifyPayload(
       token,
       [this.signingKeys.active, this.signingKeys.previous]
@@ -269,7 +365,7 @@ export class IdentityService {
     if (!session || session.expiresAt !== payload.expiresAt) {
       throw new SessionError("SESSION_INVALID");
     }
-    return session.principal;
+    return { ...session, sessionId: payload.sessionId };
   }
 
   /** @param {{token: string, origin: string}} input */
@@ -301,13 +397,13 @@ export class IdentityService {
     };
   }
 
-  /** @param {Principal} principal @param {"development" | "oidc"} method */
-  async #createSession(principal, method) {
+  /** @param {Principal} principal @param {"development" | "oidc" | "password"} method @param {Record<string, unknown>} [details] @returns {Promise<{principal: Principal, token: string, setCookie: string, mustChangePassword?: boolean}>} */
+  async #createSession(principal, method, details = {}) {
     const sessionId = randomValue();
     const expiresAt = this.#clock() + this.sessionTtlMs;
     await this.store.putSession(
       sessionId,
-      { principal, expiresAt },
+      { principal, expiresAt, method, ...details },
       this.sessionTtlMs,
     );
     const token = signPayload({ sessionId, expiresAt }, this.signingKeys.active);
@@ -327,6 +423,18 @@ export class IdentityService {
         Math.ceil(this.sessionTtlMs / 1000),
         this.secureCookies,
       ),
+      ...(typeof details.mustChangePassword === "boolean"
+        ? { mustChangePassword: details.mustChangePassword }
+        : {}),
     };
   }
+}
+
+/** @param {unknown} value */
+function normalizeUsername(value) {
+  const username = typeof value === "string" ? value.trim() : "";
+  if (!USERNAME_PATTERN.test(username)) {
+    throw new SessionError("PASSWORD_AUTH_INVALID", "Username or password is invalid");
+  }
+  return username.toLowerCase();
 }

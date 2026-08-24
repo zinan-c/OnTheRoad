@@ -17,6 +17,15 @@ export class MemoryIdentityStore {
     this.#sessions.delete(id);
   }
 
+  /** @param {string} principalId @param {string} [exceptSessionId] */
+  async deleteSessionsForPrincipal(principalId, exceptSessionId) {
+    for (const [id, value] of this.#sessions) {
+      if (id !== exceptSessionId && value?.principal?.id === principalId) {
+        this.#sessions.delete(id);
+      }
+    }
+  }
+
   /** @param {string} id @param {Record<string, unknown>} value */
   async putTransaction(id, value) {
     this.#transactions.set(id, value);
@@ -32,7 +41,7 @@ export class MemoryIdentityStore {
 
 export class RedisIdentityStore {
   /**
-   * @param {{set: Function, get: Function, del: Function, getdel: Function, status?: string, connect?: Function}} redis
+   * @param {{set: Function, get: Function, del: Function, getdel: Function, sadd?: Function, smembers?: Function, srem?: Function, expire?: Function, status?: string, connect?: Function}} redis
    * @param {{namespace?: string}} [options]
    */
   constructor(redis, { namespace = "otr:identity" } = {}) {
@@ -46,6 +55,11 @@ export class RedisIdentityStore {
   async putSession(id, value, ttlMs) {
     await this.#ready();
     await this.redis.set(this.#key("session", id), JSON.stringify(value), "PX", ttlMs);
+    const principalId = sessionPrincipalId(value);
+    if (principalId && this.redis.sadd) {
+      await this.redis.sadd(this.#key("principal-sessions", principalId), id);
+      if (this.redis.expire) await this.redis.expire(this.#key("principal-sessions", principalId), Math.ceil(ttlMs / 1000));
+    }
   }
 
   /** @param {string} id */
@@ -57,7 +71,25 @@ export class RedisIdentityStore {
   /** @param {string} id */
   async deleteSession(id) {
     await this.#ready();
+    const session = parseStored(await this.redis.get(this.#key("session", id)));
     await this.redis.del(this.#key("session", id));
+    const principalId = sessionPrincipalId(session);
+    if (principalId && this.redis.srem) {
+      await this.redis.srem(this.#key("principal-sessions", principalId), id);
+    }
+  }
+
+  /** @param {string} principalId @param {string} [exceptSessionId] */
+  async deleteSessionsForPrincipal(principalId, exceptSessionId) {
+    await this.#ready();
+    if (!this.redis.smembers || !this.redis.srem) return;
+    const indexKey = this.#key("principal-sessions", principalId);
+    const ids = await this.redis.smembers(indexKey);
+    for (const id of ids ?? []) {
+      if (id === exceptSessionId) continue;
+      await this.redis.del(this.#key("session", id));
+      await this.redis.srem(indexKey, id);
+    }
   }
 
   /** @param {string} id @param {Record<string, unknown>} value @param {number} ttlMs */
@@ -96,4 +128,12 @@ function parseStored(value) {
   } catch {
     return null;
   }
+}
+
+/** @param {Record<string, unknown> | null} value */
+function sessionPrincipalId(value) {
+  const principal = value?.principal;
+  return principal && typeof principal === "object" && "id" in principal && typeof principal.id === "string"
+    ? principal.id
+    : null;
 }

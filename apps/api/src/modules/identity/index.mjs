@@ -7,4 +7,5 @@ export { MockOidcProvider } from "./mock-oidc.mjs";
 export { inspectStagingIdentityReadiness } from "./release-readiness.mjs";
 export { createIdentityService } from "./runtime.mjs";
 export { IdentityService } from "./service.mjs";
+export { PostgresLocalAccountStore } from "./accounts.mjs";
 export { MemoryIdentityStore, RedisIdentityStore } from "./store.mjs";

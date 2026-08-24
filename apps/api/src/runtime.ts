@@ -14,7 +14,11 @@ import { RedisGeocodingStateStore } from "@on-the-road/providers/geocoding";
 
 import { AttachmentGalleryService, AttachmentUploadService, PostgresAttachmentRepository } from "./modules/attachments/index.mjs";
 import { ExpenseService, PostgresExpenseRepository } from "./modules/expenses/index.mjs";
-import { IdentityService, RedisIdentityStore } from "./modules/identity/index.mjs";
+import {
+  IdentityService,
+  PostgresLocalAccountStore,
+  RedisIdentityStore,
+} from "./modules/identity/index.mjs";
 import { ItineraryCipher } from "./modules/itinerary/encryption.mjs";
 import { PostgresItineraryRepository } from "./modules/itinerary/postgres-repository.mjs";
 import {
@@ -190,6 +194,9 @@ export function createProductionRuntime(
           || server.sessionSecret,
       },
     },
+    localIssuer: environment.OTR_LOCAL_IDENTITY_ISSUER?.trim()
+      || "https://identity.on-the-road.local",
+    accountStore: new PostgresLocalAccountStore({ executor: database }),
     store: new RedisIdentityStore(redis),
   });
   const trips = new TripService(new PostgresTripRepository({ executor: database }));
