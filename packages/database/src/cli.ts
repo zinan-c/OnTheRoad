@@ -35,7 +35,7 @@ try {
           "Apply all compatible migrations before seeding reference data.",
         );
       }
-      output(await seedSystemReferenceData(pool));
+      output(await seedSystemReferenceData(pool, process.env));
       break;
     }
     default:

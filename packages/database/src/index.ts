@@ -12,3 +12,4 @@ export {
   normalizePostgresRuntimeError,
   postgresErrorIdentity,
 } from "./postgres/index.js";
+export { hashPassword, verifyPassword } from "./password.js";

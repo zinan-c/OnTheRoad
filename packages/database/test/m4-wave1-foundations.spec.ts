@@ -7,7 +7,7 @@ describe("M4 Wave1 database foundation", () => {
     const migrations = await discoverMigrations();
     const migration = migrations.find(({ version }) => version === 25);
     expect(migration).toBeDefined();
-    expect(minimumCompatibleSchemaVersion).toBe(25);
+    expect(minimumCompatibleSchemaVersion).toBe(26);
     expect(migration?.sql).toContain("CREATE TABLE IF NOT EXISTS import_media_task");
     expect(migration?.sql).toContain("import_commit_ledger_replay_uq");
     expect(migration?.sql).toContain("source_url_ciphertext");

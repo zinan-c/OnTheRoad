@@ -15,6 +15,10 @@
       "types": "./src/postgres/index.ts",
       "default": "./dist/postgres/index.js"
     },
+    "./password": {
+      "types": "./dist/password.d.ts",
+      "default": "./dist/password.js"
+    },
     "./jobs": {
       "types": "./src/schema/jobs.ts",
       "default": "./dist/schema/jobs.js"
