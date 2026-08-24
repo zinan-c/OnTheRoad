@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export const API_ORIGIN = process.env.OTR_PLAYWRIGHT_API_ORIGIN ?? "http://127.0.0.1:3101";
+export const E2E_USERNAME = process.env.OTR_E2E_USERNAME ?? "e2e_playwright";
+export const E2E_PASSWORD = process.env.OTR_E2E_PASSWORD ?? "E2e_Playwright_1234!";
 
 export type TripInput = {
   name: string;
@@ -13,6 +15,18 @@ export type TripInput = {
 
 export function caseName(caseId: string, label: string): string {
   return `${caseId} ${label} ${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+export async function signIn(page: Page, returnTo: string): Promise<void> {
+  await page.goto(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  await page.getByRole("form", { name: "登录" }).getByLabel("用户名").fill(E2E_USERNAME);
+  await page.getByRole("form", { name: "登录" }).getByLabel("密码").fill(E2E_PASSWORD);
+  await page.getByRole("form", { name: "登录" }).getByRole("button", { name: "登录" }).click();
+  const expectedUrl = new URL(returnTo, page.url());
+  await expect.poll(() => {
+    const actualUrl = new URL(page.url());
+    return actualUrl.pathname + actualUrl.search;
+  }).toBe(expectedUrl.pathname + expectedUrl.search);
 }
 
 export async function createTrip(page: Page, input: TripInput): Promise<string> {

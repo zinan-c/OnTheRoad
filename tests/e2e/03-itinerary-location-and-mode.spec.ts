@@ -200,10 +200,13 @@ test("E2E-012 — Same-day reorder across mouse, keyboard and touch", async ({ p
   }
   await expect.poll(() => timelineLabels(page, 1)).toEqual(["B", "D", "A", "C"]);
 
-  const mobileContext = await browser.newContext({ ...devices["Pixel 7"] });
+  const mobileContext = await browser.newContext({
+    ...devices["Pixel 7"],
+    storageState: process.env.OTR_PRODUCT_E2E_STORAGE_STATE ?? "test-results/e2e-storage-state.json",
+  });
   const mobile = await mobileContext.newPage();
   await mobile.goto(`/trips/${tripId}`);
-  await mobile.getByRole("button", { name: "Sign in again" }).click();
+  await expect(mobile.locator("#trip-title")).toHaveText(name);
   if (workspaceMode) {
     await selectDay(mobile, 1);
     await mobile.getByRole("region", { name: "Daily itinerary", exact: true }).getByRole("button", { name: "Edit", exact: true }).click();

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { API_ORIGIN, caseName, createTrip } from "./helpers";
+import { API_ORIGIN, caseName, createTrip, signIn } from "./helpers";
 
 test("E2E-001 — Clean-stack readiness and capability discovery", async ({ page }) => {
   await page.goto("/");
@@ -44,8 +44,8 @@ test("E2E-002 — Development login, session persistence and re-login", async ({
 
   await context.clearCookies();
   await page.goto(tripUrl);
-  await expect(page.getByRole("heading", { name: "Session ended" })).toBeVisible();
-  await page.getByRole("button", { name: "Sign in again" }).click();
+  await expect(page).toHaveURL(/\/login\?returnTo=/u);
+  await signIn(page, tripUrl);
   await expect(page.locator("#trip-title")).toHaveText(name);
   await page.reload();
   await expect(page.locator("#trip-title")).toHaveText(name);
@@ -60,8 +60,8 @@ test("E2E-002 — Development login, session persistence and re-login", async ({
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: "Session ended" })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Session ended" })).toBeVisible();
-  await page.getByRole("button", { name: "Sign in again" }).click();
+  await expect(page).toHaveURL(/\/login\?returnTo=/u);
+  await signIn(page, tripUrl);
   await expect(page.locator("#trip-title")).toHaveText(name);
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`, "u"));
 });
