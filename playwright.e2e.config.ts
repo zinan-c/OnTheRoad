@@ -49,6 +49,7 @@ export default defineConfig({
       url: webOrigin,
       reuseExistingServer: false,
       timeout: 300_000,
+      gracefulShutdown: { signal: "SIGTERM", timeout: 30_000 },
     },
   }),
   projects: [{
