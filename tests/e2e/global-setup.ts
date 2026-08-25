@@ -22,6 +22,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     extraHTTPHeaders: { "x-otr-e2e-write-token": token },
   });
   try {
+    await waitForApiReadiness(context);
     const response = await context.post("/api/v1/identity/password-session", {
       headers: { origin: new URL(webOrigin).origin },
       data: { username, password },
@@ -38,4 +39,21 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   } finally {
     await context.dispose();
   }
+}
+
+async function waitForApiReadiness(context: Awaited<ReturnType<typeof request.newContext>>): Promise<void> {
+  const deadline = Date.now() + 60_000;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      const response = await context.get("/health/ready", { timeout: 2_000 });
+      const ready = response.ok();
+      await response.dispose();
+      if (ready) return;
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error("E2E API readiness timed out before temporary-account login.", { cause: lastError });
 }
