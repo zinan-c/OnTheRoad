@@ -112,7 +112,9 @@ export function tripListUrl(query: TripListQuery): string {
   if (query.status !== DEFAULT_QUERY.status) params.set("view", query.status);
   if (query.search) params.set("search", query.search);
   if (query.sort !== DEFAULT_QUERY.sort) params.set("sort", query.sort);
-  if (query.order !== DEFAULT_QUERY.order) params.set("order", query.order);
+  if (query.order !== DEFAULT_QUERY.order || query.sort !== DEFAULT_QUERY.sort) {
+    params.set("order", query.order);
+  }
   if (query.cursor) params.set("cursor", query.cursor);
   const suffix = params.toString();
   return suffix ? `/trips?${suffix}` : "/trips";
@@ -148,7 +150,16 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     const canonicalUrl = tripListUrl(query);
     const currentSearch = searchParams.toString();
     const canonicalSearch = canonicalUrl.includes("?") ? canonicalUrl.slice(canonicalUrl.indexOf("?") + 1) : "";
-    if (currentSearch !== canonicalSearch) router.replace(canonicalUrl, { scroll: false });
+    const currentWithoutExplicitActive = new URLSearchParams(currentSearch);
+    if (query.status === "active" && currentWithoutExplicitActive.get("view") === "active") {
+      currentWithoutExplicitActive.delete("view");
+    }
+    if (
+      currentSearch !== canonicalSearch
+      && currentWithoutExplicitActive.toString() !== canonicalSearch
+    ) {
+      router.replace(canonicalUrl, { scroll: false });
+    }
   }, [query, router, searchParams]);
 
   useEffect(() => {

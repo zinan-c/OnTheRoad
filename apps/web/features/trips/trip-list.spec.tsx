@@ -139,6 +139,12 @@ describe("E2E-008 Trip list and recycle bin", () => {
       sort: "lastActivityAt",
       order: "desc",
     })).toBe("/trips?search=beach");
+    expect(tripListUrl({
+      status: "active",
+      search: "beach",
+      sort: "name",
+      order: "desc",
+    })).toBe("/trips?search=beach&sort=name&order=desc");
     expect(parseTripListQuery(new URLSearchParams("view=deleted&sort=name&order=asc&search=x"))).toEqual({
       status: "deleted",
       search: "x",
