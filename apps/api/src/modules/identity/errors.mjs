@@ -8,12 +8,12 @@ export class IdentityConfigurationError extends Error {
 }
 
 export class SessionError extends Error {
-  /** @param {string} code @param {string} [message] */
-  constructor(code, message = "Session is invalid") {
+  /** @param {string} code @param {string} [message] @param {number} [status] */
+  constructor(code, message = "Session is invalid", status = 401) {
     super(message);
     this.name = "SessionError";
     this.code = code;
-    this.status = 401;
+    this.status = status;
   }
 }
 

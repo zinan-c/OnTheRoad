@@ -306,7 +306,15 @@ export class IdentityService {
 
   /** @param {string} token */
   async authenticate(token) {
-    return (await this.#readSession(token)).principal;
+    const session = await this.#readSession(token);
+    if (session.method === "password" && session.mustChangePassword === true) {
+      throw new SessionError(
+        "PASSWORD_CHANGE_REQUIRED",
+        "Password change is required before accessing application data",
+        403,
+      );
+    }
+    return session.principal;
   }
 
   /** @param {string} token */

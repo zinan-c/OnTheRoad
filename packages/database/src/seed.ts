@@ -20,6 +20,14 @@ export async function seedSystemReferenceData(
   costCategories: number;
   transportModes: number;
   adminAccounts: number;
+  bootstrapAdmin: {
+    id: string;
+    username: string;
+    role: string;
+    status: string;
+    mustChangePassword: boolean;
+    created: boolean;
+  };
 }> {
   const client = await pool.connect();
   try {
@@ -91,25 +99,61 @@ export async function seedSystemReferenceData(
       `SELECT id FROM user_account WHERE username_normalized = lower(btrim($1))`,
       [adminUsername],
     );
+    let created = false;
     if (existing.rowCount === 0) {
       const id = randomUUID();
       const issuer = environment.OTR_LOCAL_IDENTITY_ISSUER?.trim() || DEFAULT_LOCAL_ISSUER;
       const principalId = createHash("sha256")
         .update(`${new URL(issuer).href}\u0000${id}`)
         .digest("base64url");
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO user_account
            (id, principal_id, username, password_hash, role, status, must_change_password)
-         VALUES ($1::uuid, $2, $3, $4, 'admin', 'active', $5)`,
+         VALUES ($1::uuid, $2, $3, $4, 'admin', 'active', $5)
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
         [id, principalId, adminUsername, await hashPassword(adminPassword), environment.OTR_BOOTSTRAP_ADMIN_FORCE_PASSWORD_CHANGE !== "false"],
       );
+      created = inserted.rowCount === 1;
+    }
+    const bootstrapAdmin = await client.query<{
+      id: string;
+      username: string;
+      role: string;
+      status: string;
+      must_change_password: boolean;
+    }>(
+      `SELECT id, username, role, status, must_change_password
+         FROM user_account
+        WHERE username_normalized = lower(btrim($1))`,
+      [adminUsername],
+    );
+    const adminAccounts = await client.query<{ count: number }>(
+      `SELECT count(*)::int AS count
+         FROM user_account
+        WHERE role = 'admin'`,
+    );
+    const admin = bootstrapAdmin.rows[0];
+    if (!admin) {
+      throw new Error("Bootstrap admin account was not created or found.");
+    }
+    if (admin.role !== "admin" || admin.status !== "active") {
+      throw new Error("Bootstrap admin username belongs to an account that is not an active admin.");
     }
     await client.query("COMMIT");
     return {
       currencies: currencies.length,
       costCategories: costCategories.length,
       transportModes: transportModes.length,
-      adminAccounts: 1,
+      adminAccounts: adminAccounts.rows[0]?.count ?? 0,
+      bootstrapAdmin: {
+        id: admin.id,
+        username: admin.username,
+        role: admin.role,
+        status: admin.status,
+        mustChangePassword: admin.must_change_password,
+        created,
+      },
     };
   } catch (error) {
     await client.query("ROLLBACK");
