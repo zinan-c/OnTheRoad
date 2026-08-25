@@ -2,7 +2,7 @@
 
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const navigation = vi.hoisted(() => ({
   search: "",
@@ -44,8 +44,18 @@ import {
   type TripListGateway,
 } from "../../src/app/trips/trip-list";
 
+beforeEach(() => {
+  vi.spyOn(window.history, "pushState").mockImplementation((_state, _unused, url) => {
+    const value = String(url ?? "");
+    navigation.pushes.push(value);
+    navigation.search = value.includes("?") ? value.slice(value.indexOf("?") + 1) : "";
+    for (const subscriber of navigation.subscribers) subscriber(navigation.search);
+  });
+});
+
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   navigation.search = "";
   navigation.pushes = [];
   navigation.replacements = [];

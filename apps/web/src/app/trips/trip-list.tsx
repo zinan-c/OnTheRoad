@@ -141,8 +141,8 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     const navigationUrl = explicitStatus && next.status === "active"
       ? `${canonicalUrl}${canonicalUrl.includes("?") ? "&" : "?"}view=active`
       : canonicalUrl;
-    router.push(navigationUrl, { scroll: false });
-  }, [router]);
+    window.history.pushState(null, "", navigationUrl);
+  }, []);
 
   useEffect(() => {
     const canonicalUrl = tripListUrl(query);
