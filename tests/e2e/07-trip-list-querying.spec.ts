@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-import { API_ORIGIN, caseName } from "./helpers";
+import {
+  API_ORIGIN,
+  caseName,
+  createSimpleItem,
+  createTrip,
+  openItem,
+  waitForAutosave,
+} from "./helpers";
 
 const WEB_ORIGIN = process.env.OTR_PLAYWRIGHT_WEB_ORIGIN ?? "http://127.0.0.1:3100";
 
@@ -102,6 +109,27 @@ test("Trip list keeps Trash active when a superseded Active request is delayed",
   await expect(page.locator(`#trip-card-${deleted.id}`)).toBeVisible();
   await expect(page.locator(`#trip-card-${active.id}`)).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get("view")).toBe("deleted");
+});
+
+test("Trip recent activity moves after a child resource update", async ({ page }) => {
+  const prefix = caseName("Trip list", "child activity");
+  const firstId = await createTrip(page, { name: `${prefix} A` });
+  const itemId = await createSimpleItem(page, `${prefix} original item`);
+  const secondId = await createTrip(page, { name: `${prefix} B` });
+
+  await page.goto(`/trips?search=${encodeURIComponent(prefix)}`);
+  const names = page.getByRole("list", { name: "Active trips" }).locator("li[id^='trip-card-'] h2");
+  await expect(names).toHaveText([`${prefix} B`, `${prefix} A`]);
+
+  await page.goto(`/trips/${firstId}`);
+  const editor = await openItem(page, itemId);
+  await editor.getByLabel("Item name").fill(`${prefix} updated item`);
+  await waitForAutosave(editor);
+
+  await page.goto(`/trips?search=${encodeURIComponent(prefix)}`);
+  await expect(names).toHaveText([`${prefix} A`, `${prefix} B`]);
+  await expect(page.locator(`#trip-card-${firstId}`)).toBeVisible();
+  await expect(page.locator(`#trip-card-${secondId}`)).toBeVisible();
 });
 
 async function createApiTrip(request: APIRequestContext, name: string, destination: string) {
