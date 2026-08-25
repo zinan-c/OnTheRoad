@@ -20,4 +20,4 @@ ALTER TABLE trip
 
 -- Re-apply trip transition functions with draft/archive and restore-to-previous
 -- semantics after the compatibility column has been added.
-\ir ../schema/trip.sql
+\ir ./snapshots/0028_trip.sql

@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS trip_owner_currency_idx
 -- Keep this migration independent from future trip schema changes. The full
 -- lifecycle function set is re-applied by migration 0028 after its column is
 -- present; this version only needs the activity-aware JSON projection.
-\ir ../schema/trip-activity-json.sql
+\ir ./snapshots/0027_trip_activity_json.sql
 
 CREATE OR REPLACE FUNCTION set_trip_last_activity_before_update()
 RETURNS trigger
