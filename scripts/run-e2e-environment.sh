@@ -20,6 +20,8 @@ fi
 # shellcheck disable=SC1090
 source "${STACK_FILE}"
 export PGPASSWORD="${POSTGRES_PASSWORD}"
+export OTR_IGNORE_USER_ENV=1
+export MAP_PROFILE=fixture
 
 database_fingerprint() {
   local target_url="$1"
