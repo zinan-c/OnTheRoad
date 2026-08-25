@@ -189,6 +189,8 @@ describe("E2E-008 Trip list and recycle bin", () => {
     expect(await screen.findByText("Draft trip")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Activate" }));
     expect(transition).toHaveBeenCalledWith("draft-1", 3, "active");
+    expect(navigation.pushes).toContain("/trips?view=active");
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Active trips" }).getAttribute("aria-selected")).toBe("true"));
   });
 
   test("keeps deleted trips out of the default list and restores the same id", async () => {

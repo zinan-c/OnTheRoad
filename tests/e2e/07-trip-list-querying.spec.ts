@@ -15,11 +15,14 @@ const WEB_ORIGIN = process.env.OTR_PLAYWRIGHT_WEB_ORIGIN ?? "http://127.0.0.1:31
 test("Trip list pagination has no duplicates or omissions and restores query URLs", async ({ page, context, request }) => {
   const prefix = caseName("Trip list", "pagination");
   const expected = Array.from({ length: 45 }, (_, index) => `${prefix}-${String(index + 1).padStart(3, "0")}`);
-  const created = await Promise.all(expected.map((name, index) => createApiTrip(
-    request,
-    name,
-    `${prefix} destination ${String(index + 1).padStart(3, "0")}`,
-  )));
+  const created: { id: string; version: number }[] = [];
+  for (const [index, name] of expected.entries()) {
+    created.push(await createApiTrip(
+      request,
+      name,
+      `${prefix} destination ${String(index + 1).padStart(3, "0")}`,
+    ));
+  }
   const expectedIds = new Set(created.map(({ id }) => id));
 
   await page.goto(`/trips?search=${encodeURIComponent(prefix)}&sort=name&order=asc`);

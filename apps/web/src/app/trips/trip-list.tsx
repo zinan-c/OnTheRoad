@@ -136,8 +136,12 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     setDraftSearch(query.search);
   }, [query.search]);
 
-  const pushQuery = useCallback((next: TripListQuery) => {
-    router.push(tripListUrl(next), { scroll: false });
+  const pushQuery = useCallback((next: TripListQuery, explicitStatus = false) => {
+    const canonicalUrl = tripListUrl(next);
+    const navigationUrl = explicitStatus && next.status === "active"
+      ? `${canonicalUrl}${canonicalUrl.includes("?") ? "&" : "?"}view=active`
+      : canonicalUrl;
+    router.push(navigationUrl, { scroll: false });
   }, [router]);
 
   useEffect(() => {
@@ -173,7 +177,7 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
   }
 
   function chooseView(status: TripListStatus) {
-    pushQuery({ ...resetCursor(query), status });
+    pushQuery({ ...resetCursor(query), status }, true);
   }
 
   function chooseSort(sort: TripListSort) {
@@ -207,7 +211,7 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       pushQuery({
         ...resetCursor(query),
         status: restored.status === "deleted" ? "active" : restored.status,
-      });
+      }, true);
     } catch {
       if (requestId !== requestSequence.current) return;
       setError("Restore failed. Reload Trash and try again.");
@@ -225,7 +229,7 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       setMessage(`“${updated.name}” is now ${status}.`);
       setPage({ items: [], previousCursor: null, nextCursor: null });
       setLoadedQueryKey(undefined);
-      pushQuery({ ...resetCursor(query), status });
+      pushQuery({ ...resetCursor(query), status }, true);
     } catch {
       if (requestId !== requestSequence.current) return;
       setError("Trip status update failed. Reload and try again.");
