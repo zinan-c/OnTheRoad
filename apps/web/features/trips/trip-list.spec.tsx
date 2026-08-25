@@ -199,7 +199,7 @@ describe("E2E-008 Trip list and recycle bin", () => {
     }));
     const gateway: TripListGateway = {
       list,
-      restore: vi.fn().mockResolvedValue({ ...deletedTrip, status: "active", version: 4 }),
+      restore: vi.fn().mockResolvedValue({ ...deletedTrip, status: "archived", version: 4 }),
       transition: vi.fn(),
     };
     render(<TripList gateway={gateway} />);
@@ -213,7 +213,7 @@ describe("E2E-008 Trip list and recycle bin", () => {
     expect(gateway.restore).toHaveBeenCalledWith("trip-8", 3);
     expect((await screen.findByRole("status")).textContent).toContain("was restored");
     expect(list).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "active", sort: "lastActivityAt", order: "desc" }),
+      expect.objectContaining({ status: "archived", sort: "lastActivityAt", order: "desc" }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });

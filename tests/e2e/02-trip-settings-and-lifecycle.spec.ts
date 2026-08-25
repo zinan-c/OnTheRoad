@@ -54,7 +54,19 @@ test("E2E-007 — Trip date extension and empty-Day contraction", async ({ page 
 test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page }) => {
   const originalName = caseName("E2E-008", "待修改旅行");
   const updatedName = `${originalName} 已确认旅行`;
-  const tripId = await createTrip(page, { name: originalName });
+  await page.goto("/trips/new");
+  const createForm = page.getByRole("form", { name: "New trip" });
+  await createForm.getByLabel("Trip name").fill(originalName);
+  await createForm.getByRole("button", { name: "Save draft" }).click();
+  await expect(page).toHaveURL(/\/trips\/[0-9a-f-]+$/u);
+  const tripId = page.url().split("/").at(-1)!;
+
+  await page.goto("/trips?view=draft");
+  const draftCard = page.locator(`#trip-card-${tripId}`);
+  await expect(draftCard).toBeVisible();
+  await draftCard.getByRole("button", { name: "Activate" }).click();
+  await expect(page.getByRole("tab", { name: "Active trips" })).toHaveAttribute("aria-selected", "true");
+  await page.locator(`#trip-card-${tripId}`).getByRole("link", { name: "Open trip" }).click();
   const retainedItemId = await createSimpleItem(page, "生命周期保留事项", { kind: "attraction" });
 
   await page.getByRole("link", { name: "Trip settings" }).click();
@@ -78,6 +90,13 @@ test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page
   await expect(refreshed.getByLabel("Budget")).toHaveValue("12000.50");
   await expect(refreshed.getByLabel("Default currency")).toHaveValue("EUR");
 
+  await page.goto("/trips");
+  const activeCard = page.locator(`#trip-card-${tripId}`);
+  await activeCard.getByRole("button", { name: "Archive" }).click();
+  await expect(page.getByRole("tab", { name: "Archived" })).toHaveAttribute("aria-selected", "true");
+  await page.locator(`#trip-card-${tripId}`).getByRole("link", { name: "Open trip" }).click();
+  await page.getByRole("link", { name: "Trip settings" }).click();
+
   const danger = page.getByRole("region", { name: "Delete trip" });
   await danger.getByRole("button", { name: "Delete trip" }).click();
   await danger.getByRole("button", { name: "Confirm delete" }).click();
@@ -89,7 +108,10 @@ test("E2E-008 — Trip update, soft delete and restore lifecycle", async ({ page
   await expect(tripCard.locator("h2")).toHaveText(updatedName);
   await tripCard.getByRole("button", { name: "Restore trip" }).click();
   await expect(page.getByRole("status")).toContainText(`“${updatedName}” was restored`);
-  await expect(page.locator(`#trip-card-${tripId}`).locator("h2")).toHaveText(updatedName);
+  await expect(page.getByRole("tab", { name: "Archived" })).toHaveAttribute("aria-selected", "true");
+  const restoredCard = page.locator(`#trip-card-${tripId}`);
+  await expect(restoredCard.locator("h2")).toHaveText(updatedName);
+  await restoredCard.getByRole("button", { name: "Activate" }).click();
   await page.locator(`#trip-card-${tripId}`).getByRole("link", { name: "Open trip" }).click();
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`, "u"));
   await page.reload();

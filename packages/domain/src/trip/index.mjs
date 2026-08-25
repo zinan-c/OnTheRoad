@@ -7,6 +7,7 @@ const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const MONEY_PATTERN = /^(0|[1-9]\d{0,15})(?:\.\d{1,2})?$/u;
 const COUNTRY_PATTERN = /^[A-Z]{2}$/u;
 const MAP_PROFILES = new Set(["cn_primary", "international_primary", "hybrid"]);
+const TRIP_CREATE_STATUSES = new Set(["draft", "active"]);
 
 export class TripValidationError extends Error {
   /** @param {string} field @param {string} message */
@@ -33,6 +34,15 @@ export class TripVersionConflictError extends Error {
     super("Trip version does not match If-Match");
     this.name = "TripVersionConflictError";
     this.code = "VERSION_CONFLICT";
+    this.status = 409;
+  }
+}
+
+export class TripTransitionError extends Error {
+  constructor() {
+    super("Trip lifecycle transition is not allowed");
+    this.name = "TripTransitionError";
+    this.code = "INVALID_TRIP_TRANSITION";
     this.status = 409;
   }
 }
@@ -151,6 +161,10 @@ export function normalizeTripInput(input) {
   if (!MAP_PROFILES.has(mapProfile)) {
     throw new TripValidationError("mapProfile", "mapProfile is unsupported");
   }
+  const status = candidate.status ?? "active";
+  if (typeof status !== "string" || !TRIP_CREATE_STATUSES.has(status)) {
+    throw new TripValidationError("status", "status must be draft or active");
+  }
   return {
     name: requiredString(candidate.name, "name", 160),
     startDate,
@@ -160,6 +174,7 @@ export function normalizeTripInput(input) {
     ...(budget(candidate.budget) ? { budget: budget(candidate.budget) } : {}),
     timezone: timezone(candidate.timezone),
     mapProfile,
+    status,
     ...(optionalString(candidate.description, "description", 5000)
       ? { description: optionalString(candidate.description, "description", 5000) }
       : {}),

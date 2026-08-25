@@ -2658,6 +2658,11 @@
             ],
             "maxLength": 5000
           },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "active"],
+            "default": "active"
+          },
           "destinations": {
             "type": "array",
             "minItems": 1,

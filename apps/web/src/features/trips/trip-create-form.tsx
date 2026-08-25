@@ -73,6 +73,10 @@ export function TripCreateForm({
     setSubmitting(true);
     setError(undefined);
     const data = new FormData(event.currentTarget);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const status = submitter instanceof HTMLButtonElement && submitter.value === "draft"
+      ? "draft"
+      : "active";
     const defaultCurrency = String(data.get("defaultCurrency"));
     const input = {
       name: String(data.get("name") ?? "").trim(),
@@ -82,6 +86,7 @@ export function TripCreateForm({
       defaultCurrency,
       timezone: "Asia/Shanghai",
       mapProfile: defaultCurrency === "CNY" ? "cn_primary" : "international_primary",
+      status,
       destinations: String(data.get("destinations") ?? "")
         .split(/[、,，]/u)
         .map((name) => name.trim())
@@ -159,9 +164,14 @@ export function TripCreateForm({
         </label>
       </div>
       {error ? <p className="formError" role="alert">{error}</p> : null}
-      <button className="primary formSubmit" disabled={submitting || totalDays === null} data-testid="create-trip-submit">
-        {submitting ? "Creating…" : "Create trip"}
-      </button>
+      <div className="actions">
+        <button className="secondary formSubmit" name="status" value="draft" disabled={submitting || totalDays === null}>
+          {submitting ? "Saving…" : "Save draft"}
+        </button>
+        <button className="primary formSubmit" name="status" value="active" disabled={submitting || totalDays === null} data-testid="create-trip-submit">
+          {submitting ? "Creating…" : "Create trip"}
+        </button>
+      </div>
     </form>
   );
 }

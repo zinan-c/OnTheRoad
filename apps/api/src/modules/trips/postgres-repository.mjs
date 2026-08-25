@@ -6,6 +6,7 @@ import {
 import {
   IdempotencyKeyReusedError,
   TripNotFoundError,
+  TripTransitionError,
   TripVersionConflictError,
 } from "@on-the-road/domain/trip";
 import { encodeTripCursor, TRIP_LIST_SORTS, tripListQueryKey } from "./cursor.mjs";
@@ -15,6 +16,7 @@ function mapDatabaseError(error) {
   const { message } = postgresErrorIdentity(error);
   if (message === "VERSION_CONFLICT") return new TripVersionConflictError();
   if (message === "TRIP_NOT_FOUND") return new TripNotFoundError();
+  if (message === "INVALID_TRIP_TRANSITION") return new TripTransitionError();
   if (message === "IDEMPOTENCY_KEY_REUSED") return new IdempotencyKeyReusedError();
   return error;
 }

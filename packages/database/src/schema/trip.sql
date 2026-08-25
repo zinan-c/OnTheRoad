@@ -153,7 +153,7 @@ BEGIN
 
   INSERT INTO trip (
     owner_id, name, start_date, end_date, travelers, default_currency,
-    budget, timezone, map_profile, description
+    budget, timezone, map_profile, description, status
   )
   VALUES (
     p_owner_id,
@@ -165,7 +165,8 @@ BEGIN
     NULLIF(p_input->>'budget', '')::numeric,
     p_input->>'timezone',
     p_input->>'mapProfile',
-    NULLIF(p_input->>'description', '')
+    NULLIF(p_input->>'description', ''),
+    COALESCE(p_input->>'status', 'active')
   )
   RETURNING id INTO new_trip_id;
 
@@ -308,8 +309,23 @@ BEGIN
     RETURN trip_as_json(p_trip_id);
   END IF;
 
+  IF current_trip.status = 'deleted' AND p_target_status <> 'restore' THEN
+    RAISE EXCEPTION 'INVALID_TRIP_TRANSITION' USING ERRCODE = 'P0001';
+  END IF;
+  IF p_target_status <> 'restore' AND resolved_target_status <> 'deleted' AND NOT (
+    (current_trip.status = 'draft' AND resolved_target_status = 'active')
+    OR (current_trip.status = 'active' AND resolved_target_status = 'archived')
+    OR (current_trip.status = 'archived' AND resolved_target_status = 'active')
+  ) THEN
+    RAISE EXCEPTION 'INVALID_TRIP_TRANSITION' USING ERRCODE = 'P0001';
+  END IF;
+
   next_version := current_trip.version + 1;
-  action_name := CASE WHEN resolved_target_status = 'deleted' THEN 'trip.deleted' ELSE 'trip.restored' END;
+  action_name := CASE
+    WHEN p_target_status = 'deleted' THEN 'trip.deleted'
+    WHEN p_target_status = 'restore' THEN 'trip.restored'
+    ELSE 'trip.updated'
+  END;
   UPDATE trip
   SET
     status = resolved_target_status,

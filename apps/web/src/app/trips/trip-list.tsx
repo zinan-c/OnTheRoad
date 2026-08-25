@@ -204,7 +204,10 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       setMessage(`“${restored.name}” was restored with all related content.`);
       setPage({ items: [], previousCursor: null, nextCursor: null });
       setLoadedQueryKey(undefined);
-      pushQuery({ ...resetCursor(query), status: "active" });
+      pushQuery({
+        ...resetCursor(query),
+        status: restored.status === "deleted" ? "active" : restored.status,
+      });
     } catch {
       if (requestId !== requestSequence.current) return;
       setError("Restore failed. Reload Trash and try again.");

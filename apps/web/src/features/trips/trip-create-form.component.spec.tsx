@@ -124,4 +124,21 @@ describe("REVIEW-P1-04 TripCreateForm component", () => {
     expect(attempts[1]).toBe(attempts[0]);
     expect(navigate).toHaveBeenCalledWith(created);
   });
+
+  test("creates an explicit draft without changing the active default", async () => {
+    const create = vi.fn().mockResolvedValue({
+      id: "trip-draft",
+      name: "Draft journey",
+      startDate: "2026-10-01",
+      endDate: "2026-10-05",
+    });
+    render(<TripCreateForm gateway={{ create }} navigate={vi.fn()} />);
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Save draft" }));
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "draft" }),
+      { idempotencyKey: expect.any(String) },
+    );
+  });
 });

@@ -36,7 +36,7 @@ describe("REVIEW-P1-02 unified migration lifecycle", () => {
   });
 
   liveTest("migrates clean to previous, upgrades to latest, seeds, and stays idempotent", async () => {
-    const migrations = (await discoverMigrations()).filter(({ version }) => version <= 28);
+    const migrations = await discoverMigrations();
     const previous = new DatabaseMigrator({
       pool: pool!,
       migrations: migrations.slice(0, -1),
@@ -145,7 +145,11 @@ describe("canonical migrations 1-28 in a disposable database", () => {
       await database.query("CREATE EXTENSION IF NOT EXISTS postgis");
 
       const migrations = (await discoverMigrations()).filter(({ version }) => version <= 28);
-      const migrator = new DatabaseMigrator({ pool: database, migrations });
+      const migrator = new DatabaseMigrator({
+        pool: database,
+        migrations,
+        minimumCompatibleVersion: 28,
+      });
       const firstStatus = await migrator.migrate();
       expect(firstStatus).toMatchObject({
         currentVersion: 28,
