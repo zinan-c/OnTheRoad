@@ -22,6 +22,7 @@ test("TC-A04-01 OpenAPI generation is deterministic and covers shared convention
   assert.equal(schemas.ResourceId.format, "uuid");
   assert.equal(schemas.LocalDate.format, "date");
   assert.deepEqual(schemas.CursorPage.required, ["items", "nextCursor"]);
+  assert.deepEqual(schemas.TripPage.required, ["items", "previousCursor", "nextCursor"]);
   assert.equal(contract.components.headers.ETag.schema.type, "string");
   assert.equal(contract.components.parameters.IdempotencyKey.name, "Idempotency-Key");
   assert.equal(parseExampleResponse({ id: randomUUID(), date: "2026-07-27" }).date, "2026-07-27");

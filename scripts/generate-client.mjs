@@ -114,7 +114,7 @@ export function generateClientSource(contract) {
 /** @typedef {{ id: string, date: string }} ExampleResource */
 /** @typedef {{ id: string, name: string, countryCode: string | null, city: string | null, region: string | null, sortOrder: number, createdAt: string, updatedAt: string }} Destination */
 /** @typedef {{ id: string, ownerId: string, name: string, startDate: string, endDate: string, totalDays: number, travelers: number, defaultCurrency: string, budget: string | null, timezone: string, mapProfile: "cn_primary" | "international_primary" | "hybrid", description: string | null, status: "draft" | "active" | "archived" | "deleted", version: number, createdAt: string, updatedAt: string, lastActivityAt: string, deletedAt: string | null, destinations: Destination[] }} Trip */
-/** @typedef {{ items: Trip[], nextCursor: string | null }} TripPage */
+/** @typedef {{ items: Trip[], previousCursor: string | null, nextCursor: string | null }} TripPage */
 /** @typedef {{ id: string, tripId: string, ownerId: string, tripDayId: string, itemType: "activity" | "attraction" | "dining" | "hotel" | "transport" | "other", timeKind: "clock" | "range" | "period" | "unscheduled", startTime: string | null, endTime: string | null, endDayOffset: 0 | 1, timeZone: string | null, timePeriod: string | null, target: string | null, description: string | null, durationMinutes: number | null, destinationId: string | null, locationId: string | null, startLocationId: string | null, endLocationId: string | null, transportModeCode: string | null, bookingInfo: unknown, contactInfo: unknown, remark: string | null, externalSource: string | null, externalId: string | null, dining: Record<string, unknown> | null, accommodation: Record<string, unknown> | null, sortOrder: number, version: number, createdAt: string, updatedAt: string, deletedAt: string | null }} ItineraryItem */
 /** @typedef {{ tripDayId: string, version: number, orderedIds: string[], eventId: string }} ItineraryReorderResult */
 /** @typedef {{ code: string, label: string, aliases?: string[], icon?: string, color?: string, lineStyle?: string }} ReferenceEntry */
@@ -222,11 +222,15 @@ export function parseTripResponse(value) {
 export function parseTripPageResponse(value) {
   const object = asObject(value, "TripPage");
   if (!Array.isArray(object.items)) throw new TypeError("TripPage.items must be an array");
+  if (object.previousCursor !== null && typeof object.previousCursor !== "string") {
+    throw new TypeError("TripPage.previousCursor must be a string or null");
+  }
   if (object.nextCursor !== null && typeof object.nextCursor !== "string") {
     throw new TypeError("TripPage.nextCursor must be a string or null");
   }
   return {
     items: object.items.map(parseTripResponse),
+    previousCursor: /** @type {string | null} */ (object.previousCursor),
     nextCursor: /** @type {string | null} */ (object.nextCursor),
   };
 }
@@ -386,7 +390,7 @@ export class OnTheRoadClient {
    * Invoke any public OpenAPI operation. Owner identity is supplied only by the
    * session cookie; ownerId is intentionally not accepted.
    * @param {keyof typeof generatedOperations} operationId
-   * @param {{path?: Record<string, string>, query?: Record<string, string | number | boolean | undefined>, headers?: Record<string, string>, body?: unknown}} [input]
+   * @param {{path?: Record<string, string>, query?: Record<string, string | number | boolean | undefined>, headers?: Record<string, string>, body?: unknown, signal?: AbortSignal}} [input]
    */
   async request(operationId, input = {}) {
     const operation = generatedOperations[operationId];
@@ -428,6 +432,7 @@ export class OnTheRoadClient {
       method: operation.method,
       headers,
       credentials: "include",
+      ...(input.signal ? { signal: input.signal } : {}),
       ...(input.body === undefined ? {} : { body: JSON.stringify(input.body) }),
     });
     const contentType = response.headers.get("content-type") ?? "";
@@ -487,8 +492,8 @@ export class OnTheRoadClient {
     return this.#tripRequest(\`/trips/\${encodeURIComponent(tripId)}\`);
   }
 
-  /** @param {{ search?: string, currency?: string, status?: string, limit?: number }} [filters] */
-  async listTrips(filters = {}) {
+  /** @param {{ search?: string, currency?: string, status?: string, sort?: string, order?: string, cursor?: string, limit?: number }} [filters] @param {{ signal?: AbortSignal }} [options] */
+  async listTrips(filters = {}, options = {}) {
     const query = new globalThis.URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {
       if (value !== undefined) query.set(key, String(value));
@@ -497,6 +502,7 @@ export class OnTheRoadClient {
     const response = await this.fetch(\`\${this.baseUrl}/api/v1/trips\${suffix}\`, {
       headers: { accept: "application/json, application/problem+json" },
       credentials: "include",
+      ...(options.signal ? { signal: options.signal } : {}),
     });
     const payload = await response.json();
     if (!response.ok) throw new ApiProblemError(parseProblemDetails(payload));

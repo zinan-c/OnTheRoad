@@ -36,6 +36,7 @@ export const TRIP_LIST_SORTS = Object.freeze({
 });
 
 export const TRIP_LIST_ORDERS = Object.freeze(["asc", "desc"]);
+export const TRIP_CURSOR_DIRECTIONS = Object.freeze(["next", "previous"]);
 
 export class TripCursorError extends Error {
   /** @param {string} [message] */
@@ -67,18 +68,24 @@ export function tripListQueryKey({ search = "", currency = "", status = "active"
     .digest("hex");
 }
 
-/** @param {{sort: string, order: string, value: string, id: string, queryKey: string}} cursor */
+/** @param {{sort: string, order: string, direction?: string, value: string, id: string, queryKey: string}} cursor */
 export function encodeTripCursor(cursor) {
-  if (!TRIP_LIST_SORTS[cursor.sort] || !TRIP_LIST_ORDERS.includes(cursor.order)) {
+  const direction = cursor.direction ?? "next";
+  if (
+    !TRIP_LIST_SORTS[cursor.sort]
+    || !TRIP_LIST_ORDERS.includes(cursor.order)
+    || !TRIP_CURSOR_DIRECTIONS.includes(direction)
+  ) {
     throw new TripCursorError();
   }
   if (!UUID_PATTERN.test(cursor.id) || typeof cursor.value !== "string" || cursor.value.length === 0) {
     throw new TripCursorError();
   }
   return base64UrlEncode({
-    v: 1,
+    v: 2,
     sort: cursor.sort,
     order: cursor.order,
+    direction,
     value: cursor.value,
     id: cursor.id,
     queryKey: cursor.queryKey,
@@ -98,13 +105,17 @@ export function decodeTripCursor(value) {
   const cursor = decoded;
   const sort = typeof cursor.sort === "string" ? cursor.sort : "";
   const order = typeof cursor.order === "string" ? cursor.order : "";
+  const direction = cursor.v === 1
+    ? "next"
+    : typeof cursor.direction === "string" ? cursor.direction : "";
   const cursorValue = typeof cursor.value === "string" ? cursor.value : "";
   const id = typeof cursor.id === "string" ? cursor.id : "";
   const queryKey = typeof cursor.queryKey === "string" ? cursor.queryKey : "";
   if (
-    cursor.v !== 1
+    ![1, 2].includes(Number(cursor.v))
     || !TRIP_LIST_SORTS[sort]
     || !TRIP_LIST_ORDERS.includes(order)
+    || !TRIP_CURSOR_DIRECTIONS.includes(direction)
     || !UUID_PATTERN.test(id)
     || !/^[0-9a-f]{64}$/u.test(queryKey)
   ) {
@@ -118,6 +129,7 @@ export function decodeTripCursor(value) {
   return {
     sort,
     order,
+    direction,
     value: cursorValue,
     id,
     queryKey,

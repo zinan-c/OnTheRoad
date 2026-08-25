@@ -44,7 +44,7 @@ function runtime(readiness: Record<string, boolean>): ApiRuntime {
         return trips.get(tripId);
       },
       async listTrips() {
-        return { items: [...trips.values()], nextCursor: null };
+        return { items: [...trips.values()], previousCursor: null, nextCursor: null };
       },
     },
     itinerary: {

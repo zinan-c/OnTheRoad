@@ -2828,6 +2828,7 @@
         "additionalProperties": false,
         "required": [
           "items",
+          "previousCursor",
           "nextCursor"
         ],
         "properties": {
@@ -2836,6 +2837,12 @@
             "items": {
               "$ref": "#/components/schemas/Trip"
             }
+          },
+          "previousCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "nextCursor": {
             "type": [

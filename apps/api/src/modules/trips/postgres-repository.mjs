@@ -67,7 +67,7 @@ export class PostgresTripRepository {
     return result;
   }
 
-  /** @param {string} ownerId @param {{search?: string, currency?: string, status?: string, sort?: string, order?: string, cursor?: {sort: string, order: string, value: string, id: string, queryKey: string} | null, queryKey?: string, limit?: number}} filters */
+  /** @param {string} ownerId @param {{search?: string, currency?: string, status?: string, sort?: string, order?: string, cursor?: {sort: string, order: string, direction: string, value: string, id: string, queryKey: string} | null, queryKey?: string, limit?: number}} filters */
   async list(ownerId, filters) {
     const sort = filters.sort ?? "lastActivityAt";
     const order = filters.order ?? "desc";
@@ -75,7 +75,11 @@ export class PostgresTripRepository {
     if (!definition || !["asc", "desc"].includes(order)) {
       throw new Error("Invalid trip list ordering");
     }
-    const comparator = order === "asc" ? ">" : "<";
+    const backwards = filters.cursor?.direction === "previous";
+    const queryOrder = backwards
+      ? order === "asc" ? "desc" : "asc"
+      : order;
+    const comparator = queryOrder === "asc" ? ">" : "<";
     const cursorClause = filters.cursor
       ? `AND (
           t.${definition.column} ${comparator} $6::${definition.cast}
@@ -108,13 +112,15 @@ export class PostgresTripRepository {
            )
          )
          ${cursorClause}
-       ORDER BY t.${definition.column} ${order.toUpperCase()}, t.id ${order.toUpperCase()}
+       ORDER BY t.${definition.column} ${queryOrder.toUpperCase()}, t.id ${queryOrder.toUpperCase()}
        LIMIT $5::integer`,
       values,
     );
     const limit = filters.limit ?? 20;
     const hasMore = result.rows.length > limit;
-    const rows = result.rows.slice(0, limit);
+    const selectedRows = result.rows.slice(0, limit);
+    const rows = backwards ? selectedRows.reverse() : selectedRows;
+    const first = rows.at(0);
     const last = rows.at(-1);
     const queryKey = filters.queryKey ?? tripListQueryKey({
       search: filters.search ?? "",
@@ -125,10 +131,21 @@ export class PostgresTripRepository {
     });
     return {
       items: rows.map((row) => row.trip),
-      nextCursor: hasMore && last
+      previousCursor: first && (backwards ? hasMore : Boolean(filters.cursor))
         ? encodeTripCursor({
           sort,
           order,
+          direction: "previous",
+          value: first.cursor_value instanceof Date ? first.cursor_value.toISOString() : String(first.cursor_value),
+          id: String(first.cursor_id),
+          queryKey,
+        })
+        : null,
+      nextCursor: last && (backwards ? Boolean(filters.cursor) : hasMore)
+        ? encodeTripCursor({
+          sort,
+          order,
+          direction: "next",
           value: last.cursor_value instanceof Date ? last.cursor_value.toISOString() : String(last.cursor_value),
           id: String(last.cursor_id),
           queryKey,

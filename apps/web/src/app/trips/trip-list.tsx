@@ -20,11 +20,12 @@ export interface TripListQuery {
 
 export interface TripPage {
   readonly items: readonly TripSettingsRecord[];
+  readonly previousCursor: string | null;
   readonly nextCursor: string | null;
 }
 
 export interface TripListGateway {
-  list(query: TripListQuery): Promise<TripPage>;
+  list(query: TripListQuery, options?: { readonly signal?: AbortSignal }): Promise<TripPage>;
   restore(tripId: string, version: number): Promise<TripSettingsRecord>;
   transition(tripId: string, version: number, status: Exclude<TripListStatus, "deleted">): Promise<TripSettingsRecord>;
 }
@@ -43,7 +44,7 @@ function apiOrigin(): string {
 export function browserTripListGateway(): TripListGateway {
   const client = new OnTheRoadClient(apiOrigin());
   return {
-    async list(query) {
+    async list(query, options) {
       const response = await client.request("listTrips", {
         query: {
           status: query.status,
@@ -53,6 +54,7 @@ export function browserTripListGateway(): TripListGateway {
           order: query.order,
           ...(query.cursor ? { cursor: query.cursor } : {}),
         },
+        ...(options?.signal ? { signal: options.signal } : {}),
       });
       return response.data as TripPage;
     },
@@ -122,11 +124,10 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
   const activeGateway = useMemo(() => gateway ?? browserTripListGateway(), [gateway]);
   const query = useMemo(() => parseTripListQuery(searchParams), [searchParams]);
   const [draftSearch, setDraftSearch] = useState(query.search);
-  const [page, setPage] = useState<TripPage>({ items: [], nextCursor: null });
+  const [page, setPage] = useState<TripPage>({ items: [], previousCursor: null, nextCursor: null });
   const [pending, setPending] = useState(true);
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
-  const [previousCursors, setPreviousCursors] = useState<readonly string[]>([]);
   const requestSequence = useRef(0);
   const queryKey = tripListUrl(query);
   const [loadedQueryKey, setLoadedQueryKey] = useState<string>();
@@ -135,69 +136,62 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     setDraftSearch(query.search);
   }, [query.search]);
 
-  const replaceQuery = useCallback((next: TripListQuery) => {
-    router.replace(tripListUrl(next), { scroll: false });
+  const pushQuery = useCallback((next: TripListQuery) => {
+    router.push(tripListUrl(next), { scroll: false });
   }, [router]);
 
-  const load = useCallback(async (nextQuery: TripListQuery) => {
+  useEffect(() => {
+    const canonicalUrl = tripListUrl(query);
+    const currentSearch = searchParams.toString();
+    const canonicalSearch = canonicalUrl.includes("?") ? canonicalUrl.slice(canonicalUrl.indexOf("?") + 1) : "";
+    if (currentSearch !== canonicalSearch) router.replace(canonicalUrl, { scroll: false });
+  }, [query, router, searchParams]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     const requestId = ++requestSequence.current;
+    setLoadedQueryKey(undefined);
     setPending(true);
     setError(undefined);
-    try {
-      const loaded = await activeGateway.list(nextQuery);
-      if (requestId !== requestSequence.current) return;
+    void activeGateway.list(query, { signal: controller.signal }).then((loaded) => {
+      if (controller.signal.aborted || requestId !== requestSequence.current) return;
       setPage(loaded);
-      setLoadedQueryKey(tripListUrl(nextQuery));
-    } catch {
-      if (requestId !== requestSequence.current) return;
+      setLoadedQueryKey(queryKey);
+    }).catch(() => {
+      if (controller.signal.aborted || requestId !== requestSequence.current) return;
       setError("Unable to load trips.");
-    } finally {
-      if (requestId !== requestSequence.current) return;
+    }).finally(() => {
+      if (controller.signal.aborted || requestId !== requestSequence.current) return;
       setPending(false);
-    }
-  }, [activeGateway]);
-
-  useEffect(() => {
-    setLoadedQueryKey(undefined);
-    void load(query);
-  }, [load, query]);
-
-  useEffect(() => {
-    setPreviousCursors([]);
-  }, [query.status, query.search, query.sort, query.order]);
+    });
+    return () => controller.abort();
+  }, [activeGateway, query, queryKey]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPreviousCursors([]);
-    replaceQuery({ ...resetCursor(query), search: draftSearch.trim().slice(0, 160) });
+    pushQuery({ ...resetCursor(query), search: draftSearch.trim().slice(0, 160) });
   }
 
   function chooseView(status: TripListStatus) {
-    setPreviousCursors([]);
-    replaceQuery({ ...resetCursor(query), status });
+    pushQuery({ ...resetCursor(query), status });
   }
 
   function chooseSort(sort: TripListSort) {
-    setPreviousCursors([]);
-    replaceQuery({ ...resetCursor(query), sort });
+    pushQuery({ ...resetCursor(query), sort });
   }
 
   function chooseOrder(order: TripListOrder) {
-    setPreviousCursors([]);
-    replaceQuery({ ...resetCursor(query), order });
+    pushQuery({ ...resetCursor(query), order });
   }
 
   function nextPage() {
     if (!visiblePage.nextCursor || pending) return;
-    setPreviousCursors((current) => [...current, query.cursor ?? ""]);
-    replaceQuery({ ...query, cursor: visiblePage.nextCursor });
+    pushQuery({ ...query, cursor: visiblePage.nextCursor });
   }
 
   function previousPage() {
-    const previous = previousCursors.at(-1);
-    if (previous === undefined || pending) return;
-    setPreviousCursors((current) => current.slice(0, -1));
-    replaceQuery(previous ? { ...query, cursor: previous } : resetCursor(query));
+    if (!visiblePage.previousCursor || pending) return;
+    pushQuery({ ...query, cursor: visiblePage.previousCursor });
   }
 
   async function restore(trip: TripSettingsRecord) {
@@ -208,10 +202,9 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       const restored = await activeGateway.restore(trip.id, trip.version);
       if (requestId !== requestSequence.current) return;
       setMessage(`“${restored.name}” was restored with all related content.`);
-      setPage({ items: [], nextCursor: null });
+      setPage({ items: [], previousCursor: null, nextCursor: null });
       setLoadedQueryKey(undefined);
-      setPreviousCursors([]);
-      replaceQuery({ ...resetCursor(query), status: "active" });
+      pushQuery({ ...resetCursor(query), status: "active" });
     } catch {
       if (requestId !== requestSequence.current) return;
       setError("Restore failed. Reload Trash and try again.");
@@ -227,10 +220,9 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
       const updated = await activeGateway.transition(trip.id, trip.version, status);
       if (requestId !== requestSequence.current) return;
       setMessage(`“${updated.name}” is now ${status}.`);
-      setPage({ items: [], nextCursor: null });
+      setPage({ items: [], previousCursor: null, nextCursor: null });
       setLoadedQueryKey(undefined);
-      setPreviousCursors([]);
-      replaceQuery({ ...resetCursor(query), status });
+      pushQuery({ ...resetCursor(query), status });
     } catch {
       if (requestId !== requestSequence.current) return;
       setError("Trip status update failed. Reload and try again.");
@@ -238,7 +230,9 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
     }
   }
 
-  const visiblePage = loadedQueryKey === queryKey ? page : { items: [], nextCursor: null };
+  const visiblePage = loadedQueryKey === queryKey
+    ? page
+    : { items: [], previousCursor: null, nextCursor: null };
   const pageLabel = query.cursor ? "More trips" : "Recent trips";
   const tabs: readonly { status: TripListStatus; label: string }[] = [
     { status: "active", label: "Active trips" },
@@ -312,7 +306,7 @@ export function TripList({ gateway }: { readonly gateway?: TripListGateway }) {
         ))}
       </ul>
       <nav className="tripListPagination" aria-label="Trip pages">
-        <button className="secondary" disabled={pending || previousCursors.length === 0} onClick={previousPage}>Previous</button>
+        <button className="secondary" disabled={pending || !visiblePage.previousCursor} onClick={previousPage}>Previous</button>
         <button className="primary" disabled={pending || !visiblePage.nextCursor} onClick={nextPage}>Next</button>
       </nav>
     </section>
