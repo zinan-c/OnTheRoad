@@ -62,12 +62,23 @@ export class PostgresRouteRepository {
          FROM days day
          JOIN job_outbox event ON event.aggregate_id = day.id::text
          WHERE event.event_type = 'route.rebuild.requested'
+           AND event.aggregate_version = day.route_generation
            AND event.handled_at IS NULL
+       ),
+       failed_event_days AS (
+         SELECT DISTINCT day.id
+         FROM days day
+         JOIN job_outbox event ON event.aggregate_id = day.id::text
+         WHERE event.event_type = 'route.rebuild.requested'
+           AND event.aggregate_version = day.route_generation
+           AND event.handled_at IS NOT NULL
+           AND event.last_error_code IS NOT NULL
        ),
        active_segments AS (
          SELECT
            segment.trip_day_id,
            segment.status,
+           segment.route_geometry,
            CASE
              WHEN jsonb_typeof(segment.source_context->'blockers') = 'array'
                THEN jsonb_array_length(segment.source_context->'blockers')
@@ -78,6 +89,14 @@ export class PostgresRouteRepository {
          WHERE segment.trip_id = $2::uuid
            AND segment.owner_id = $1
            AND segment.status <> 'obsolete'
+       ),
+       segment_counts AS (
+         SELECT
+           count(*) FILTER (WHERE status = 'failed') AS failed,
+           count(*) FILTER (
+             WHERE status = 'resolved' AND route_geometry IS NOT NULL
+           ) AS resolved_with_geometry
+         FROM active_segments
        ),
        stale_days AS (
          SELECT DISTINCT day.id
@@ -103,6 +122,13 @@ export class PostgresRouteRepository {
        SELECT jsonb_build_object(
          'status', CASE
            WHEN EXISTS (SELECT 1 FROM pending_days) THEN 'loading'
+           WHEN (SELECT resolved_with_geometry FROM segment_counts) > 0
+             AND (
+               (SELECT failed FROM segment_counts) > 0
+               OR EXISTS (SELECT 1 FROM failed_event_days)
+             ) THEN 'partial'
+           WHEN (SELECT failed FROM segment_counts) > 0
+             OR EXISTS (SELECT 1 FROM failed_event_days) THEN 'failed'
            ELSE 'done'
          END,
          'generations', COALESCE(
@@ -126,10 +152,9 @@ export class PostgresRouteRepository {
            WHERE status = 'pending' AND blocker_count > 0
          ),
          'failedSegments', (
-           SELECT count(*)
-           FROM active_segments
-           WHERE status = 'failed'
+           SELECT failed FROM segment_counts
          ),
+         'failedDays', (SELECT count(*) FROM failed_event_days),
          'pollAfterMs', 1500
        )`,
       [ownerId, tripId],

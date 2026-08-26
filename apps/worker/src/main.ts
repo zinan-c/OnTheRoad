@@ -4,7 +4,7 @@ import { Queue } from "bullmq";
 
 import { loadProcessConfig } from "@on-the-road/config/env";
 import { PostgresEventProcessor } from "./processors/maintenance/postgres-event-processor.js";
-import { APPLICATION_QUEUE, createQueueProcess } from "./queue-runtime.js";
+import { applicationJobOptions, APPLICATION_QUEUE, createQueueProcess } from "./queue-runtime.js";
 import { Redis } from "ioredis";
 import { IMPORT_CONTENT_TYPES, S3ObjectStorage } from "@on-the-road/storage";
 import { ClamAvTcpScanner } from "./processors/media/clamav-scanner.js";
@@ -253,12 +253,18 @@ export async function startWorker(
   });
   const reconciler = new OutboxReconciler(outbox, {
     async has(eventId) {
-      return Boolean(await applicationQueue.getJob(eventId));
+      const job = await applicationQueue.getJob(eventId);
+      if (!job) return false;
+      // A failed BullMQ job is not a durable delivery receipt. Let the
+      // PostgreSQL outbox reconciler enqueue it again once next_attempt_at is
+      // due; completed, waiting, delayed, and active jobs remain deduplicated.
+      if ((await job.getState()) !== "failed") return true;
+      await job.remove();
+      return false;
     },
     async add(event) {
       await applicationQueue.add(event.eventType, event, {
-        jobId: event.eventId,
-        removeOnComplete: false,
+        ...applicationJobOptions(event.eventId, event.eventType),
       });
     },
   });

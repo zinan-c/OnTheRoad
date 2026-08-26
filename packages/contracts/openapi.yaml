@@ -4371,6 +4371,7 @@
           "pendingDays",
           "blockedSegments",
           "failedSegments",
+          "failedDays",
           "pollAfterMs"
         ],
         "properties": {
@@ -4378,6 +4379,8 @@
             "type": "string",
             "enum": [
               "loading",
+              "partial",
+              "failed",
               "done"
             ]
           },
@@ -4415,6 +4418,10 @@
             "minimum": 0
           },
           "failedSegments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failedDays": {
             "type": "integer",
             "minimum": 0
           },

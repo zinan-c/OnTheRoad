@@ -16,6 +16,7 @@ const done: RouteStatusSnapshot = {
   pendingDays: 0,
   blockedSegments: 0,
   failedSegments: 0,
+  failedDays: 0,
   pollAfterMs: ROUTE_STATUS_POLL_INTERVAL_MS,
 };
 
@@ -23,6 +24,21 @@ const loading: RouteStatusSnapshot = {
   ...done,
   status: "loading",
   pendingDays: 1,
+};
+
+const failed: RouteStatusSnapshot = {
+  ...done,
+  status: "failed",
+  failedDays: 1,
+  failedSegments: 2,
+};
+
+const partial: RouteStatusSnapshot = {
+  ...done,
+  status: "partial",
+  blockedSegments: 2,
+  failedDays: 1,
+  failedSegments: 8,
 };
 
 async function flushPromises() {
@@ -89,6 +105,16 @@ afterEach(() => {
 });
 
 describe("finite route status polling", () => {
+  test("loads itinerary and persisted routes while generation is still loading", async () => {
+    const fetchMock = installFetch([loading]);
+    renderWorkspace();
+    await screen.findByText("Generating routes…");
+
+    const urls = fetchMock.mock.calls.map(([input]) => String(input));
+    expect(urls.some((url) => url.endsWith("/days"))).toBe(true);
+    expect(urls.some((url) => url.endsWith("/routes"))).toBe(true);
+  });
+
   test("does not poll again after the first done response", async () => {
     vi.useFakeTimers();
     const fetchMock = installFetch([done]);
@@ -99,6 +125,20 @@ describe("finite route status polling", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10 * ROUTE_STATUS_POLL_INTERVAL_MS);
     });
+    expect(statusRequestCount(fetchMock)).toBe(1);
+  });
+
+  test("stops polling on a terminal failure while keeping the workspace visible", async () => {
+    const fetchMock = installFetch([failed]);
+    renderWorkspace();
+    expect(await screen.findByText("Route generation failed. Endpoint locations remain visible.")).toBeTruthy();
+    expect(statusRequestCount(fetchMock)).toBe(1);
+  });
+
+  test("stops polling on partial completion and explains that some segments failed", async () => {
+    const fetchMock = installFetch([partial]);
+    renderWorkspace();
+    expect(await screen.findByText("Route generation partially completed. Some route segments failed; endpoint locations remain visible.")).toBeTruthy();
     expect(statusRequestCount(fetchMock)).toBe(1);
   });
 

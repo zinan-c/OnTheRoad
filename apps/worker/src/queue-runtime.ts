@@ -2,6 +2,29 @@ import { Worker, type Job, type Processor } from "bullmq";
 import { Redis } from "ioredis";
 
 export const APPLICATION_QUEUE = "otr.application";
+export const ROUTE_REBUILD_ATTEMPTS = 4;
+export const ROUTE_REBUILD_BACKOFF_MS = 500;
+
+export type ApplicationJobOptions = {
+  readonly jobId: string;
+  readonly removeOnComplete: false;
+  readonly attempts?: number;
+  readonly backoff?: { readonly type: "exponential"; readonly delay: number };
+};
+
+export function applicationJobOptions(
+  eventId: string,
+  eventType: string,
+): ApplicationJobOptions {
+  return eventType === "route.rebuild.requested"
+    ? {
+      jobId: eventId,
+      removeOnComplete: false,
+      attempts: ROUTE_REBUILD_ATTEMPTS,
+      backoff: { type: "exponential", delay: ROUTE_REBUILD_BACKOFF_MS },
+    }
+    : { jobId: eventId, removeOnComplete: false };
+}
 
 export interface QueueConsumer {
   pause(doNotWaitActive?: boolean): Promise<void>;

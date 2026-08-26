@@ -30,7 +30,7 @@ export type RouteSegment = PersistedRoute & {
   readonly sourceContext: Record<string, unknown>;
 };
 
-export type RouteGenerationStatus = "loading" | "done";
+export type RouteGenerationStatus = "loading" | "done" | "partial" | "failed";
 
 export type RouteStatusSnapshot = {
   readonly status: RouteGenerationStatus;
@@ -42,6 +42,7 @@ export type RouteStatusSnapshot = {
   readonly pendingDays: number;
   readonly blockedSegments: number;
   readonly failedSegments: number;
+  readonly failedDays: number;
   readonly pollAfterMs: number;
 };
 
@@ -153,6 +154,13 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
   }, [tripId]);
 
   useEffect(() => {
+    // Route generation is asynchronous, but the itinerary and persisted
+    // geometry are still authoritative while it is running. Load them right
+    // away so a slow provider cannot hide the map altogether.
+    void refresh();
+  }, [refresh, refreshVersion]);
+
+  useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
     routeStatusStartedAt.current = performance.now();
@@ -164,7 +172,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
       try {
         const status = await loadRouteStatus();
         if (cancelled) return;
-        if (status.status === "done") {
+        if (status.status !== "loading") {
           await refresh();
           return;
         }
@@ -226,7 +234,7 @@ export function RouteMapWorkspace({ tripId, transportModes, refreshVersion = 0, 
       <button id="map-scope-global" type="button" aria-pressed={selectedDayId === null} onClick={onSelectGlobalMap}>Global map</button>
       {selectedDay ? <span role="status">Showing Day {selectedDay.dayNumber}</span> : <span role="status">Showing all days</span>}
     </nav>
-    {routeStatus === null ? <p role="status">Checking route status…</p> : isGenerating ? <p role="status">Generating routes…</p> : null}
+    {routeStatus === null ? <p role="status">Checking route status…</p> : isGenerating ? <p role="status">Generating routes…</p> : routeStatus.status === "partial" ? <p role="status">Route generation partially completed. Some route segments failed; endpoint locations remain visible.</p> : routeStatus.status === "failed" ? <p role="status">Route generation failed. Endpoint locations remain visible.</p> : null}
     {routeStatusError ? <p role="alert">{routeStatusError}</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
     {routeStatusError ? <button type="button" onClick={() => setRouteStatusRetryKey((key) => key + 1)}>Refresh route status</button> : null}

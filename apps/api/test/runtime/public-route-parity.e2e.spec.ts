@@ -18,7 +18,7 @@ afterEach(async () => {
   app = undefined;
 });
 
-function createRuntime(): ApiRuntime {
+function createRuntime(routeStatus: "done" | "partial" = "done"): ApiRuntime {
   const identity = new IdentityService({
     environment: "development",
     developmentIdentityEnabled: true,
@@ -97,11 +97,12 @@ function createRuntime(): ApiRuntime {
     routes: {
       list: async () => [],
       status: async () => ({
-        status: "done",
+        status: routeStatus,
         generations: [],
         pendingDays: 0,
         blockedSegments: 0,
         failedSegments: 0,
+        failedDays: 0,
         pollAfterMs: 1500,
       }),
     },
@@ -252,6 +253,25 @@ describe("REVIEW-P1-03 public transport parity", () => {
         code: "SESSION_REQUIRED",
       },
     } satisfies Partial<ApiProblemError>);
+  });
+
+  test("serves partial route-generation status through the public controller", async () => {
+    const runtime = createRuntime("partial");
+    app = await createApiApplication(runtime);
+    const server = app.getHttpAdapter().getInstance();
+    const login = await runtime.identity.loginWithDevelopmentIdentity({
+      subject: "route-owner",
+      origin: runtime.appOrigin,
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/api/v1/trips/trip-1/routes/status",
+      headers: { cookie: login.setCookie.split(";", 1)[0] },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "partial", pendingDays: 0 });
   });
 
   test("emits bounded route-template metrics without entity IDs or credentials", async () => {

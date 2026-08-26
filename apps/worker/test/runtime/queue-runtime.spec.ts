@@ -2,8 +2,11 @@ import { describe, expect, test, vi } from "vitest";
 
 import {
   APPLICATION_QUEUE,
+  applicationJobOptions,
   createQueueProcess,
   defaultApplicationProcessor,
+  ROUTE_REBUILD_ATTEMPTS,
+  ROUTE_REBUILD_BACKOFF_MS,
 } from "../../src/queue-runtime.js";
 
 describe("REVIEW-P0-01 application Worker composition root", () => {
@@ -39,6 +42,19 @@ describe("REVIEW-P0-01 application Worker composition root", () => {
     } as never)).rejects.toMatchObject({
       code: "WORKER_PROCESSOR_UNSUPPORTED",
       retryable: false,
+    });
+  });
+
+  test("route rebuild jobs use bounded exponential delivery retries", () => {
+    expect(applicationJobOptions("route-event", "route.rebuild.requested")).toMatchObject({
+      jobId: "route-event",
+      removeOnComplete: false,
+      attempts: ROUTE_REBUILD_ATTEMPTS,
+      backoff: { type: "exponential", delay: ROUTE_REBUILD_BACKOFF_MS },
+    });
+    expect(applicationJobOptions("trip-event", "trip.updated")).toEqual({
+      jobId: "trip-event",
+      removeOnComplete: false,
     });
   });
 });
