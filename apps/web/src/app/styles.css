@@ -243,9 +243,13 @@ select {
 .workspaceCard h2 { margin: 0 0 .25rem; }
 .workspaceCard header p { color: #667085; margin-top: 0; }
 .tripDayWorkspace { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 1rem; align-items: start; }
-.tripDayRail { position: sticky; top: 1rem; min-width: 0; }
-.tripDayRail > .eyebrow { margin: .35rem .65rem .65rem; }
-.tripDayRail nav { display: grid; gap: .55rem; min-width: 0; }
+.tripDayRail { position: sticky; top: 1rem; display: flex; min-width: 0; min-height: 0; max-height: calc(100dvh - 2rem); flex-direction: column; }
+.tripDayRailHeader { display: grid; flex: 0 0 auto; gap: .65rem; min-width: 0; }
+.tripDayRailHeader > .eyebrow { margin: .35rem .65rem 0; }
+.tripDayRailList { display: grid; flex: 1 1 auto; gap: .55rem; min-width: 0; min-height: 0; margin: 0; padding: .65rem .15rem .15rem; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; scrollbar-width: thin; }
+.tripDayRailList::-webkit-scrollbar { width: .45rem; height: .45rem; }
+.tripDayRailList::-webkit-scrollbar-thumb { border-radius: 999px; background: rgb(29 97 81 / 28%); }
+.tripDayRailList::-webkit-scrollbar-track { background: transparent; }
 .tripDayRail button { display: grid; gap: .2rem; width: 100%; border: 1px solid rgb(22 51 45 / 12%); border-radius: .85rem; padding: .7rem .65rem; color: #35554c; background: rgb(255 255 255 / 55%); text-align: left; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
 .tripDayRail button:hover { border-color: rgb(29 97 81 / 42%); transform: translateY(-1px); }
 .tripDayRail button[aria-pressed="true"] { border-color: #1d6151; color: #fff; background: #1d6151; box-shadow: 0 8px 18px rgb(29 97 81 / 18%); }
@@ -456,10 +460,12 @@ article p {
   .tripWorkspace { margin-top: 1rem; }
   main.tripPageMain { width: calc(100% - 20px); }
   .tripDayWorkspace { grid-template-columns: 1fr; }
-  .tripDayRail { position: static; }
-  .tripDayRail > .eyebrow { margin-left: 0; }
-  .tripDayRail nav { grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); }
-  .tripDayRail button { min-height: 4.25rem; }
+  .tripDayRail { position: static; max-height: none; }
+  .tripDayRailHeader { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+  .tripDayRailHeader > .eyebrow { margin: .35rem 0 .65rem; }
+  .tripDayRailHeader .tripDayAll { width: auto; min-width: 5.5rem; }
+  .tripDayRailList { display: flex; flex: 0 0 auto; width: 100%; max-width: 100%; flex-wrap: nowrap; gap: .55rem; padding: .15rem .15rem .45rem; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; overscroll-behavior-y: auto; scrollbar-gutter: auto; touch-action: pan-x pan-y; }
+  .tripDayRailList .tripDayButton { flex: 0 0 auto; width: auto; min-width: 5.5rem; min-height: 4.25rem; }
   .workspaceItineraryHeader { align-items: flex-start; flex-direction: column; }
   .workspaceItineraryActions { justify-content: flex-start; }
   .productTimelineItem[data-reorderable="true"] { grid-template-columns: auto minmax(0, 1fr); align-items: start; }

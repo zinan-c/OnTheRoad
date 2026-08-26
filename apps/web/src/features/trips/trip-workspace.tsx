@@ -65,12 +65,14 @@ function TripDayRail({
   readonly onSelect: (dayId: string | null) => void;
 }) {
   return <aside className="tripDayRail" aria-label="Trip days">
-    <p className="eyebrow">Days</p>
-      <nav aria-label="Select day">
+    <div className="tripDayRailHeader">
+      <p className="eyebrow">Days</p>
       <button className="tripDayAll" type="button" aria-pressed={selectedDayId === null} onClick={() => onSelect(null)}>
         <span>ALL</span>
         <small>Global map</small>
       </button>
+    </div>
+    <nav className="tripDayRailList" aria-label="Select day">
       {days.map((day) => <button
         className="tripDayButton"
         key={day.id}
