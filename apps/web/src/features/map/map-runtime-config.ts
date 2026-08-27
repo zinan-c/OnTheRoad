@@ -7,8 +7,8 @@ import type { MapRuntimeFactory } from "./maplibre-wrapper";
 export type MapLayerCatalogEntry = {
   readonly id: MapLayerId;
   readonly label: string;
-  readonly provider: "amap";
-  readonly engine: "amap-js";
+  readonly provider: "amap" | "mapbox" | "fixture";
+  readonly engine: "amap-js" | "maplibre";
   readonly attribution: string;
   readonly enabled: boolean;
 };
@@ -19,11 +19,32 @@ export const AMAP_LAYER_CATALOG: readonly MapLayerCatalogEntry[] = [
   { id: "amap-satellite-labels", label: "卫星+路网", provider: "amap", engine: "amap-js", attribution: "© 高德地图", enabled: true },
 ];
 
+export const MAPBOX_LAYER_CATALOG: readonly MapLayerCatalogEntry[] = [
+  {
+    id: "mapbox-streets",
+    label: "Mapbox 街道",
+    provider: "mapbox",
+    engine: "maplibre",
+    attribution: "© Mapbox © OpenStreetMap contributors",
+    enabled: true,
+  },
+];
+
+export const MAP_LAYER_CATALOG: readonly MapLayerCatalogEntry[] = [
+  ...AMAP_LAYER_CATALOG,
+  ...MAPBOX_LAYER_CATALOG,
+];
+
 export type MapRuntimeConfig = {
   readonly provider: MapClientProvider;
   readonly engine: "maplibre" | "amap-js";
   readonly jsApiKey?: string;
   readonly securityJsCode?: string;
+  readonly mapboxPublicToken?: string;
+  readonly tileTemplate?: string;
+  readonly tileSize?: number;
+  readonly maxZoom?: number;
+  readonly showMapboxLogo?: boolean;
   readonly defaultLayer: MapLayerId;
   readonly attribution: string;
   readonly layers?: readonly MapLayerCatalogEntry[];
@@ -39,12 +60,24 @@ export async function fetchMapRuntimeConfig(
   const response = await request("/api/map/config", { cache: "no-store" });
   if (!response.ok) throw new Error("Map configuration is unavailable");
   const payload = await response.json() as Partial<MapRuntimeConfig>;
-  if ((payload.provider !== "fixture" && payload.provider !== "amap")
+  if ((payload.provider !== "fixture" && payload.provider !== "amap" && payload.provider !== "mapbox")
     || (payload.engine !== "maplibre" && payload.engine !== "amap-js")
     || typeof payload.defaultLayer !== "string"
-    || !AMAP_LAYER_CATALOG.some(({ id }) => id === payload.defaultLayer)
+    || !MAP_LAYER_CATALOG.some(({ id }) => id === payload.defaultLayer)
     || typeof payload.attribution !== "string") {
     throw new Error("Map configuration is invalid");
+  }
+  if (payload.provider === "mapbox"
+    && (payload.engine !== "maplibre"
+      || typeof payload.mapboxPublicToken !== "string"
+      || typeof payload.tileTemplate !== "string"
+      || payload.tileSize !== 512
+      || typeof payload.maxZoom !== "number"
+      || payload.maxZoom < 0
+      || payload.maxZoom > 22
+      || payload.showMapboxLogo !== true
+      || !MAPBOX_LAYER_CATALOG.some(({ id }) => id === payload.defaultLayer))) {
+    throw new Error("Mapbox map configuration is invalid");
   }
   return payload as MapRuntimeConfig;
 }
@@ -67,7 +100,14 @@ export async function loadConfiguredMapRuntime(options: {
     if (options.scriptLoader) Object.assign(amapOptions, { scriptLoader: options.scriptLoader });
     runtime = await loadAMapRuntime(amapOptions);
   } else {
-    runtime = await loadMapLibreRuntime(TRIP_MAP_RUNTIME_OPTIONS) as unknown as MapRuntimeFactory;
+    runtime = await loadMapLibreRuntime({
+      ...TRIP_MAP_RUNTIME_OPTIONS,
+      ...(config.tileTemplate ? { tileTemplate: config.tileTemplate } : {}),
+      ...(config.tileSize ? { tileSize: config.tileSize } : {}),
+      ...(config.maxZoom !== undefined ? { maxZoom: config.maxZoom } : {}),
+      ...(config.showMapboxLogo ? { showMapboxLogo: true } : {}),
+      attribution: config.attribution,
+    }) as unknown as MapRuntimeFactory;
   }
   return Object.assign(runtime, { mapConfig: config }) as ConfiguredMapRuntime;
 }

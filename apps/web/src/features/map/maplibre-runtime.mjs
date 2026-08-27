@@ -13,7 +13,8 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
         "otr-basemap": {
           type: "raster",
           tiles: [options.tileTemplate],
-          tileSize: 256,
+          tileSize: options.tileSize ?? 256,
+          ...(options.maxZoom === undefined ? {} : { maxzoom: options.maxZoom }),
           attribution: options.attribution ?? "地图数据 © On The Road fixture",
         },
       } : {};
@@ -28,6 +29,9 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
           } }, ...(options.tileTemplate ? [{ id: "otr-basemap", type: "raster", source: "otr-basemap" }] : [])],
         },
       });
+      if (options.showMapboxLogo && typeof map.addControl === "function") {
+        map.addControl(createMapboxLogoControl(options.mapboxLogoHref), "bottom-left");
+      }
       let geojson = { type: "FeatureCollection", features: [] };
       let routeGeojson = { type: "FeatureCollection", features: [] };
       let markerModels = [];
@@ -70,7 +74,7 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
 
       return {
         setBaseLayer() {
-          // The fixture raster has one deterministic base layer. The method
+          // The selected raster source is fixed for this runtime. The method
           // exists so the shared MapRuntimeHandle remains interchangeable with
           // the AMap JS runtime.
         },
@@ -115,6 +119,35 @@ export function createMapLibreRuntime(maplibregl, options = {}) {
           }
         },
       };
+    },
+  };
+}
+
+function createMapboxLogoControl(href = "https://www.mapbox.com/about/maps/") {
+  let container;
+  return {
+    onAdd() {
+      container = document.createElement("div");
+      container.className = "mapboxgl-ctrl mapboxgl-ctrl-logo";
+      const link = document.createElement("a");
+      link.href = href;
+      link.target = "_blank";
+      link.rel = "noreferrer noopener";
+      link.textContent = "Mapbox";
+      link.setAttribute("aria-label", "Mapbox");
+      link.title = "Mapbox";
+      link.style.background = "#000";
+      link.style.color = "#fff";
+      link.style.display = "block";
+      link.style.font = "600 11px/20px sans-serif";
+      link.style.padding = "0 4px";
+      link.style.textDecoration = "none";
+      container.append(link);
+      return container;
+    },
+    onRemove() {
+      container?.parentNode?.removeChild(container);
+      container = undefined;
     },
   };
 }

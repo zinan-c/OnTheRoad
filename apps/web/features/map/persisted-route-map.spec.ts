@@ -39,6 +39,34 @@ describe("persisted route map", () => {
     });
   });
 
+  test("configures Mapbox 512px Static Tiles and a visible logo control", () => {
+    let mapOptions: Record<string, any> | undefined;
+    const controls: unknown[] = [];
+    class FakeMap {
+      constructor(options: Record<string, any>) { mapOptions = options; }
+      on() { return this; }
+      addControl(control: unknown) { controls.push(control); }
+      remove() {}
+    }
+    const runtime = createMapLibreRuntime({ Map: FakeMap }, {
+      tileTemplate: "https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}?access_token=pk.test",
+      tileSize: 512,
+      maxZoom: 22,
+      showMapboxLogo: true,
+      attribution: "© Mapbox © OpenStreetMap contributors",
+    });
+    runtime.createMap({ container: {}, onTileError: () => undefined });
+
+    expect(mapOptions?.style.sources["otr-basemap"]).toMatchObject({
+      type: "raster",
+      tileSize: 512,
+      maxzoom: 22,
+      tiles: [expect.stringContaining("/tiles/512/")],
+    });
+    expect(controls).toHaveLength(1);
+    expect(mapOptions?.attributionControl).toBe(true);
+  });
+
   test("defers the initial fit until the raster map has loaded", () => {
     let load: (() => void) | undefined;
     const fitBounds = vi.fn();

@@ -48,4 +48,58 @@ describe("same-origin map runtime config", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ code: "MAP_CONFIG_UNAVAILABLE", title: "Map configuration is unavailable" });
   });
+
+  test("returns Mapbox Static Tiles config without the server geocoding token", async () => {
+    for (const [key, value] of Object.entries({
+      NODE_ENV: "development",
+      APP_ORIGIN: "http://localhost:3000",
+      API_BASE_URL: "http://localhost:3001/api/v1",
+      MAP_PROFILE: "international_primary",
+      MAPBOX_PUBLIC_TOKEN: "pk.mapbox-public",
+      MAPBOX_GEOCODING_TOKEN: "sk.mapbox-server",
+    })) vi.stubEnv(key, value);
+
+    const response = await GET();
+    const payload = await response.json() as Record<string, any>;
+    expect(response.status).toBe(200);
+    expect(payload).toMatchObject({
+      provider: "mapbox",
+      engine: "maplibre",
+      mapboxPublicToken: "pk.mapbox-public",
+      tileSize: 512,
+      maxZoom: 22,
+      showMapboxLogo: true,
+      defaultLayer: "mapbox-streets",
+    });
+    expect(payload.tileTemplate).toContain("/streets-v12/tiles/512/{z}/{x}/{y}");
+    expect(payload.tileTemplate).toContain("access_token=pk.mapbox-public");
+    expect(JSON.stringify(payload)).not.toContain("sk.mapbox-server");
+    expect(payload.layers).toEqual([
+      expect.objectContaining({
+        id: "mapbox-streets",
+        provider: "mapbox",
+        engine: "maplibre",
+        enabled: true,
+      }),
+    ]);
+  });
+
+  test("fails closed for deployment-level hybrid browser maps", async () => {
+    for (const [key, value] of Object.entries({
+      NODE_ENV: "development",
+      APP_ORIGIN: "http://localhost:3000",
+      API_BASE_URL: "http://localhost:3001/api/v1",
+      MAP_PROFILE: "hybrid",
+      AMAP_API_KEY: "amap-server-key",
+      MAPBOX_PUBLIC_TOKEN: "pk.mapbox-public",
+      MAPBOX_GEOCODING_TOKEN: "sk.mapbox-server",
+    })) vi.stubEnv(key, value);
+
+    const response = await GET();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      code: "MAP_PROFILE_REQUIRES_TRIP_SCOPE",
+      title: "Hybrid map runtime requires an explicit Trip map profile",
+    });
+  });
 });
