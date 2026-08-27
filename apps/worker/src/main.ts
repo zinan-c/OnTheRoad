@@ -25,7 +25,11 @@ import { OutboxReconciler } from "./processors/maintenance/outbox-reconciler.js"
 import { PostgresRecoverableOutbox } from "./processors/maintenance/postgres-outbox-repository.js";
 import { recordWorkerPipeline, workerTelemetry } from "./telemetry.js";
 import { createAmapDirectionsProvider } from "@on-the-road/providers/directions";
-import { createFixtureProvider, type DirectionsProvider } from "@on-the-road/providers";
+import {
+  createFixtureProvider,
+  unsupportedCapability,
+  type DirectionsProvider,
+} from "@on-the-road/providers";
 import { PostgresGeocodingBatchProcessor } from "./processors/geocoding/postgres-batch-processor.js";
 import {
   createFixtureGeocoder,
@@ -36,7 +40,7 @@ import {
 } from "@on-the-road/providers/geocoding";
 
 function disabledOnlineBatchGeocoder(
-  provider: "amap" | "nominatim" | "hybrid",
+  provider: "amap" | "mapbox" | "hybrid",
 ): Geocoder {
   const blocked = () => {
     throw new GeocoderError(
@@ -77,7 +81,12 @@ export async function startWorker(
     });
     directionsProviderName = "amap";
   } else {
-    throw new Error(`Directions provider is not configured for MAP_PROFILE=${config.map.profile}`);
+    directions = {
+      async route() {
+        throw unsupportedCapability("directions");
+      },
+    };
+    directionsProviderName = "unavailable";
   }
   const eventProcessor = new PostgresEventProcessor(
     config.server.databaseUrl.href,
@@ -97,7 +106,7 @@ export async function startWorker(
         ? "amap"
         : config.map.profile === "hybrid"
           ? "hybrid"
-          : "nominatim",
+          : "mapbox",
     );
   const geocoder = config.map.profile === "fixture"
     ? new PolicyGeocoder(rawGeocoder, {

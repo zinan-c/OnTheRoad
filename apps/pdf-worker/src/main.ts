@@ -37,6 +37,7 @@ export async function startPdfWorker(
     allowedContentTypes: [...IMPORT_CONTENT_TYPES, "image/jpeg", "image/png", "image/webp", "application/pdf"],
   });
   const stages = new PostgresExportStageRepository(database);
+  const neutralStaticMapProvider = createStaticMapAssetProvider();
   const staticMapProvider = config.map.profile === "cn_primary"
     ? createAmapStaticMapAssetProvider({
       apiKey: config.server.providerCredentials.amapApiKey ?? "",
@@ -44,10 +45,21 @@ export async function startPdfWorker(
       timeoutMs: config.map.amap.timeoutMs,
       attribution: config.map.amap.staticMapAttribution,
     })
-    : createStaticMapAssetProvider();
+    : config.map.profile === "fixture"
+      ? neutralStaticMapProvider
+      : {
+        render: (request: Parameters<typeof neutralStaticMapProvider.render>[0]) => neutralStaticMapProvider.render({
+          ...request,
+          attribution: "On The Road",
+          tilePolicy: { mode: "disabled", allowedHosts: [] },
+          degradationReason: `Static maps are unavailable for MAP_PROFILE=${config.map.profile}`,
+        }),
+      };
   const staticMapAttribution = config.map.profile === "cn_primary"
     ? config.map.amap.staticMapAttribution
-    : "On The Road fixture";
+    : config.map.profile === "fixture"
+      ? "On The Road fixture"
+      : "On The Road";
   const exportProcessor = new PdfExportProcessor({
     source: new PostgresExportJobSource(database),
     stages,
