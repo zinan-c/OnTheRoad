@@ -72,11 +72,11 @@ On The Road 是一个以“按天时间线 + 地图轨迹”为核心工作台�
 
 ### 1.6 地点搜索服务假设
 
-- 当前主动决策是移除 HERE：`cn_primary` 使用官方高德 Search/Reverse、Web JS 2.0、Directions 和 Static Map，`international_primary` 使用公共在线 Nominatim，`hybrid` 在中国使用高德、海外使用公共在线 Nominatim。
+- 当前主动决策是移除 HERE：`cn_primary` 使用官方高德 Search/Reverse、Web JS 2.0、Directions 和 Static Map；`international_primary` 使用 Mapbox Static Tiles 512 与 Mapbox Geocoding v6 Permanent；`hybrid` 在中国使用高德、海外使用 Mapbox。境外细节见 [`ADR-006`](./adr/006-mapbox-international-map-runtime.md)，旧 Nominatim 计划仅作历史记录。
 - Trip 创建时持久化 `mapProfile`。Provider 按 profile 和固定国家/边界规则决定，并把决定写入 Location/Route，不因超时、429 或空结果静默切换 Provider。
-- 公共 Nominatim 通过 On The Road API 代理访问，适用于个人产品的低频显式搜索和反查；全应用遵守最多约 1 req/s、稳定 User-Agent/联系方式、缓存和 attribution 政策。
-- Nominatim 不承担实时 autocomplete 或常规 Excel 批量解析。地点输入采用“提交搜索 → 候选 → 用户确认”；批量导入中的未解析地点进入受控任务和人工确认流程。
-- `dev`、`qa`、`prod` 都使用在线 geocoding、在线交互式瓦片和独立在线 Directions endpoint；CI/离线运行才使用 fixture。Directions 和瓦片不是 Nominatim 能力，必须单独配置和监控。
+- Mapbox Geocoding 通过 On The Road API 代理访问，使用独立 server-only Permanent token、缓存、限流与 attribution；不得接 Search Box，也不宣称完整 POI Permanent 支持。
+- Mapbox/AMap 都不承担实时 autocomplete 或常规 Excel 批量解析。地点输入采用“提交搜索 → 候选 → 用户确认”；批量导入中的未解析地点进入受控任务和人工确认流程。
+- `dev`、`qa`、`prod` 都使用在线 geocoding、在线交互式瓦片和独立在线 Directions endpoint；CI/离线运行才使用 fixture。国际 Directions/Static Map 若未单独配置必须显式 unavailable/degraded，不能静默转高德、Nominatim 或 fixture。
 - 在线瓦片不可用时使用本地中性网格、Marker、路线和图例，并明确标注“底图不可用 / 示意路线”；在线 Directions 不可用时只能进入 `pending/manual/approximate`，不能伪装成真实导航路线。
 
 ### 1.7 费用与汇率假设
@@ -115,8 +115,8 @@ On The Road 是一个以“按天时间线 + 地图轨迹”为核心工作台�
 |---|---|---|---|
 | Q1 | MVP 是个人工具还是需要团队空间？ | 单账号单所有者，预留成员表 | 团队空间会增加邀请、角色、审计和行级权限 |
 | Q2 | `TotalDays` 手动调整的准确语义是什么？ | 日期范围权威，修改 EndDate 调整 | 手动 Day 需定义无日期/跳日规则，并影响导出和排序 |
-| Q3 | 首发市场与地图覆盖范围？ | `cn_primary` 为官方高德全链路，`international_primary` 为公共 Nominatim，`hybrid` 为中国高德/海外 Nominatim；每个 Trip 持久化 profile | 决定坐标系、服务政策、缓存/限流和测试矩阵；不做静默自动故障切换 |
-| Q4 | 是否接受在线地点搜索不提供 autocomplete？ | 接受；所有环境使用显式搜索/反查，CI 使用 fixture | AMap/Nominatim 都不启用本产品的 autocomplete 交互；地点输入 UX 必须以提交搜索为主 |
+| Q3 | 首发市场与地图覆盖范围？ | `cn_primary` 为官方高德全链路，`international_primary` 为 Mapbox Static Tiles/Geocoding Permanent，`hybrid` 为中国高德/海外 Mapbox；每个 Trip 持久化 profile | 决定坐标系、服务政策、缓存/限流和测试矩阵；不做静默自动故障切换 |
+| Q4 | 是否接受在线地点搜索不提供 autocomplete？ | 接受；所有环境使用显式搜索/反查，CI 使用 fixture | AMap/Mapbox 都不启用本产品的 autocomplete 交互；地点输入 UX 必须以提交搜索为主 |
 | Q5 | 工作日是否需要中国法定调休和国际假日？ | MVP 周一至周五 + 人工覆盖 | 接入假日日历需国家、地区和年份数据源 |
 | Q6 | Excel 导入遇到“疑似同一行程”时如何处理？ | 跳过并提示，不自动覆盖 | 自动更新需要外部 ID 或人工匹配界面 |
 | Q7 | 是否允许从 ImageURLs 自动下载图片？ | 默认关闭；用户确认后受控下载 | 涉及 SSRF、版权、隐私、失败重试和存储成本 |
@@ -261,7 +261,7 @@ Day/Date 规则：
 
 地点输入：
 
-  - Nominatim 不发起逐键请求；用户完成输入后点击“搜索”才发起显式查询。300–500ms 防抖只适用于未来明确允许 autocomplete 的 Provider，不能用于公共 Nominatim。
+  - AMap/Mapbox 不发起逐键请求；用户完成输入后点击“搜索”才发起显式查询。300–500ms 防抖只适用于未来明确允许 autocomplete 的 Provider；Mapbox Geocoding v6 Permanent 不接 Search Box。
 - 候选项必须显示标准名、完整地址、国家/城市与来源。
 - 候选不唯一时不预选第一项。
 - 失败态固定提供：重新搜索、重新定位、地图选点、手工坐标、暂存文字。
@@ -457,8 +457,8 @@ flowchart TB
   W1["General Worker"]
   W2["Import / Geocoding Worker"]
   W3["PDF Worker + Chromium"]
-  GEO["AMAP / Public Nominatim Geocoding"]
-  TILE["Online OSM-derived Tile Source"]
+  GEO["AMAP / Mapbox Geocoding"]
+  TILE["AMap JS / Mapbox Static Tiles"]
   DIR["Independent Online Directions"]
   STATIC["Static Map Renderer"]
   OTEL["OpenTelemetry Collector"]
@@ -501,8 +501,8 @@ flowchart TB
 
 | 能力 | dev | qa | prod | 责任边界 |
 |---|---|---|---|---|
-| 地点搜索/反查 | 官方 AMap Web Service（`cn_primary`） | 官方 AMap Web Service（`cn_primary`） | 官方 AMap Web Service（`cn_primary`） | API proxy、独立缓存/限流；其他 profile 保留显式 Nominatim |
-| 交互式图层 | 官方 AMap JS 2.0 标准/卫星/RoadNet | 官方 AMap JS 2.0 标准/卫星/RoadNet | 官方 AMap JS 2.0 标准/卫星/RoadNet | Web 同源运行时配置；不使用未文档化 XYZ |
+| 地点搜索/反查 | 官方 AMap Web Service（`cn_primary`） | 官方 AMap Web Service（`cn_primary`） | 官方 AMap Web Service（`cn_primary`） | `international_primary` 使用 API 代理的 Mapbox Geocoding v6 Permanent；`hybrid` 按中国边界/上下文选择 AMap 或 Mapbox |
+| 交互式图层 | 官方 AMap JS 2.0 标准/卫星/RoadNet | 官方 AMap JS 2.0 标准/卫星/RoadNet | 官方 AMap JS 2.0 标准/卫星/RoadNet | 国际 profile 使用 MapLibre + Mapbox Static Tiles 512、logo/attribution；不使用未文档化 XYZ |
 | 路径规划 | AMap Directions API 2.0 | AMap Directions API 2.0 | AMap Directions API 2.0 | Worker；WGS84/GCJ02 只在边界转换 |
 | 静态地图/PDF | AMap Static Map 或几何降级 | AMap Static Map 或几何降级 | AMap Static Map 或几何降级 | PDF Worker 服务端调用；禁止浏览器任意 URL |
 
@@ -512,8 +512,10 @@ flowchart TB
 浏览器只获得同源端点提供的 JS 配置，不获得数据库、Session 或 Web Service key。
 
 AMap Web Service 只负责显式 Search/Reverse，Web JS 负责交互式图层，Directions 与
-Static Map 分别由 Worker/PDF Worker 调用。所有请求必须遵守独立 timeout、缓存/限流、
-attribution 和响应上限；Provider 失败只能进入可解释 error/degraded 状态。
+Static Map 分别由 Worker/PDF Worker 调用；国际 profile 使用 Mapbox Geocoding
+代理与 MapLibre Static Tiles 512。所有请求必须遵守独立 timeout、缓存/限流、
+attribution 和响应上限；Mapbox forward/reverse 固定 `permanent=true`、
+`autocomplete=false`，Provider 失败只能进入可解释 error/degraded 状态。
 
 ## 8. 同步流程
 
@@ -874,7 +876,7 @@ Import 若已提交部分 chunk，不执行危险的全量回滚；UI 必须显�
 
 ```json
 {
-  "provider": "nominatim",
+  "provider": "mapbox",
   "capabilities": {
     "autocomplete": false,
     "reverseGeocoding": true,
@@ -1739,7 +1741,10 @@ CREATE INDEX audit_trip_time_idx ON audit_log(trip_id, occurred_at DESC);
 
 - 网络超时、429、供应商 5xx：指数退避 + 全抖动，优先遵守 `Retry-After`。
 - 参数错误、认证失败、文件格式不支持：不自动重试，直接进入可解释失败。
-- 公共 Nominatim：`dev/qa/prod` 的在线显式搜索/反查都受全应用最多约 1 req/s、稳定 User-Agent/联系方式、缓存和当期政策约束；自动补全与常规批处理禁用。CI 和周期性合成任务不得访问公共 Nominatim。
+- Mapbox/AMap：`dev/qa/prod` 的在线显式搜索/反查都受各 Provider 独立
+  timeout、缓存和令牌桶约束；自动补全与常规批处理禁用。CI 和周期性合成
+  任务不得访问公共地图服务；Mapbox token 按 public tile/server geocoding
+  分离并脱敏。
 - 默认最多 4 次；PDF 只对资源短暂失败自动重试，模板/字体错误需修复后人工重试。
 - 每次重试记录 error code、Provider、耗时和 attempt，不在日志写 Key。
 
@@ -1866,8 +1871,11 @@ Compose: application integration probes
          service-DNS postgres/postgis + redis + minio + clamav
 ```
 
-- `cn_primary` 的 `dev/qa/prod` 使用在线 AMap；Provider 使用 mock/fixture 只在 CI、离线回归或明确降级模式启用。
-- 本地开发和 QA 不启动本地 Nominatim；通过环境配置访问公共 endpoint，并将真实在线 smoke 与确定性 required-case 分离。
+- `cn_primary` 的 `dev/qa/prod` 使用在线 AMap；`international_primary` 使用
+  Mapbox Static Tiles 512 和 Geocoding v6 Permanent；Provider 使用
+  mock/fixture 只在 CI、离线回归或明确降级模式启用。
+- 本地开发和 QA 不启动本地地图服务；通过环境配置访问官方 endpoint，并将
+  真实在线 smoke 与确定性 required-case 分离。
 - 两条轨道执行同一套 migration、bucket initializer、Redis/S3/PostGIS/ClamAV 探针和固定五日 fixture。
 - ClamAV 统一通过 TCP adapter 访问；应用不得依赖 macOS binary 路径、Unix socket 或 Compose service name。
 - CJK 字体、Chromium 与生产镜像保持一致，避免“本地能导出、线上缺字”。
@@ -1881,7 +1889,11 @@ Compose: application integration probes
 - Geocoding/Direction Worker 按配额而非纯 CPU 扩容。
 - Import Worker 按内存与队列长度扩容。
 - PDF Worker 独立节点池，限制每实例 Chromium 并发，防止内存争抢。
-- 在线地图运行时由 API/Worker/PDF Worker 统一代理：AMap Search/Reverse 使用独立令牌桶和缓存，Web 只接收公开 JS 配置，Directions/Static Map 使用服务端官方 endpoint。高德异常时必须保留可解释降级状态，不能静默切换为 fixture。
+- 在线地图运行时由 API/Worker/PDF Worker 统一代理：AMap/Mapbox
+  Search/Reverse 使用独立令牌桶和缓存，Web 只接收公开 AMap JS 或 Mapbox
+  tile 配置，Directions/Static Map 使用其明确的服务端 endpoint。任何
+  Provider 异常都必须保留可解释降级状态，不能静默切换为另一个 Provider
+  或 fixture。
 
 ### 16.3 发布和数据库
 
@@ -1978,7 +1990,8 @@ interface StaticMapProvider {
 }
 ```
 
-Provider 边界补充：Nominatim 只实现 `GeocodingProvider`/`ReverseGeocodingProvider`；
+Provider 边界补充：AMap/Mapbox 只实现
+`GeocodingProvider`/`ReverseGeocodingProvider`；Mapbox Static Tiles、
 `MapProvider` 的瓦片配置和 `DirectionsProvider` 的路线 endpoint 独立注入。
 `MAP_PROFILE` 不得被用作瓦片或路线 provider 的隐式选择器。
 
@@ -2069,8 +2082,9 @@ interface Importer {
 - [Next.js App Router 官方文档](https://nextjs.org/docs/app)
 - [Next.js 官方部署方式](https://nextjs.org/docs/app/getting-started/deploying)
 - [PostGIS 官方空间索引说明](https://postgis.net/documentation/faq/spatial-indexes/)
-- [OpenStreetMap Nominatim 使用政策](https://operations.osmfoundation.org/policies/nominatim/)
-- [OpenStreetMap Tile 使用政策](https://operations.osmfoundation.org/policies/tiles/)
+- [Mapbox Geocoding API v6 文档](https://docs.mapbox.com/api/search/geocoding/)
+- [Mapbox Static Tiles 文档](https://docs.mapbox.com/api/maps/static-tiles/)
+- [OpenStreetMap Nominatim 使用政策（历史方案参考）](https://operations.osmfoundation.org/policies/nominatim/)
 - [Playwright `page.pdf()` 官方文档](https://playwright.dev/docs/api/class-page#page-pdf)
 - [BullMQ 自定义 Job ID 规则](https://docs.bullmq.io/guide/jobs/job-ids)
 - [Apache POI Spreadsheet 官方说明](https://poi.apache.org/components/spreadsheet/index)

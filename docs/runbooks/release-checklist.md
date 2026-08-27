@@ -49,6 +49,37 @@ Any unchecked item blocks production release. The detailed decision and
 implementation sequence are in [`ADR-005`](../adr/005-amap-primary-online-map-runtime.md);
 [`ADR-003`](../adr/003-online-nominatim-map-runtime.md) remains historical.
 
+## International Mapbox gate
+
+This separate gate applies only when a deployment selects
+`MAP_PROFILE=international_primary`. It does not change the `cn_primary`
+AMap gate above. `hybrid` is API/Worker-only until a Trip-scoped Web map
+configuration endpoint exists; its Web `/api/map/config` must fail closed.
+
+- [ ] `international_primary` startup validates `MAPBOX_PUBLIC_TOKEN`,
+      `MAPBOX_GEOCODING_TOKEN`, official HTTPS Mapbox tile/forward/reverse
+      endpoints, `OTR_MAPBOX_TILE_SIZE=512`, max zoom `<=22`, and attribution.
+- [ ] The public tile token is restricted to the deployed browser origins and
+      required tile scopes; the Permanent Geocoding token is server-only and
+      is absent from `/api/map/config`, HTML, logs, and client bundles.
+- [ ] Controlled live smoke has passed Mapbox Static Tiles, forward geocoding,
+      reverse geocoding, cache headers, logo and attribution; CI remains
+      offline and fake-fetch based.
+- [ ] Forward/reverse requests use `permanent=true`, never request
+      `autocomplete`, do not use Search Box, and documentation does not claim
+      complete Permanent POI coverage.
+- [ ] `401/403`, `429`, timeout, transport, `5xx` and invalid payload cases
+      produce explicit normalized errors; no failure silently falls back to
+      AMap, Nominatim, OSM tiles or fixture.
+- [ ] International Directions/Static Map limitations are accepted by the
+      release owner or covered by a separate provider implementation and gate.
+- [ ] For `hybrid`, API routing evidence shows China AMap / overseas Mapbox by
+      fixed context/bounds and Web returns
+      `MAP_PROFILE_REQUIRES_TRIP_SCOPE` rather than a misleading map.
+
+The detailed decision and exact environment variables are in
+[`ADR-006`](../adr/006-mapbox-international-map-runtime.md).
+
 ## A02 Compose parity gate
 
 This section is mandatory before the first production release whenever the

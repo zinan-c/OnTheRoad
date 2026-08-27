@@ -6,10 +6,12 @@
 > 验收基线：[DEVELOPMENT_MILESTONE.md](./DEVELOPMENT_MILESTONE.md)
 > 当前 Gate：`test-manifests/m0-m4.required.json` 定义 156 个 M0–M4 required Cases；M3 历史 Dev Gate 在精确 closure SHA 上 129/129 通过，M4 当前实现与 Gate 状态详见 [M4 Gate](./reports/m4-gate.md)。
 
-> 当前在线地图首版已采用 AMap-first：`cn_primary` 的 Search/Reverse、Web JS
-> 2.0、Directions 和 PDF Static Map 全部走官方高德；`fixture` 继续作为 CI/
-> 离线 required-case 的唯一公网隔离模式。在线 smoke 仍不计入当前 156 个
-> required Cases，且只有显式开启时才运行。用例定义见本文件的 Online Map Workstream。
+> 当前在线地图首版采用 AMap-first + Mapbox international：`cn_primary` 的
+> Search/Reverse、Web JS 2.0、Directions 和 PDF Static Map 走官方高德；
+> `international_primary` 使用 Mapbox Static Tiles 512 与 Geocoding v6
+> Permanent；`fixture` 继续作为 CI/离线 required-case 的唯一公网隔离模式。
+> 在线 smoke 仍不计入当前 156 个 required Cases，且只有显式开启时才运行。
+> 用例定义见本文件的 Online Map Workstream。
 
 ## 0. 用例执行规范
 
@@ -25,7 +27,7 @@
 - PostgreSQL/PostGIS、Redis/BullMQ、MinIO、ClamAV 使用双轨测试：本机原生轨覆盖日常启动和快速集成，Compose/Testcontainers 轨在 CI/staging 覆盖 Linux、网络、资源和故障恢复；不以纯 mock 证明持久化不变量。
 - 身份使用双轨测试：开发身份/Mock OIDC 轨覆盖日常登录、会话和 owner 安全门禁，真实 Staging IdP 轨在发布前覆盖登记回调、HTTPS Cookie、登出和真实密钥轮换；mock OIDC 不得作为发布身份凭据。
 - 并发测试使用 barrier/latch 控制提交顺序；时间相关测试使用 fake clock；故障使用显式 fault injection。
-- Provider contract 使用本地 mock server；CI 不访问公共地图服务。真实在线 smoke 只在受控 dev/qa/prod 环境运行，并遵守 AMap 速率、缓存、attribution 和无 autocomplete 约束。
+- Provider contract 使用本地 mock server；CI 不访问公共地图服务。真实在线 smoke 只在受控 dev/qa/prod 环境运行，并遵守 AMap/Mapbox 速率、缓存、attribution 和无 autocomplete 约束。
 - PDF 必须由独立 parser 打开，并逐页渲染验证；“页面出现下载按钮”不是 PDF 成功测试。
 - 每个 Case 的测试名称必须包含完整 Case ID，例如 `test("TC-C06-02 late geocode cannot overwrite manual point", ...)`。
 - Case 代码落点可按框架调整扩展名，但 ID、测试层级和断言不得丢失。
@@ -201,9 +203,9 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 
 ### C02
 
-- `TC-C02-01` — AMAP/Nominatim geocoder adapter contract；代码：`packages/providers/test/geocoding/adapter-contract.spec.ts`。中文/英文/context 搜索与反查；断言 normalized candidate/capability/attribution。
-- `TC-C02-02` — Rate/cache/policy faults；代码：`packages/providers/test/geocoding/rate-cache.spec.ts`。fake clock 429/Retry-After、5xx、相同 query 不同 context；断言限流、退避、cache 隔离，不对 Nominatim autocomplete。
-- `TC-C02-03` — API + controlled online smoke；代码：`apps/api/test/locations/search.e2e-spec.ts`。fixture adapter 全跑、配置时少量 Nominatim/AMAP smoke；断言不静默切 Provider、无 autocomplete 请求且日志脱敏。
+- `TC-C02-01` — AMAP/Mapbox geocoder adapter contract；代码：`packages/providers/test/geocoding/adapter-contract.spec.ts`、`packages/providers/test/geocoding/mapbox.spec.ts`。中文/英文/context 搜索与反查；断言 normalized candidate/capability/attribution。
+- `TC-C02-02` — Rate/cache/policy faults；代码：`packages/providers/test/geocoding/rate-cache.spec.ts`。fake clock 429/Retry-After、5xx、相同 query 不同 context；断言限流、退避、cache 隔离，不对 Mapbox autocomplete/Search Box。
+- `TC-C02-03` — API + controlled online smoke；代码：`apps/api/test/locations/search.e2e-spec.ts`。fixture adapter 全跑、配置时少量 Mapbox/AMAP smoke；断言不静默切 Provider、无 autocomplete 请求且日志脱敏。
 
 ### C04
 
@@ -458,7 +460,7 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 
 - `TC-MAP-01-01` — AMap Search/Reverse contract；断言官方 place/text 与 geocode/regeo、WGS84、GCJ02 边界、候选 normalization、attribution 和错误映射。
 - `TC-MAP-01-02` — AMap policy boundary；注入 401/403、429、Retry-After、超时、重复 query 和敏感字段；断言不发 autocomplete、使用独立限流/缓存且日志脱敏。
-- `TC-MAP-01-03` — Profile routing；断言 `international_primary` → Nominatim、`hybrid` 中国 → AMAP/海外 → Nominatim，Provider 失败不改写 `mapProfile`。
+- `TC-MAP-01-03` — Profile routing；断言 `international_primary` → Mapbox Permanent、`hybrid` 中国 → AMAP/海外 → Mapbox，Provider 失败不改写 `mapProfile`。
 
 ### MAP-02 — AMap JS and PDF Static Map runtime
 
@@ -474,9 +476,9 @@ G08 在实现前从 M1/M6 移出。`TC-G08-01`、`TC-G08-02`、`TC-G08-03` 已�
 
 ### MAP-04 — Environment and release integration
 
-- `TC-MAP-04-01` — dev/qa/prod online smoke；仅在 `OTR_AMAP_LIVE_SMOKE=1` 且三类真实 key 存在时执行少量 Search、Reverse、Directions、Static Map 检查。
-- `TC-MAP-04-02` — CI isolation；required-case 和合成监控运行时断言不访问公共 AMap、Nominatim、在线瓦片或在线 Directions。
-- `TC-MAP-04-03` — AMap-first rollback；配置、secret、当前 ADR、运行手册和 provider registry 不静默切换 Provider；失败只进入明确 degraded/error 状态。
+- `TC-MAP-04-01` — dev/qa/prod online smoke；真实 key 与相应 live-smoke 门禁都存在时，受控脚本/人工流程执行少量检查：AMap 覆盖 Search、Reverse、Directions、Static Map，Mapbox 覆盖 Permanent Forward/Reverse 与 Static Tile。Mapbox 不接 Search Box；`OTR_MAPBOX_LIVE_SMOKE=1` 本身不会自动发起公网请求。
+- `TC-MAP-04-02` — CI isolation；required-case 和合成监控运行时断言不访问公共 AMap、Mapbox、在线瓦片或在线 Directions。
+- `TC-MAP-04-03` — Provider rollback boundary；配置、secret、当前 ADR、运行手册和 provider registry 不静默切换 Provider；失败只进入明确 degraded/error 状态；Web hybrid 必须返回 Trip-scope fail-closed。
 
 ### M5
 

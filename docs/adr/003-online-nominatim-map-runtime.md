@@ -1,5 +1,12 @@
 # ADR-003：在线 Nominatim 与三环境在线地图运行时
 
+> **历史记录 / superseded（2026-08-27）**：本 ADR 记录当时的 Nominatim
+> 迁移决策，不再描述当前 `international_primary` 或 `hybrid` 的 active
+> runtime。当前境外实现是 Mapbox Static Tiles + Mapbox Geocoding v6
+> Permanent，见 [`ADR-006`](./006-mapbox-international-map-runtime.md)。
+> `cn_primary` 仍由 [`ADR-005`](./005-amap-primary-online-map-runtime.md)
+> 负责。
+
 - 状态：Accepted；MAP-01 代码实现完成，三环境 smoke 与 MAP-02/03/04 仍待执行
 - 日期：2026-08-14
 - Supersedes：[`ADR-002`](./002-coordinate-provider.md) 中关于 HERE 的当前 Provider 选择

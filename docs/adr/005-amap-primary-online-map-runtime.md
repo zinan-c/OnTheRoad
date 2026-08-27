@@ -4,6 +4,9 @@
 - 日期：2026-08-23
 - Supersedes：[`ADR-003`](./003-online-nominatim-map-runtime.md) 的当前生产地图决定
 - 保留历史：ADR-003 继续记录当时的 Nominatim 迁移决策，不覆盖本 ADR
+- 范围说明：本 ADR 只决定 `cn_primary`；`international_primary` 和 API/Worker
+  的 `hybrid` 固定地域路由由 [`ADR-006`](./006-mapbox-international-map-runtime.md)
+  决定，境外不再使用 Nominatim
 
 ## 决策
 

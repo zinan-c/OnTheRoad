@@ -1,10 +1,18 @@
 # Online Nominatim / Map Runtime 迁移计划
 
+> **历史计划 / superseded（2026-08-27）**：本文保留原迁移过程和当时的
+> 验收状态。当前 `international_primary` / `hybrid` 境外 geocoding 与
+> MapLibre tiles 已改由 Mapbox 承担，现行决定见
+> [`ADR-006`](../adr/006-mapbox-international-map-runtime.md)。本文的
+> Nominatim endpoint、限流和 smoke 项不再是新部署配置。
+
 ## 状态
 
-这是 HERE → 公共在线 Nominatim 的文档先行决策和实施计划。MAP-01 的适配器、API proxy、限流/缓存、Profile 路由和 CI fixture 隔离已实现；三环境真实 smoke、瓦片、在线 Directions 以及 HERE 最终清理仍未完成。
-
-当前权威决策是 [`ADR-003`](../adr/003-online-nominatim-map-runtime.md)。原 HERE Spike 仍保留为历史证据，见 [`provider-spike.md`](./provider-spike.md)。
+这是 HERE → 公共在线 Nominatim 的历史文档先行决策和实施计划。它记录当时
+的适配器、API proxy、限流/缓存和 fixture 隔离状态，不是当前部署的实现或
+验收门禁。当前权威决策是 [`ADR-006`](../adr/006-mapbox-international-map-runtime.md)
+（境外 Mapbox）和 [`ADR-005`](../adr/005-amap-primary-online-map-runtime.md)
+（境内 AMap）；原 HERE Spike 仍保留为历史证据。
 
 ## 目标运行时
 

@@ -10,7 +10,7 @@ database, object-storage or session secrets.
 Copy `.env.example` to an ignored local environment file and replace values
 only when required. The checked-in example stays fixture-backed so CI and
 offline tests never access public map services; local `.env` may override it to
-the online AMap profile:
+the online AMap or Mapbox profile:
 
 ```sh
 cp .env.example .env
@@ -31,6 +31,27 @@ OTR_MAP_DEFAULT_LAYER=amap-street
 `AMAP_JS_API_KEY`, `AMAP_JS_SECURITY_CODE`, the selected layer, provider and
 attribution from same-origin `/api/map/config`. Never put the Web Service key
 in a `NEXT_PUBLIC_*` variable or browser markup.
+
+For an international Mapbox deployment, use a separate public tile token and
+server-only Permanent Geocoding token:
+
+```dotenv
+MAP_PROFILE=international_primary
+MAP_AUTOCOMPLETE_ENABLED=false
+MAP_EXPLICIT_SEARCH_ENABLED=true
+MAPBOX_PUBLIC_TOKEN=pk.<domain-restricted-public-token>
+MAPBOX_GEOCODING_TOKEN=sk.<server-only-permanent-token>
+OTR_MAP_DEFAULT_LAYER=mapbox-streets
+OTR_MAPBOX_TILE_SIZE=512
+OTR_MAPBOX_MAX_ZOOM=22
+```
+
+`MAPBOX_PUBLIC_TOKEN` is intentionally returned to the browser because the
+MapLibre raster source needs it; restrict it by allowed origins/scopes in
+Mapbox. `MAPBOX_GEOCODING_TOKEN` is server-only and is never returned by
+`/api/map/config`. Mapbox Geocoding v6 is used with `permanent=true` and
+`autocomplete=false`; this is explicit geocoding, not Search Box or a claim of
+complete Permanent POI coverage.
 
 Runtime configuration has three deployment environments and one explicit
 offline/fixture mode:
@@ -73,8 +94,13 @@ The capability response is derived from the validated provider configuration:
   deterministic raster are enabled; no network request is made;
 - autocomplete is always disabled and batch geocoding is not a public
   capability;
-- `international_primary` and `hybrid` retain their explicit Nominatim path
-  for non-CN deployments and never alter `cn_primary`.
+- `international_primary`: Mapbox Static Tiles `streets-v12` 512 through
+  MapLibre, and Mapbox Geocoding v6 Permanent through the API proxy;
+  Directions/Static Map are not provided by this item.
+- `hybrid`: API/Worker fixed geographic routing uses AMap inside China and
+  Mapbox overseas. The deployment-level Web `/api/map/config` cannot select a
+  provider from a persisted Trip, so it fails closed with
+  `MAP_PROFILE_REQUIRES_TRIP_SCOPE` until a Trip-scoped runtime endpoint exists.
 
 The active `cn_primary` geocoder configuration is official AMap:
 
@@ -90,6 +116,17 @@ The active `cn_primary` geocoder configuration is official AMap:
 - `OTR_STATIC_MAP_BASE_URL` and `OTR_STATIC_MAP_ATTRIBUTION`;
 - `OTR_MAP_DEFAULT_LAYER` (`amap-street`, `amap-satellite` or
   `amap-satellite-labels`).
+
+For `international_primary`, the corresponding Mapbox settings are
+`OTR_MAPBOX_TILES_BASE_URL`, `OTR_MAPBOX_GEOCODE_ENDPOINT`,
+`OTR_MAPBOX_REVERSE_GEOCODE_ENDPOINT`, `OTR_MAPBOX_TIMEOUT_MS`,
+`OTR_MAPBOX_RATE_LIMIT_RPS`, `OTR_MAPBOX_CACHE_TTL_SECONDS`,
+`OTR_MAPBOX_TILE_SIZE=512`, `OTR_MAPBOX_MAX_ZOOM<=22`, and
+`OTR_MAPBOX_ATTRIBUTION`. The default URLs are official `api.mapbox.com`
+HTTPS endpoints and are validated as such. MapLibre renders a raster source
+with Mapbox attribution and logo; the browser uses the origin-restricted public
+token to request the official tile endpoint directly and does not substitute
+another provider on failure.
 
 For `cn_primary`, Web map requests go only to the official AMap JS SDK and
 server requests go only to the configured official AMap Web Service endpoints.
@@ -107,7 +144,7 @@ free-form nested messages.
 
 Production startup rejects secrets containing development patterns such as
 `local`, `change-me`, or `dev-only`. The `hybrid` map profile requires
-`AMAP_API_KEY` and valid explicit Nominatim configuration for its non-CN leg;
+`AMAP_API_KEY`, `MAPBOX_PUBLIC_TOKEN` and `MAPBOX_GEOCODING_TOKEN`;
 `cn_primary` additionally requires both browser AMap credentials. A single
 Provider failure never silently changes the configured profile or changes
 online results to fixture results.
@@ -130,9 +167,10 @@ files. API, Worker and PDF Worker require:
 - `OTR_ENV_CLAMAV_HOST` and optional `OTR_ENV_CLAMAV_PORT`;
 - `OTR_ENV_SESSION_SECRET` (exported to the process as `SESSION_SECRET`).
 
-Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities;
-it receives the public AMap JS key/security code and layer catalog, never
-`AMAP_API_KEY`, database credentials or storage/session secrets.
+Web consumes only `APP_ORIGIN`, `API_BASE_URL`, ports and map capabilities; it
+receives either the public AMap JS key/security code or the public Mapbox tile
+token and layer catalog, never `AMAP_API_KEY`, `MAPBOX_GEOCODING_TOKEN`,
+database credentials or storage/session secrets.
 For `pnpm run dev`, the launcher defaults to the Native dependency track. Pass
 `pnpm run dev -- -native` or `pnpm run dev -- -compose` to select the track;
 the accepted `-componse` spelling is retained as an alias. The launcher

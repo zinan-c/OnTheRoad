@@ -44,8 +44,10 @@ Docker socket, or Compose service name.
 
 The local dependency stack does not run a map database. For the production-
 shaped China profile, set `MAP_PROFILE=cn_primary` and provide official AMap
-credentials. CI and deterministic local tests explicitly use `fixture` and
-must not access the network.
+credentials. For an overseas deployment, set
+`MAP_PROFILE=international_primary` and provide the split Mapbox tokens below.
+CI and deterministic local tests explicitly use `fixture` and must not access
+the network.
 
 - `AMAP_API_KEY` stays in API/Worker/PDF Worker environment variables and is
   used for official AMap Web Service Search/Reverse, Directions and Static Map.
@@ -64,6 +66,18 @@ must not access the network.
 - AMap errors are reported as unavailable/degraded; they do not mutate the
   profile or substitute fixture geometry. PDF fallback retains markers,
   routes, attribution and a manifest degradation reason.
+- `MAPBOX_PUBLIC_TOKEN` is a domain-restricted browser tile token and
+  `MAPBOX_GEOCODING_TOKEN` is a server-only Permanent Geocoding token. The
+  international MapLibre source uses official `streets-v12` Static Tiles 512,
+  `OTR_MAPBOX_TILE_SIZE=512`, max zoom 22, Mapbox logo and attribution. Mapbox
+  Search/Reverse is API-proxied with `permanent=true` and
+  `autocomplete=false`; it is not Search Box or full Permanent POI coverage.
+- `hybrid` routes API/Worker geocoding by fixed China bounds/context, but the
+  deployment-scoped Web map config fails closed because it cannot infer the
+  persisted Trip profile. Use `cn_primary` or `international_primary` for a
+  browser deployment until a Trip-scoped map-config endpoint is implemented.
+- International Directions and Static Map remain unavailable in this item;
+  failures are explicit and must not fall back to AMap, Nominatim or fixture.
 - `fixture` uses deterministic local Search/Reverse/Directions/Static Map and
   the local raster route; its tests run with zero network calls.
 

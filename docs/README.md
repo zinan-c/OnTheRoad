@@ -39,17 +39,21 @@ blocking for a production release.
   `cn_primary` profile uses official AMap Search/Reverse, Web JS 2.0,
   Directions and Static Map with WGS84↔GCJ02 boundary conversion. Live smoke
   and release approval remain separate; required-case/CI runs stay fixture-
-  backed and offline.
+  backed and offline. `international_primary` now uses Mapbox Static Tiles 512
+  and Mapbox Geocoding v6 Permanent; see ADR-006 for its separate release gate.
 
 ## Current map-provider decision
 
 The active architecture is AMap-first for `cn_primary`: official AMap
-Search/Reverse, Web JS 2.0 layers, Directions and Static Map. `fixture` remains
-the explicit CI/offline profile; `international_primary` and `hybrid` are
-retained explicit non-CN profiles. Keys remain server-side except the public
-JS key/security code delivered by same-origin `/api/map/config`; no silent
-provider fallback is permitted. See [`ADR-005`](./adr/005-amap-primary-online-map-runtime.md);
-[`ADR-003`](./adr/003-online-nominatim-map-runtime.md) is historical.
+Search/Reverse, Web JS 2.0 layers, Directions and Static Map. The explicit
+`international_primary` deployment uses Mapbox Static Tiles 512 and Mapbox
+Geocoding v6 Permanent; API/Worker `hybrid` routes China AMap and overseas
+Mapbox by fixed geography. `fixture` remains the explicit CI/offline profile.
+Keys remain server-side except the public browser tile token (which must be
+domain-restricted); no silent provider fallback is permitted. Web hybrid map
+config fails closed until it is Trip-scoped. See [`ADR-005`](./adr/005-amap-primary-online-map-runtime.md)
+and [`ADR-006`](./adr/006-mapbox-international-map-runtime.md); [`ADR-003`](./adr/003-online-nominatim-map-runtime.md)
+is historical.
 
 ## Authoritative documents
 
