@@ -2,6 +2,7 @@ export * from "./errors.js";
 export * from "./amap.js";
 export * from "./fixture.js";
 export * from "./here.js";
+export * from "./mapbox.js";
 export * from "./nominatim.js";
 export * from "./hybrid.js";
 export * from "./policy.js";

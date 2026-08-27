@@ -4,31 +4,47 @@ import type { Geocoder, GeocodingSearchRequest } from "./types.js";
 
 export interface HybridGeocoderOptions {
   readonly amap: Geocoder;
-  readonly nominatim: Geocoder;
+  readonly mapbox: Geocoder;
 }
 
 function isChinaCountryCode(code: string): boolean {
   return ["cn", "chn"].includes(code.trim().toLowerCase());
 }
 
+function isChinaPoint(longitude: number, latitude: number): boolean {
+  return longitude >= 72.004
+    && longitude <= 137.8347
+    && latitude >= 0.8293
+    && latitude <= 55.8271;
+}
+
 function searchProvider(options: HybridGeocoderOptions, request: GeocodingSearchRequest): Geocoder {
   const countries = request.context?.countryCodes ?? [];
-  return countries.some(isChinaCountryCode) ? options.amap : options.nominatim;
+  if (countries.some(isChinaCountryCode)) return options.amap;
+  const proximity = request.context?.proximity;
+  if (proximity) {
+    const [longitude, latitude] = "longitude" in proximity
+      ? [proximity.longitude, proximity.latitude]
+      : proximity;
+    if (isChinaPoint(longitude, latitude)) return options.amap;
+  }
+  const viewbox = request.context?.viewbox;
+  if (viewbox) {
+    const [west, south, east, north] = viewbox;
+    if (isChinaPoint((west + east) / 2, (south + north) / 2)) return options.amap;
+  }
+  return options.mapbox;
 }
 
 function reverseProvider(options: HybridGeocoderOptions, point: Wgs84Point): Geocoder {
-  const inChinaBounds = point.longitude >= 72.004
-    && point.longitude <= 137.8347
-    && point.latitude >= 0.8293
-    && point.latitude <= 55.8271;
-  return inChinaBounds ? options.amap : options.nominatim;
+  return isChinaPoint(point.longitude, point.latitude) ? options.amap : options.mapbox;
 }
 
 export function createHybridGeocoder(options: HybridGeocoderOptions): Geocoder {
-  if (options.amap.provider !== "amap" || options.nominatim.provider !== "nominatim") {
+  if (options.amap.provider !== "amap" || options.mapbox.provider !== "mapbox") {
     throw new GeocoderError(
       "PROVIDER_PROFILE_UNSUPPORTED",
-      "Hybrid profile requires explicit AMAP and Nominatim adapters",
+      "Hybrid profile requires explicit AMAP and Mapbox adapters",
       { provider: "hybrid" },
     );
   }

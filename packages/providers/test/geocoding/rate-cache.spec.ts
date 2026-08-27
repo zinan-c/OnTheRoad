@@ -4,6 +4,7 @@ import {
   createAmapGeocoder,
   createHereGeocoder,
   createHybridGeocoder,
+  createMapboxGeocoder,
   createNominatimGeocoder,
   GeocoderError,
   InMemoryGeocodingStateStore,
@@ -161,7 +162,7 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
     });
   });
 
-  test("normalizes AMAP failures and hybrid never falls back to Nominatim", async () => {
+  test("normalizes AMAP failures and hybrid never falls back to Mapbox", async () => {
     expect(() => createAmapGeocoder({
       profile: "cn-primary",
       apiKey: "",
@@ -181,18 +182,17 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
         infocode: "10001",
       }),
     });
-    let nominatimCalls = 0;
-    const nominatim = createNominatimGeocoder({
-      profile: "public-online",
-      userAgent: "on-the-road-test/1.0",
-      contact: "test@example.com",
+    let mapboxCalls = 0;
+    const mapbox = createMapboxGeocoder({
+      profile: "mapbox-permanent",
+      accessToken: "mapbox-key",
       language: "en",
       fetch: async () => {
-        nominatimCalls += 1;
-        return Response.json([]);
+        mapboxCalls += 1;
+        return Response.json({ type: "FeatureCollection", features: [] });
       },
     });
-    const hybrid = createHybridGeocoder({ amap, nominatim });
+    const hybrid = createHybridGeocoder({ amap, mapbox });
 
     await expect(hybrid.search({
       query: "上海",
@@ -202,12 +202,12 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
       provider: "amap",
       retryable: false,
     });
-    expect(nominatimCalls).toBe(0);
+    expect(mapboxCalls).toBe(0);
   });
 
-  test("hybrid cache keys isolate deterministic AMAP and Nominatim routing contexts", async () => {
+  test("hybrid cache keys isolate deterministic AMAP and Mapbox routing contexts", async () => {
     let amapCalls = 0;
-    let nominatimCalls = 0;
+    let mapboxCalls = 0;
     const hybrid = createHybridGeocoder({
       amap: createAmapGeocoder({
         profile: "cn-primary",
@@ -218,14 +218,13 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
           return Response.json({ status: "1", pois: [] });
         },
       }),
-      nominatim: createNominatimGeocoder({
-        profile: "public-online",
-        userAgent: "on-the-road-test/1.0",
-        contact: "test@example.com",
+      mapbox: createMapboxGeocoder({
+        profile: "mapbox-permanent",
+        accessToken: "mapbox-key",
         language: "en",
         fetch: async () => {
-          nominatimCalls += 1;
-          return Response.json([]);
+          mapboxCalls += 1;
+          return Response.json({ type: "FeatureCollection", features: [] });
         },
       }),
     });
@@ -239,6 +238,6 @@ describe("TC-C02-02 rate, cache and policy faults", () => {
     await cached.search({ query: "Central", context: { countryCodes: ["chn"] } });
     await cached.search({ query: "Central", context: { countryCodes: ["USA"] } });
     await cached.search({ query: "Central", context: { countryCodes: ["usa"] } });
-    expect({ amapCalls, nominatimCalls }).toEqual({ amapCalls: 1, nominatimCalls: 1 });
+    expect({ amapCalls, mapboxCalls }).toEqual({ amapCalls: 1, mapboxCalls: 1 });
   });
 });

@@ -3,6 +3,8 @@ import type { PlaceCandidate, Wgs84Point } from "../contracts/dto.js";
 export interface GeocodingContext {
   readonly countryCodes?: readonly string[];
   readonly viewbox?: readonly [number, number, number, number];
+  /** WGS84 longitude/latitude used only to improve forward-result ranking. */
+  readonly proximity?: Wgs84Point | readonly [number, number];
   readonly mapProfile?: string;
 }
 
@@ -20,7 +22,7 @@ export interface NormalizedCandidate extends PlaceCandidate {
   readonly district?: string;
   readonly type?: string;
   readonly selected: false;
-  readonly provider: "here" | "amap" | "nominatim" | "fixture";
+  readonly provider: "here" | "amap" | "nominatim" | "mapbox" | "fixture";
   readonly mapProfile: string;
 }
 
@@ -32,7 +34,7 @@ export interface GeocoderCapabilities {
 }
 
 export interface Geocoder {
-  readonly provider: "here" | "amap" | "nominatim" | "hybrid" | "fixture";
+  readonly provider: "here" | "amap" | "nominatim" | "mapbox" | "hybrid" | "fixture";
   readonly profile: string;
   capabilities(): GeocoderCapabilities;
   search(request: GeocodingSearchRequest): Promise<NormalizedCandidate[]>;

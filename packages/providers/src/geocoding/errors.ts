@@ -18,14 +18,14 @@ export class GeocoderError extends Error {
       readonly retryAfterSeconds?: number;
       readonly status?: number;
       readonly source?: "provider" | "client";
-      readonly provider?: "here" | "amap" | "nominatim" | "hybrid" | "fixture";
+      readonly provider?: "here" | "amap" | "nominatim" | "mapbox" | "hybrid" | "fixture";
     } = {},
   ) {
     super(message);
     this.name = "GeocoderError";
   }
 
-  get provider(): "here" | "amap" | "nominatim" | "hybrid" | "fixture" {
+  get provider(): "here" | "amap" | "nominatim" | "mapbox" | "hybrid" | "fixture" {
     return this.details.provider ?? "here";
   }
 

@@ -5,6 +5,7 @@ import {
   createFixtureGeocoder,
   createHereGeocoder,
   createHybridGeocoder,
+  createMapboxGeocoder,
   createNominatimGeocoder,
   gcj02ToWgs84,
   wgs84ToGcj02,
@@ -261,14 +262,25 @@ describe("TC-C02-01 Geocoder adapter contract", () => {
           pois: [{ id: "amap:cn", name: "上海", location: "121.478223,31.228457" }],
         }),
     });
-    const nominatim = createNominatimGeocoder({
-      profile: "public-online",
-      userAgent: "on-the-road-test/1.0",
-      contact: "test@example.com",
+    const mapbox = createMapboxGeocoder({
+      profile: "mapbox-permanent",
+      accessToken: "mapbox-test-token",
       language: "en",
-      fetch: nominatimFetch,
+      fetch: async () => Response.json({
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          id: "place.new-york",
+          geometry: { type: "Point", coordinates: [-73.9857, 40.7484] },
+          properties: {
+            mapbox_id: "place.new-york",
+            name: "New York",
+            context: { country: { country_code: "US" }, place: { name: "New York" } },
+          },
+        }],
+      }),
     });
-    const hybrid = createHybridGeocoder({ amap, nominatim });
+    const hybrid = createHybridGeocoder({ amap, mapbox });
 
     await expect(hybrid.search({
       query: "Shanghai",
@@ -277,10 +289,16 @@ describe("TC-C02-01 Geocoder adapter contract", () => {
       expect.objectContaining({ provider: "amap" }),
     ]);
     await expect(hybrid.search({
+      query: "People's Square",
+      context: { proximity: [121.4737, 31.2304] },
+    })).resolves.toEqual([
+      expect.objectContaining({ provider: "amap" }),
+    ]);
+    await expect(hybrid.search({
       query: "Shanghai",
       context: { countryCodes: ["USA"] },
     })).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({ provider: "nominatim" }),
+      expect.objectContaining({ provider: "mapbox" }),
     ]));
     await expect(hybrid.reverse({
       longitude: 121.4737,
@@ -291,6 +309,6 @@ describe("TC-C02-01 Geocoder adapter contract", () => {
       longitude: -73.9857,
       latitude: 40.7484,
       crs: "WGS84",
-    })).resolves.toMatchObject({ provider: "nominatim" });
+    })).resolves.toMatchObject({ provider: "mapbox" });
   });
 });

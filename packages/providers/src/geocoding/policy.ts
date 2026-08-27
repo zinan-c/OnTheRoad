@@ -35,6 +35,7 @@ function cacheKey(provider: Geocoder, request: GeocodingSearchRequest): string {
     query: request.query.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase(),
     countryCodes: request.context?.countryCodes?.map((code) => code.toLowerCase()).sort() ?? [],
     viewbox: request.context?.viewbox ?? null,
+    proximity: request.context?.proximity ?? null,
   });
   return `geocoding:v2:${hash(canonical)}`;
 }
