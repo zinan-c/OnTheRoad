@@ -14,8 +14,12 @@ export type MapProfile =
   | "cn_primary"
   | "international_primary"
   | "hybrid";
-export type MapLayerId = "amap-street" | "amap-satellite" | "amap-satellite-labels";
-export type MapClientProvider = "fixture" | "amap";
+export type MapLayerId =
+  | "amap-street"
+  | "amap-satellite"
+  | "amap-satellite-labels"
+  | "mapbox-streets";
+export type MapClientProvider = "fixture" | "amap" | "mapbox";
 
 export interface ConfigIssue {
   readonly field: string;
@@ -86,6 +90,12 @@ export interface ProcessConfig {
       readonly engine: "maplibre" | "amap-js";
       readonly jsApiKey?: string;
       readonly securityJsCode?: string;
+      /** Public, domain-restricted token used only by the browser tile source. */
+      readonly mapboxPublicToken?: string;
+      readonly tileTemplate?: string;
+      readonly tileSize?: number;
+      readonly maxZoom?: number;
+      readonly showMapboxLogo?: boolean;
       readonly defaultLayer: MapLayerId;
       readonly attribution: string;
     };
@@ -102,10 +112,24 @@ export interface ProcessConfig {
       readonly discoverEndpoint: URL;
       readonly reverseGeocodeEndpoint: URL;
     };
+    readonly mapbox: {
+      readonly tilesBaseUrl: URL;
+      readonly geocodeEndpoint: URL;
+      readonly reverseGeocodeEndpoint: URL;
+      readonly timeoutMs: number;
+      readonly rateLimitRps: number;
+      readonly cacheTtlSeconds: number;
+      readonly tileSize: 512;
+      readonly maxZoom: number;
+      readonly publicTokenConfigured: boolean;
+      readonly geocodingTokenConfigured: boolean;
+      readonly attribution: string;
+    };
     readonly providerCredentialsConfigured: {
       readonly amap: boolean;
       readonly nominatim: boolean;
       readonly here: boolean;
+      readonly mapbox: boolean;
     };
     readonly capabilities: {
       readonly autocomplete: boolean;
@@ -139,6 +163,8 @@ export interface ProcessConfig {
     readonly providerCredentials: {
       readonly amapApiKey?: string;
       readonly hereApiKey?: string;
+      /** Server-only Mapbox Geocoding Permanent token. */
+      readonly mapboxGeocodingToken?: string;
     };
   };
 }
@@ -175,6 +201,7 @@ const VALID_MAP_LAYERS = new Set<MapLayerId>([
   "amap-street",
   "amap-satellite",
   "amap-satellite-labels",
+  "mapbox-streets",
 ]);
 
 function issue(
@@ -306,6 +333,23 @@ function assertOfficialAmapEndpoint(
       field,
       "INVALID_URL",
       `${field} must use the official AMap Web Service host`,
+    );
+  }
+}
+
+function assertOfficialMapboxEndpoint(
+  url: URL,
+  issues: ConfigIssue[],
+  field: string,
+  profile: MapProfile,
+): void {
+  if ((profile === "international_primary" || profile === "hybrid")
+    && url.hostname !== "api.mapbox.com") {
+    issue(
+      issues,
+      field,
+      "INVALID_URL",
+      `${field} must use the official Mapbox API host`,
     );
   }
 }
@@ -486,12 +530,31 @@ export function loadProcessConfig(
   const amapJsApiKey = environment.AMAP_JS_API_KEY?.trim() ?? "";
   const amapSecurityJsCode = environment.AMAP_JS_SECURITY_CODE?.trim() ?? "";
   const hereKey = environment.OTR_HERE_API_KEY?.trim() ?? "";
-  const defaultLayerValue = environment.OTR_MAP_DEFAULT_LAYER?.trim() || "amap-street";
+  const mapboxPublicToken = environment.MAPBOX_PUBLIC_TOKEN?.trim() ?? "";
+  const mapboxGeocodingToken = environment.MAPBOX_GEOCODING_TOKEN?.trim() ?? "";
+  const defaultLayerValue = environment.OTR_MAP_DEFAULT_LAYER?.trim()
+    || (mapProfile === "international_primary" ? "mapbox-streets" : "amap-street");
   const defaultLayer = VALID_MAP_LAYERS.has(defaultLayerValue as MapLayerId)
     ? defaultLayerValue as MapLayerId
     : "amap-street";
   if (!VALID_MAP_LAYERS.has(defaultLayerValue as MapLayerId)) {
     issue(issues, "OTR_MAP_DEFAULT_LAYER", "INVALID_ENUM", "OTR_MAP_DEFAULT_LAYER is not supported");
+  }
+  if (mapProfile === "international_primary" && defaultLayerValue !== "mapbox-streets") {
+    issue(
+      issues,
+      "OTR_MAP_DEFAULT_LAYER",
+      "CONFLICTING_CAPABILITY",
+      "international_primary requires the mapbox-streets layer",
+    );
+  }
+  if (mapProfile === "cn_primary" && defaultLayerValue === "mapbox-streets") {
+    issue(
+      issues,
+      "OTR_MAP_DEFAULT_LAYER",
+      "CONFLICTING_CAPABILITY",
+      "cn_primary requires an AMap layer",
+    );
   }
   const amapTimeoutMs = optionalInteger(
     environment,
@@ -534,6 +597,47 @@ export function loadProcessConfig(
     30_000,
   );
   const liveSmoke = optionalFlag(environment, issues, "OTR_AMAP_LIVE_SMOKE", false);
+  const mapboxTimeoutMs = optionalInteger(
+    environment,
+    issues,
+    "OTR_MAPBOX_TIMEOUT_MS",
+    5_000,
+    250,
+    30_000,
+  );
+  const mapboxRateLimitRps = optionalNumber(
+    environment,
+    issues,
+    "OTR_MAPBOX_RATE_LIMIT_RPS",
+    5,
+    0.001,
+    100,
+  );
+  const mapboxCacheTtlSeconds = optionalInteger(
+    environment,
+    issues,
+    "OTR_MAPBOX_CACHE_TTL_SECONDS",
+    86_400,
+    1,
+    604_800,
+  );
+  const mapboxMaxZoom = optionalInteger(
+    environment,
+    issues,
+    "OTR_MAPBOX_MAX_ZOOM",
+    22,
+    0,
+    22,
+  );
+  const mapboxTileSizeValue = optionalInteger(
+    environment,
+    issues,
+    "OTR_MAPBOX_TILE_SIZE",
+    512,
+    512,
+    512,
+  );
+  const mapboxLiveSmoke = optionalFlag(environment, issues, "OTR_MAPBOX_LIVE_SMOKE", false);
   const nominatimUserAgent = environment.OTR_NOMINATIM_USER_AGENT?.trim() ?? "";
   const nominatimContact = environment.OTR_NOMINATIM_CONTACT?.trim() ?? "";
   const nominatimTimeoutMs = optionalInteger(
@@ -566,7 +670,7 @@ export function loadProcessConfig(
       issues,
       "MAP_AUTOCOMPLETE_ENABLED",
       "CONFLICTING_CAPABILITY",
-      "Nominatim autocomplete is disabled; use explicit search",
+      "Online geocoding autocomplete is disabled; use explicit search",
     );
   }
 
@@ -607,24 +711,33 @@ export function loadProcessConfig(
   }
   if (
     (mapProfile === "international_primary" || mapProfile === "hybrid")
-    && !nominatimUserAgent
+    && !mapboxPublicToken
   ) {
     issue(
       issues,
-      "OTR_NOMINATIM_USER_AGENT",
+      "MAPBOX_PUBLIC_TOKEN",
       "REQUIRED",
-      "online Nominatim search requires OTR_NOMINATIM_USER_AGENT",
+      "Mapbox online map requires MAPBOX_PUBLIC_TOKEN",
     );
   }
   if (
     (mapProfile === "international_primary" || mapProfile === "hybrid")
-    && !nominatimContact
+    && role !== "web"
+    && !mapboxGeocodingToken
   ) {
     issue(
       issues,
-      "OTR_NOMINATIM_CONTACT",
+      "MAPBOX_GEOCODING_TOKEN",
       "REQUIRED",
-      "online Nominatim search requires OTR_NOMINATIM_CONTACT",
+      "Mapbox Permanent Geocoding requires MAPBOX_GEOCODING_TOKEN",
+    );
+  }
+  if (mapProfile === "hybrid" && role === "web") {
+    issue(
+      issues,
+      "MAP_PROFILE",
+      "CONFLICTING_CAPABILITY",
+      "hybrid cannot expose one browser map provider; use cn_primary or international_primary for Web",
     );
   }
   if (mapProfile === "hybrid" && !amapKey) {
@@ -665,6 +778,32 @@ export function loadProcessConfig(
     "OTR_HERE_REVERSE_ENDPOINT",
     ["https:"],
   );
+  const mapboxTilesBaseUrl = parsedUrl(
+    environment.OTR_MAPBOX_TILES_BASE_URL?.trim()
+      || "https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512",
+    issues,
+    "OTR_MAPBOX_TILES_BASE_URL",
+    ["https:"],
+  );
+  const mapboxGeocodeEndpoint = parsedUrl(
+    environment.OTR_MAPBOX_GEOCODE_ENDPOINT?.trim()
+      || "https://api.mapbox.com/search/geocode/v6/forward",
+    issues,
+    "OTR_MAPBOX_GEOCODE_ENDPOINT",
+    ["https:"],
+  );
+  const mapboxReverseGeocodeEndpoint = parsedUrl(
+    environment.OTR_MAPBOX_REVERSE_GEOCODE_ENDPOINT?.trim()
+      || "https://api.mapbox.com/search/geocode/v6/reverse",
+    issues,
+    "OTR_MAPBOX_REVERSE_GEOCODE_ENDPOINT",
+    ["https:"],
+  );
+  const mapboxAttribution = environment.OTR_MAPBOX_ATTRIBUTION?.trim()
+    || "© Mapbox © OpenStreetMap contributors";
+  assertOfficialMapboxEndpoint(mapboxTilesBaseUrl, issues, "OTR_MAPBOX_TILES_BASE_URL", mapProfile);
+  assertOfficialMapboxEndpoint(mapboxGeocodeEndpoint, issues, "OTR_MAPBOX_GEOCODE_ENDPOINT", mapProfile);
+  assertOfficialMapboxEndpoint(mapboxReverseGeocodeEndpoint, issues, "OTR_MAPBOX_REVERSE_GEOCODE_ENDPOINT", mapProfile);
   const directionsBaseUrl = parsedUrl(
     environment.OTR_DIRECTIONS_BASE_URL?.trim() || "https://restapi.amap.com/",
     issues,
@@ -748,6 +887,8 @@ export function loadProcessConfig(
         ["AMAP_JS_API_KEY", amapJsApiKey],
         ["AMAP_JS_SECURITY_CODE", amapSecurityJsCode],
         ["OTR_HERE_API_KEY", hereKey],
+        ["MAPBOX_PUBLIC_TOKEN", mapboxPublicToken],
+        ["MAPBOX_GEOCODING_TOKEN", mapboxGeocodingToken],
       ] as const) {
         if (value && DEVELOPMENT_CREDENTIAL.test(value)) {
           issue(
@@ -777,6 +918,7 @@ export function loadProcessConfig(
       providerCredentials: {
         ...(amapKey ? { amapApiKey: amapKey } : {}),
         ...(hereKey ? { hereApiKey: hereKey } : {}),
+        ...(mapboxGeocodingToken ? { mapboxGeocodingToken } : {}),
       },
     };
   }
@@ -800,16 +942,36 @@ export function loadProcessConfig(
   if (issues.length > 0) throw new ConfigValidationError(issues);
 
   const amapReady = Boolean(amapKey);
-  const clientProvider: MapClientProvider = mapProfile === "cn_primary" ? "amap" : "fixture";
-  const clientAttribution = clientProvider === "amap" ? "© 高德地图" : "On The Road fixture";
+  const clientProvider: MapClientProvider = mapProfile === "cn_primary"
+    ? "amap"
+    : mapProfile === "fixture"
+      ? "fixture"
+      : "mapbox";
+  const clientAttribution = clientProvider === "amap"
+    ? "© 高德地图"
+    : clientProvider === "mapbox"
+      ? mapboxAttribution
+      : "On The Road fixture";
+  const mapboxTileTemplate = mapboxPublicToken
+    ? `${mapboxTilesBaseUrl.href.replace(/\/+$/u, "")}/{z}/{x}/{y}?access_token=${encodeURIComponent(mapboxPublicToken)}`
+    : undefined;
+  const mapboxTileSize = mapboxTileSizeValue as 512;
+  const internationalMapReady = Boolean(mapboxPublicToken);
+  const internationalGeocodingReady = Boolean(mapboxGeocodingToken);
   const providerCapabilities = {
-    map: mapProfile === "fixture" || (mapProfile === "cn_primary" && Boolean(amapJsApiKey && amapSecurityJsCode)),
+    // `hybrid` has no single browser provider. The Web map config rejects it
+    // before serialization; API/Worker still use its fixed geographic rules.
+    map: mapProfile === "fixture"
+      || (mapProfile === "cn_primary" && Boolean(amapJsApiKey && amapSecurityJsCode))
+      || (mapProfile === "international_primary" && internationalMapReady),
     geocoding: mapProfile === "fixture"
       || (mapProfile === "cn_primary" && amapReady)
-      || ((mapProfile === "international_primary" || mapProfile === "hybrid") && Boolean(nominatimUserAgent && nominatimContact)),
+      || (mapProfile === "international_primary" && internationalGeocodingReady)
+      || (mapProfile === "hybrid" && amapReady && internationalGeocodingReady),
     reverseGeocoding: mapProfile === "fixture"
       || (mapProfile === "cn_primary" && amapReady)
-      || ((mapProfile === "international_primary" || mapProfile === "hybrid") && Boolean(nominatimUserAgent && nominatimContact)),
+      || (mapProfile === "international_primary" && internationalGeocodingReady)
+      || (mapProfile === "hybrid" && amapReady && internationalGeocodingReady),
     directions: mapProfile === "fixture" || (mapProfile === "cn_primary" && amapReady),
     staticMaps: mapProfile === "fixture" || (mapProfile === "cn_primary" && amapReady),
   } as const;
@@ -848,6 +1010,13 @@ export function loadProcessConfig(
         engine: clientProvider === "amap" ? "amap-js" : "maplibre",
         ...(amapJsApiKey && clientProvider === "amap" ? { jsApiKey: amapJsApiKey } : {}),
         ...(amapSecurityJsCode && clientProvider === "amap" ? { securityJsCode: amapSecurityJsCode } : {}),
+        ...(mapboxPublicToken && clientProvider === "mapbox" ? { mapboxPublicToken } : {}),
+        ...(mapboxTileTemplate && clientProvider === "mapbox" ? { tileTemplate: mapboxTileTemplate } : {}),
+        ...(clientProvider === "mapbox" ? {
+          tileSize: mapboxTileSize,
+          maxZoom: mapboxMaxZoom,
+          showMapboxLogo: true,
+        } : {}),
         defaultLayer,
         attribution: clientAttribution,
       },
@@ -864,10 +1033,24 @@ export function loadProcessConfig(
         discoverEndpoint: hereDiscoverEndpoint,
         reverseGeocodeEndpoint: hereReverseEndpoint,
       },
+      mapbox: {
+        tilesBaseUrl: mapboxTilesBaseUrl,
+        geocodeEndpoint: mapboxGeocodeEndpoint,
+        reverseGeocodeEndpoint: mapboxReverseGeocodeEndpoint,
+        timeoutMs: mapboxTimeoutMs,
+        rateLimitRps: mapboxRateLimitRps,
+        cacheTtlSeconds: mapboxCacheTtlSeconds,
+        tileSize: mapboxTileSize,
+        maxZoom: mapboxMaxZoom,
+        publicTokenConfigured: internationalMapReady,
+        geocodingTokenConfigured: internationalGeocodingReady,
+        attribution: mapboxAttribution,
+      },
       providerCredentialsConfigured: {
         amap: Boolean(amapKey),
         nominatim: Boolean(nominatimUserAgent && nominatimContact),
         here: Boolean(hereKey),
+        mapbox: Boolean(mapboxPublicToken && mapboxGeocodingToken),
       },
       capabilities: {
         autocomplete,
@@ -876,7 +1059,7 @@ export function loadProcessConfig(
         offlineMap: true,
       },
       providerCapabilities,
-      liveSmoke,
+      liveSmoke: clientProvider === "mapbox" ? mapboxLiveSmoke : liveSmoke,
     },
     ...(server ? { server } : {}),
   };

@@ -56,6 +56,7 @@ describe("TC-A03-01 minimal config schema", () => {
         amap: false,
         nominatim: false,
         here: false,
+        mapbox: false,
       });
       if (config.role === "web") {
         expect(config.server).toBeUndefined();
@@ -84,28 +85,58 @@ describe("TC-A03-01 minimal config schema", () => {
     });
   });
 
-  test("Nominatim identity stays server-side while capabilities remain shared", () => {
+  test("Mapbox Permanent credentials stay server-side while capabilities remain shared", () => {
     const environment = {
       ...minimalEnvironment,
       MAP_PROFILE: "international_primary",
       MAP_AUTOCOMPLETE_ENABLED: "false",
       MAP_EXPLICIT_SEARCH_ENABLED: "true",
-      OTR_NOMINATIM_USER_AGENT: "on-the-road-test/1.0",
-      OTR_NOMINATIM_CONTACT: "test@example.com",
+      MAPBOX_PUBLIC_TOKEN: "pk.mapbox-public",
+      MAPBOX_GEOCODING_TOKEN: "sk.mapbox-server",
     };
     const web = loadProcessConfig("web", environment);
     const api = loadProcessConfig("api", environment);
 
-    expect(web.map.providerCredentialsConfigured.nominatim).toBe(true);
+    expect(web.map.providerCredentialsConfigured.mapbox).toBe(true);
     expect(web.map.capabilities).toMatchObject({
       autocomplete: false,
       explicitSearch: true,
     });
-    expect(JSON.stringify(web)).not.toContain("test@example.com");
-    expect(api.server.providerCredentials.hereApiKey).toBeUndefined();
-    expect(api.map.nominatim.baseUrl.href).toBe(
-      "https://nominatim.openstreetmap.org/",
-    );
+    expect(web.map.client).toMatchObject({
+      provider: "mapbox",
+      engine: "maplibre",
+      mapboxPublicToken: "pk.mapbox-public",
+      tileSize: 512,
+      maxZoom: 22,
+      showMapboxLogo: true,
+      defaultLayer: "mapbox-streets",
+    });
+    expect(JSON.stringify(web)).not.toContain("sk.mapbox-server");
+    expect(api.server.providerCredentials.mapboxGeocodingToken).toBe("sk.mapbox-server");
+    expect(api.map.providerCapabilities).toEqual({
+      map: true,
+      geocoding: true,
+      reverseGeocoding: true,
+      directions: false,
+      staticMaps: false,
+    });
+  });
+
+  test("international Web config does not require or retain the server token", () => {
+    const web = loadProcessConfig("web", {
+      ...minimalEnvironment,
+      MAP_PROFILE: "international_primary",
+      MAP_EXPLICIT_SEARCH_ENABLED: "true",
+      MAPBOX_PUBLIC_TOKEN: "pk.mapbox-public",
+    });
+
+    expect(web.map.client).toMatchObject({
+      provider: "mapbox",
+      mapboxPublicToken: "pk.mapbox-public",
+      tileSize: 512,
+    });
+    expect(web.map.providerCredentialsConfigured.mapbox).toBe(false);
+    expect(JSON.stringify(web)).not.toContain("MAPBOX_GEOCODING_TOKEN");
   });
 
   test("cn_primary exposes only browser-safe AMap JS config and actual capabilities", () => {

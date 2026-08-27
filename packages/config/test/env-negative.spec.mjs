@@ -43,9 +43,9 @@ describe("TC-A03-02 secret and error redaction", () => {
     ["invalid API URL", { API_BASE_URL: "not a URL" }, "API_BASE_URL"],
     ["invalid API port", { API_PORT: "70000" }, "API_PORT"],
     [
-      "hybrid without Nominatim identity",
-      { MAP_PROFILE: "hybrid", AMAP_API_KEY: "amap-only" },
-      "OTR_NOMINATIM_USER_AGENT",
+      "international profile without Mapbox public token",
+      { MAP_PROFILE: "international_primary", MAPBOX_GEOCODING_TOKEN: "mapbox-server" },
+      "MAPBOX_PUBLIC_TOKEN",
     ],
     [
       "China profile without AMAP key",
@@ -78,29 +78,29 @@ describe("TC-A03-02 secret and error redaction", () => {
       "OTR_AMAP_DRIVING_STRATEGY",
     ],
     [
-      "Nominatim search without identity",
+      "international profile without Mapbox geocoding token",
       {
         MAP_PROFILE: "international_primary",
-        MAP_EXPLICIT_SEARCH_ENABLED: "true",
+        MAPBOX_PUBLIC_TOKEN: "mapbox-public",
       },
-      "OTR_NOMINATIM_USER_AGENT",
+      "MAPBOX_GEOCODING_TOKEN",
     ],
     [
-      "Nominatim rate above public cap",
+      "Mapbox tile size is not the supported 512px size",
       {
         MAP_PROFILE: "international_primary",
-        OTR_NOMINATIM_USER_AGENT: "on-the-road-test/1.0",
-        OTR_NOMINATIM_CONTACT: "test@example.com",
-        OTR_NOMINATIM_RATE_LIMIT_RPS: "1.1",
+        MAPBOX_PUBLIC_TOKEN: "mapbox-public",
+        MAPBOX_GEOCODING_TOKEN: "mapbox-server",
+        OTR_MAPBOX_TILE_SIZE: "256",
       },
-      "OTR_NOMINATIM_RATE_LIMIT_RPS",
+      "OTR_MAPBOX_TILE_SIZE",
     ],
     [
-      "autocomplete is disabled for Nominatim",
+      "autocomplete is disabled for online map providers",
       {
         MAP_PROFILE: "international_primary",
-        OTR_NOMINATIM_USER_AGENT: "on-the-road-test/1.0",
-        OTR_NOMINATIM_CONTACT: "test@example.com",
+        MAPBOX_PUBLIC_TOKEN: "mapbox-public",
+        MAPBOX_GEOCODING_TOKEN: "mapbox-server",
         MAP_AUTOCOMPLETE_ENABLED: "true",
       },
       "MAP_AUTOCOMPLETE_ENABLED",
