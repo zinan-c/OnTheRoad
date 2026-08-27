@@ -102,6 +102,26 @@ function viewboxContext(value: string | undefined): readonly [number, number, nu
   return [values[0]!, values[1]!, values[2]!, values[3]!];
 }
 
+function proximityContext(value: string | undefined): readonly [number, number] | undefined {
+  if (!value?.trim()) return undefined;
+  const values = value.split(",").map((entry) => Number(entry.trim()));
+  if (
+    values.length !== 2
+    || values.some((entry) => !Number.isFinite(entry))
+    || values[0]! < -180
+    || values[0]! > 180
+    || values[1]! < -90
+    || values[1]! > 90
+  ) {
+    throw new ProblemDetailsError({
+      status: 400,
+      code: "MAP_PROXIMITY_INVALID",
+      title: "proximity must be longitude,latitude within WGS84 bounds",
+    });
+  }
+  return [values[0]!, values[1]!];
+}
+
 @Catch()
 class ApiExceptionFilter implements ExceptionFilter {
   catch(error: unknown, host: import("@nestjs/common").ArgumentsHost) {
@@ -724,21 +744,34 @@ class ApiController {
     @Param("tripId") tripId: string,
     @Query("q") query: string,
     @Query("limit") limit?: string,
+    @Query("locale") locale?: string,
     @Query("countrycodes") countryCodes?: string,
     @Query("viewbox") viewbox?: string,
+    @Query("proximity") proximity?: string,
   ) {
     const ownerId = await owner(this.runtime, request);
     const trip = await this.runtime.trips.getTrip(ownerId, tripId) as unknown as { mapProfile?: string };
+    const capabilities = this.runtime.locationSearch.capabilities();
+    if (capabilities.provider !== "fixture" && trip.mapProfile !== capabilities.mapProfile) {
+      throw new ProblemDetailsError({
+        status: 409,
+        code: "MAP_PROFILE_MISMATCH",
+        title: "Trip map profile is not available in this deployment",
+      });
+    }
     const countries = countryContext(countryCodes);
     const box = viewboxContext(viewbox);
+    const near = proximityContext(proximity);
     return this.runtime.locationSearch.search({
       query,
       ...(limit ? { limit: Number(limit) } : {}),
-      ...((trip.mapProfile || countries || box) ? {
+      ...(locale?.trim() ? { locale: locale.trim() } : {}),
+      ...((trip.mapProfile || countries || box || near) ? {
         context: {
           ...(trip.mapProfile ? { mapProfile: trip.mapProfile } : {}),
           ...(countries ? { countryCodes: countries } : {}),
           ...(box ? { viewbox: box } : {}),
+          ...(near ? { proximity: near } : {}),
         },
       } : {}),
       trigger: "explicit",

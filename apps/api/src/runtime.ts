@@ -243,19 +243,28 @@ export function createProductionRuntime(
     ),
   });
   const onlineProfile = config.map.profile !== "fixture";
-  const publicProvider = config.map.profile === "cn_primary" ? "amap" : "nominatim";
+  const publicProvider = config.map.profile === "cn_primary"
+    ? "amap"
+    : config.map.profile === "international_primary"
+      ? "mapbox"
+      : "hybrid";
+  const geocodingPolicy = config.map.profile === "cn_primary"
+    ? {
+      cacheTtlSeconds: config.map.amap.cacheTtlSeconds,
+      rateLimitRps: config.map.amap.rateLimitRps,
+    }
+    : {
+      cacheTtlSeconds: config.map.mapbox.cacheTtlSeconds,
+      rateLimitRps: config.map.mapbox.rateLimitRps,
+    };
   const locationSearch = createConfiguredLocationSearchApi(environment, {
     ...(onlineProfile ? {
       policy: {
         store: geocodingStore,
-        cacheTtlSeconds: config.map.profile === "cn_primary"
-          ? config.map.amap.cacheTtlSeconds
-          : config.map.nominatim.cacheTtlSeconds,
+        cacheTtlSeconds: geocodingPolicy.cacheTtlSeconds,
         bucket: {
           capacity: 1,
-          refillPerSecond: config.map.profile === "cn_primary"
-            ? config.map.amap.rateLimitRps
-            : config.map.nominatim.rateLimitRps,
+          refillPerSecond: geocodingPolicy.rateLimitRps,
         },
         bucketKey: publicProvider,
         maxRetries: 1,

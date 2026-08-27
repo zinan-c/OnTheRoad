@@ -2,7 +2,7 @@ import {
   createAmapGeocoder,
   createFixtureGeocoder,
   createHybridGeocoder,
-  createNominatimGeocoder,
+  createMapboxGeocoder,
   GeocoderError,
   PolicyGeocoder,
   type Geocoder,
@@ -49,7 +49,7 @@ export interface LocationSearchCandidateView {
   readonly confidence: number;
   readonly attribution: string;
   readonly selected: false;
-  readonly provider: "here" | "amap" | "nominatim" | "fixture";
+  readonly provider: "here" | "amap" | "nominatim" | "mapbox" | "fixture";
   readonly mapProfile: ExternalMapProfile | string;
 }
 
@@ -97,10 +97,12 @@ export function createLocationSearchApi(options: {
           ? "© 高德地图"
           : geocoder.provider === "here"
             ? "© HERE"
-            : geocoder.provider === "nominatim"
+          : geocoder.provider === "nominatim"
               ? "© OpenStreetMap contributors"
+              : geocoder.provider === "mapbox"
+                ? "© Mapbox"
             : geocoder.provider === "hybrid"
-              ? "© OpenStreetMap contributors / © 高德地图"
+              ? "© Mapbox / © 高德地图"
               : "On The Road fixture"),
       candidates,
     };
@@ -154,20 +156,24 @@ export function createConfiguredLocationSearchApi(
   const applyPolicy = (geocoder: Geocoder): Geocoder => options.policy
     ? new PolicyGeocoder(geocoder, options.policy)
     : geocoder;
-  const nominatimOptions = {
-    profile: "public-online" as const,
-    baseUrl: environment.OTR_NOMINATIM_BASE_URL ?? "https://nominatim.openstreetmap.org",
-    userAgent: environment.OTR_NOMINATIM_USER_AGENT ?? "",
-    contact: environment.OTR_NOMINATIM_CONTACT ?? "",
-    language: environment.MAP_LANGUAGE ?? "en",
-    timeoutMs: Number(environment.OTR_NOMINATIM_TIMEOUT_MS ?? "5000"),
-    ...(options.fetch ? { fetch: options.fetch } : {}),
-  };
   const amapOptions = {
     profile: "cn-primary" as const,
     apiKey: environment.AMAP_API_KEY ?? "",
     language: environment.MAP_LANGUAGE ?? "zh-CN",
     timeoutMs: Number(environment.OTR_AMAP_TIMEOUT_MS ?? "5000"),
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  };
+  const mapboxOptions = {
+    profile: "mapbox-permanent" as const,
+    accessToken: environment.MAPBOX_GEOCODING_TOKEN ?? "",
+    language: environment.MAP_LANGUAGE ?? "en",
+    timeoutMs: Number(environment.OTR_MAPBOX_TIMEOUT_MS ?? "5000"),
+    endpoints: {
+      forward: environment.OTR_MAPBOX_GEOCODE_ENDPOINT
+        ?? "https://api.mapbox.com/search/geocode/v6/forward",
+      reverse: environment.OTR_MAPBOX_REVERSE_GEOCODE_ENDPOINT
+        ?? "https://api.mapbox.com/search/geocode/v6/reverse",
+    },
     ...(options.fetch ? { fetch: options.fetch } : {}),
   };
   if (profile === "fixture") {
@@ -179,7 +185,7 @@ export function createConfiguredLocationSearchApi(
   }
   if (profile === "international_primary") {
     return createLocationSearchApi({
-      geocoder: applyPolicy(createNominatimGeocoder(nominatimOptions)),
+      geocoder: applyPolicy(createMapboxGeocoder(mapboxOptions)),
       mapProfile: profile,
       ...(options.logger ? { logger: options.logger } : {}),
     });
@@ -194,14 +200,12 @@ export function createConfiguredLocationSearchApi(
     });
   }
   if (profile === "hybrid") {
-    const fetchOption = options.fetch ? { fetch: options.fetch } : {};
     return createLocationSearchApi({
       geocoder: applyPolicy(createHybridGeocoder({
         amap: createAmapGeocoder({
           ...amapOptions,
-          ...fetchOption,
         }),
-        nominatim: createNominatimGeocoder({ ...nominatimOptions, ...fetchOption }),
+        mapbox: createMapboxGeocoder(mapboxOptions),
       })),
       mapProfile: profile,
       ...(options.logger ? { logger: options.logger } : {}),

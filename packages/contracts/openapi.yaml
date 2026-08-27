@@ -1088,6 +1088,42 @@
           },
           {
             "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "description": "BCP 47 locale forwarded to the configured geocoder",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "countrycodes",
+            "in": "query",
+            "required": false,
+            "description": "Comma-separated ISO alpha-2 or alpha-3 country codes",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "viewbox",
+            "in": "query",
+            "required": false,
+            "description": "WGS84 west,south,east,north search boundary",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proximity",
+            "in": "query",
+            "required": false,
+            "description": "WGS84 longitude,latitude search bias",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

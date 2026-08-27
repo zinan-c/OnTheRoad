@@ -47,8 +47,8 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
   test("rejects missing credentials at construction and never silently changes provider", async () => {
     expect(() => createConfiguredLocationSearchApi({
       MAP_PROFILE: "international_primary",
-      OTR_NOMINATIM_USER_AGENT: "",
-      OTR_NOMINATIM_CONTACT: "",
+      MAPBOX_PUBLIC_TOKEN: "mapbox-public",
+      MAPBOX_GEOCODING_TOKEN: "",
     })).toThrowError(GeocoderError);
     expect(() => createConfiguredLocationSearchApi({
       MAP_PROFILE: "cn_primary",
@@ -60,11 +60,11 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
     expect(() => createConfiguredLocationSearchApi({
       MAP_PROFILE: "hybrid",
       AMAP_API_KEY: "amap-present",
-      OTR_NOMINATIM_USER_AGENT: "",
-      OTR_NOMINATIM_CONTACT: "",
+      MAPBOX_PUBLIC_TOKEN: "mapbox-public",
+      MAPBOX_GEOCODING_TOKEN: "",
     })).toThrowError(expect.objectContaining({
       code: "PROVIDER_CREDENTIALS_MISSING",
-      provider: "nominatim",
+      provider: "mapbox",
     }));
 
     const api = createLocationSearchApi({
@@ -90,14 +90,19 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
           }],
         });
       }
-      return Response.json([{
-        osm_type: "node",
-        osm_id: 2001,
-        display_name: "New York",
-        lat: "40.7128",
-        lon: "-74.006",
-        address: { country_code: "us", city: "New York" },
-      }]);
+      return Response.json({
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          id: "place.new-york",
+          geometry: { type: "Point", coordinates: [-74.006, 40.7128] },
+          properties: {
+            mapbox_id: "place.new-york",
+            name: "New York",
+            context: { country: { country_code: "US" }, place: { name: "New York" } },
+          },
+        }],
+      });
     };
     const cn = createConfiguredLocationSearchApi({
       MAP_PROFILE: "cn_primary",
@@ -119,8 +124,8 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
     const hybrid = createConfiguredLocationSearchApi({
       MAP_PROFILE: "hybrid",
       AMAP_API_KEY: "fixture-amap-key",
-      OTR_NOMINATIM_USER_AGENT: "on-the-road-test/1.0",
-      OTR_NOMINATIM_CONTACT: "test@example.com",
+      MAPBOX_PUBLIC_TOKEN: "mapbox-public",
+      MAPBOX_GEOCODING_TOKEN: "mapbox-server-key",
     }, { fetch });
     await hybrid.search({
       query: "上海",
@@ -133,55 +138,51 @@ describe("TC-C02-03 location search API and controlled offline smoke", () => {
     expect(hosts).toEqual([
       "restapi.amap.com",
       "restapi.amap.com",
-      "nominatim.openstreetmap.org",
+      "api.mapbox.com",
     ]);
   });
 
-  test("uses the configured Nominatim identity in a controlled in-process smoke", async () => {
+  test("uses the configured Mapbox Permanent token in a controlled in-process smoke", async () => {
     const requests: URL[] = [];
     const api = createConfiguredLocationSearchApi({
       MAP_PROFILE: "international_primary",
       MAP_LANGUAGE: "en",
-      OTR_NOMINATIM_USER_AGENT: "on-the-road-test/1.0",
-      OTR_NOMINATIM_CONTACT: "test@example.com",
+      MAPBOX_PUBLIC_TOKEN: "mapbox-public",
+      MAPBOX_GEOCODING_TOKEN: "mapbox-server-key",
     }, {
       fetch: async (url) => {
         requests.push(url);
-        if (url.pathname.endsWith("/reverse")) {
-          return Response.json({
-            osm_type: "node",
-            osm_id: 3002,
-            display_name: "The Bund, Shanghai",
-            lat: "31.24001",
-            lon: "121.49002",
-            address: { country_code: "cn", city: "Shanghai" },
-          });
-        }
-        return Response.json([{
-          osm_type: "node",
-          osm_id: 3001,
-          display_name: "Shanghai",
-          lat: "31.2304",
-          lon: "121.4737",
-          address: { country_code: "cn", city: "Shanghai" },
-        }]);
+        return Response.json({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            id: "place.shanghai",
+            geometry: { type: "Point", coordinates: [121.4737, 31.2304] },
+            properties: {
+              mapbox_id: url.pathname.endsWith("/reverse") ? "place.reverse-shanghai" : "place.shanghai",
+              name: url.pathname.endsWith("/reverse") ? "The Bund, Shanghai" : "Shanghai",
+              context: { country: { country_code: "CN" }, place: { name: "Shanghai" } },
+            },
+          }],
+        });
       },
     });
     const result = await api.search({ query: "Shanghai", limit: 1 });
-    expect(result.provider).toBe("nominatim");
+    expect(result.provider).toBe("mapbox");
     expect(result.mapProfile).toBe("international_primary");
     expect(result.candidates[0]?.mapProfile).toBe("international_primary");
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.hostname).toBe("nominatim.openstreetmap.org");
-    expect(requests[0]?.searchParams.get("email")).toBe("test@example.com");
-    expect(requests[0]?.searchParams.get("apiKey")).toBeNull();
+    expect(requests[0]?.hostname).toBe("api.mapbox.com");
+    expect(requests[0]?.searchParams.get("permanent")).toBe("true");
+    expect(requests[0]?.searchParams.get("autocomplete")).toBe("false");
+    expect(requests[0]?.searchParams.get("access_token")).toBe("mapbox-server-key");
     await expect(api.reverse({
       longitude: 121.49002,
       latitude: 31.24001,
       crs: "WGS84",
     })).resolves.toMatchObject({
-      id: "osm:node:3002",
-      provider: "nominatim",
+      id: "place.reverse-shanghai",
+      provider: "mapbox",
       point: { crs: "WGS84" },
     });
   });
