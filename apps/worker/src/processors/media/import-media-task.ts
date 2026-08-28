@@ -171,6 +171,7 @@ export class PostgresImportMediaTaskRepository implements ImportMediaTaskReposit
     const result = await this.#database.query(
       `UPDATE import_media_task
        SET status = 'ready', attachment_id = $4::uuid,
+           error_code = NULL, error_detail = NULL, next_attempt_at = NULL,
            lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL,
            completed_at = now(), version = version + 1, updated_at = now()
        WHERE id = $1::uuid AND lease_token = $2::uuid AND version = $3

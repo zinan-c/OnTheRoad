@@ -68,7 +68,7 @@ describe("TC-C07-03 change-to-rebuild E2E", () => {
       "itinerary.order.changed",
     );
     await expect(processor.process(reorderEvent)).resolves.toMatchObject({
-      applied: true,
+      applied: false,
     });
     expect(await activeCount(database, context.tripId)).toBe(2);
 

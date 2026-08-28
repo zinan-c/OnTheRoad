@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 import { encryptImportMediaUrl } from "../../src/processors/import/media-url-crypto.js";
 import {
   ImportMediaTaskProcessor,
+  PostgresImportMediaTaskRepository,
   type ImportMediaTaskClaim,
   type ImportMediaTaskRepository,
 } from "../../src/processors/media/import-media-task.js";
@@ -48,6 +49,26 @@ class FakeRepository implements ImportMediaTaskRepository {
 }
 
 describe("TC-E09-01 approval-to-ready media task", () => {
+  test("clears retry errors when a later attempt reaches ready", async () => {
+    let statement = "";
+    const repository = new PostgresImportMediaTaskRepository({
+      executor: {
+        async query(sql: string) {
+          statement = sql;
+          return { rowCount: 1, rows: [] };
+        },
+      } as never,
+    });
+
+    await expect(repository.markReady(
+      "00000000-0000-4000-8000-000000000010",
+      "00000000-0000-4000-8000-000000000014",
+      4,
+      "00000000-0000-4000-8000-000000000015",
+    )).resolves.toBe(true);
+    expect(statement).toContain("error_code = NULL, error_detail = NULL, next_attempt_at = NULL");
+  });
+
   test("does not issue a network request until the task is claimable", async () => {
     const request = vi.fn();
     const repository = new FakeRepository(null);

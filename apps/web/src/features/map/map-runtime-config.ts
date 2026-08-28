@@ -54,6 +54,19 @@ export type ConfiguredMapRuntime = MapRuntimeFactory & {
   readonly mapConfig: MapRuntimeConfig;
 };
 
+export function mapLibreRuntimeOptions(config: MapRuntimeConfig) {
+  return {
+    ...TRIP_MAP_RUNTIME_OPTIONS,
+    ...(config.tileTemplate ? { tileTemplate: config.tileTemplate } : {}),
+    ...(config.tileSize ? { tileSize: config.tileSize } : {}),
+    ...(config.maxZoom !== undefined ? { maxZoom: config.maxZoom } : {}),
+    ...(config.showMapboxLogo ? { showMapboxLogo: true } : {}),
+    attribution: config.provider === "fixture"
+      ? TRIP_MAP_RUNTIME_OPTIONS.attribution
+      : config.attribution,
+  };
+}
+
 export async function fetchMapRuntimeConfig(
   request: typeof fetch = fetch,
 ): Promise<MapRuntimeConfig> {
@@ -100,14 +113,7 @@ export async function loadConfiguredMapRuntime(options: {
     if (options.scriptLoader) Object.assign(amapOptions, { scriptLoader: options.scriptLoader });
     runtime = await loadAMapRuntime(amapOptions);
   } else {
-    runtime = await loadMapLibreRuntime({
-      ...TRIP_MAP_RUNTIME_OPTIONS,
-      ...(config.tileTemplate ? { tileTemplate: config.tileTemplate } : {}),
-      ...(config.tileSize ? { tileSize: config.tileSize } : {}),
-      ...(config.maxZoom !== undefined ? { maxZoom: config.maxZoom } : {}),
-      ...(config.showMapboxLogo ? { showMapboxLogo: true } : {}),
-      attribution: config.attribution,
-    }) as unknown as MapRuntimeFactory;
+    runtime = await loadMapLibreRuntime(mapLibreRuntimeOptions(config)) as unknown as MapRuntimeFactory;
   }
   return Object.assign(runtime, { mapConfig: config }) as ConfiguredMapRuntime;
 }

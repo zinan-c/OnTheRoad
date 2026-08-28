@@ -272,6 +272,38 @@ test("workspace edit keeps drag handles, arrow controls, and confirms item delet
   await waitFor(() => expect(screen.queryByText("外滩")).toBeNull());
 });
 
+test("workspace create uses the saved Item while its Day load is still pending", async () => {
+  let resolveDays!: (response: Response) => void;
+  const pendingDays = new Promise<Response>((resolveResponse) => { resolveDays = resolveResponse; });
+  const saved = {
+    id: "item-new", tripDayId: "day-1", itemType: "other" as const,
+    target: "Late Day load", description: null, timeKind: "unscheduled" as const,
+    startTime: null, endTime: null, endDayOffset: 0, timePeriod: null,
+    durationMinutes: null, locationId: null, startLocationId: null,
+    endLocationId: null, transportModeCode: null, bookingInfo: null,
+    contactInfo: null, remark: null, dining: null, accommodation: null, version: 1,
+  };
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/days")) return pendingDays;
+    if (url.endsWith("/transport-modes")) return Response.json([]);
+    if (url.endsWith("/itinerary-items") && init?.method === "POST") {
+      return Response.json(saved, { status: 201 });
+    }
+    return Response.json([]);
+  }));
+
+  render(<ItineraryPanel tripId="trip-1" selectedDayId="day-1" variant="workspace" />);
+  fireEvent.click(screen.getByRole("button", { name: "Add item" }));
+  fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "other" } });
+  fireEvent.change(screen.getByLabelText("Item name"), { target: { value: saved.target } });
+  fireEvent.click(screen.getByRole("button", { name: "Save item" }));
+
+  expect(await screen.findByRole("button", { name: `Open details ${saved.target}` })).toBeTruthy();
+  resolveDays(Response.json([{ id: "day-1", dayNumber: 1, date: "2026-08-14", version: 1 }]));
+  await screen.findByText("8/14 · 周五");
+  expect(screen.getByRole("button", { name: `Open details ${saved.target}` })).toBeTruthy();
+});
+
 test("workspace day cards open item details without an Expand button", async () => {
   const item = {
     id: "item-1", tripDayId: "day-1", itemType: "attraction" as const,

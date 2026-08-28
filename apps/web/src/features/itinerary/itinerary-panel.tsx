@@ -280,6 +280,7 @@ export function ItineraryPanel({
   })));
   const confirmedPayload = useRef("");
   const saveSequence = useRef(0);
+  const itemsLoadSequence = useRef(0);
   const expenseRef = useRef<ProductExpense | null>(null);
   const workspaceOriginalOrder = useRef<string[]>([]);
   const selectedDayId = controlledSelectedDayId !== undefined
@@ -289,14 +290,17 @@ export function ItineraryPanel({
   useBodyScrollLock(editorOpen || Boolean(viewing) || Boolean(deleteCandidate));
 
   const loadItems = useCallback(async (dayId: string) => {
+    const sequence = ++itemsLoadSequence.current;
     setStatus("loading");
     try {
       const loaded = await itineraryApi<ProductItem[]>(`/trips/${tripId}/days/${dayId}/itinerary-items`);
+      if (sequence !== itemsLoadSequence.current) return;
       setItems(loaded);
       onItemsChange?.(dayId, loaded);
       setError(null);
       setStatus("idle");
     } catch (caught) {
+      if (sequence !== itemsLoadSequence.current) return;
       setError(caught instanceof Error ? caught.message : "Unable to load this day's itinerary");
       setStatus("error");
     }
@@ -305,7 +309,10 @@ export function ItineraryPanel({
   const loadWorkspaceItems = useCallback(async (
     dayId: string | null,
     availableDays: readonly ProductDay[],
+    requestedSequence?: number,
   ) => {
+    const sequence = requestedSequence ?? ++itemsLoadSequence.current;
+    if (sequence !== itemsLoadSequence.current) return;
     setStatus("loading");
     if (!dayId) {
       setItems([]);
@@ -330,12 +337,14 @@ export function ItineraryPanel({
         const expense = expenses.find((candidate) => candidate.itineraryItemId === itemId);
         if (expense) nextExpenses[itemId] = expense;
       }
+      if (sequence !== itemsLoadSequence.current) return;
       setItems(loadedItems);
       setItemExpenses(nextExpenses);
       for (const { day, items: dayItems } of itemGroups) onItemsChange?.(day.id, dayItems);
       setError(null);
       setStatus("idle");
     } catch (caught) {
+      if (sequence !== itemsLoadSequence.current) return;
       setError(caught instanceof Error ? caught.message : "Unable to load this itinerary");
       setStatus("error");
     }
@@ -369,6 +378,7 @@ export function ItineraryPanel({
   useEffect(() => {
     if (!workspaceMode) return;
     let cancelled = false;
+    const sequence = ++itemsLoadSequence.current;
     setWorkspaceEditing(false);
     workspaceOriginalOrder.current = [];
     setEditorOpen(false);
@@ -379,7 +389,7 @@ export function ItineraryPanel({
     void itineraryApi<ProductDay[]>(`/trips/${tripId}/days`).then(async (loaded) => {
       if (cancelled) return;
       setDays(loaded);
-      await loadWorkspaceItems(controlledSelectedDayId ?? null, loaded);
+      await loadWorkspaceItems(controlledSelectedDayId ?? null, loaded, sequence);
     }).catch((caught) => {
       if (cancelled) return;
       setError(caught instanceof Error ? caught.message : "Unable to load trip days");
@@ -629,8 +639,9 @@ export function ItineraryPanel({
             headers: { "content-type": "application/json" },
             body: JSON.stringify(itemPayload(draft)),
           });
+      let createdExpense: ProductExpense | undefined;
       if (draft.costAmount) {
-        await itineraryApi(`/trips/${tripId}/expenses`, {
+        createdExpense = await itineraryApi<ProductExpense>(`/trips/${tripId}/expenses`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -642,7 +653,17 @@ export function ItineraryPanel({
         });
       }
       if (workspaceMode) {
-        await loadWorkspaceItems(selectedDayId, days);
+        itemsLoadSequence.current += 1;
+        setItems((current) => {
+          const next = current.some(({ id }) => id === saved.id)
+            ? current.map((item) => item.id === saved.id ? saved : item)
+            : [...current, saved];
+          onItemsChange?.(saved.tripDayId, next);
+          return next;
+        });
+        if (createdExpense) {
+          setItemExpenses((current) => ({ ...current, [saved.id]: createdExpense }));
+        }
         setEditorOpen(false);
         setEditing(null);
       } else {

@@ -161,11 +161,15 @@ export async function createSimpleItem(
 
 export async function openItem(page: Page, itemId: string): Promise<Locator> {
   const legacyEdit = page.locator(`#itinerary-item-edit-${itemId}`);
+  let card = page.locator(`article[data-item-id="${itemId}"]`);
+  const dayRail = page.getByRole("complementary", { name: "Trip days" });
+  await expect.poll(async () =>
+    await legacyEdit.count() + await card.count() + await dayRail.count(),
+  ).toBeGreaterThan(0);
   if (await legacyEdit.count() > 0) {
     await legacyEdit.click();
   } else {
-    let card = page.locator(`article[data-item-id="${itemId}"]`);
-    if (await card.count() === 0 && await page.getByRole("complementary", { name: "Trip days" }).count() > 0) {
+    if (await card.count() === 0 && await dayRail.count() > 0) {
       await selectDay(page, 1);
       card = page.locator(`article[data-item-id="${itemId}"]`);
     }

@@ -99,6 +99,9 @@ export function TripWorkspace({ tripId, showMapTimeline = false, showItineraryPa
   const [routeRefreshVersion, setRouteRefreshVersion] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+    setDays([]);
+    setSelectedDayId(null);
     void (async () => {
       const [loadedDays, loadedTransportModes] = await Promise.all([
         api<Day[]>(`/trips/${tripId}/days`).then(async (loaded) => Promise.all(
@@ -109,10 +112,11 @@ export function TripWorkspace({ tripId, showMapTimeline = false, showItineraryPa
         )),
         api<TransportModeView[]>(`/trips/${tripId}/transport-modes`).catch(() => []),
       ]);
+      if (cancelled) return;
       setDays(loadedDays);
-      setSelectedDayId(null);
       setTripTransportModes(loadedTransportModes);
     })();
+    return () => { cancelled = true; };
   }, [tripId]);
 
   const items = useMemo(() => flattenDays(days), [days]);

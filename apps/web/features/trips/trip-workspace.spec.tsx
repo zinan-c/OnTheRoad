@@ -64,6 +64,33 @@ afterEach(() => {
 });
 
 describe("TripWorkspace independent day navigation", () => {
+  test("ignores a previous Trip load that finishes after the current Trip", async () => {
+    let resolveOldDays!: (response: Response) => void;
+    let resolveNewDays!: (response: Response) => void;
+    const oldDays = new Promise<Response>((resolveResponse) => { resolveOldDays = resolveResponse; });
+    const newDays = new Promise<Response>((resolveResponse) => { resolveNewDays = resolveResponse; });
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.endsWith("/trips/trip-old/days")) return oldDays;
+      if (url.endsWith("/trips/trip-new/days")) return newDays;
+      if (url.includes("/itinerary-items") || url.endsWith("/transport-modes")) return Response.json([]);
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    const view = render(<TripWorkspace tripId="trip-old" showItineraryPanel />);
+    view.rerender(<TripWorkspace tripId="trip-new" showItineraryPanel />);
+    resolveNewDays(Response.json([{ id: "new-day", dayNumber: 1, date: "2026-09-01" }]));
+
+    const newDay = await screen.findByRole("button", { name: /Day 1, 9\/1/u });
+    await userEvent.setup().click(newDay);
+    expect(screen.getByTestId("itinerary").getAttribute("data-selected-day")).toBe("new-day");
+
+    resolveOldDays(Response.json([{ id: "old-day", dayNumber: 9, date: "2026-08-09" }]));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Day 9/u })).toBeNull());
+    expect(screen.getByRole("button", { name: /Day 1, 9\/1/u }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("itinerary").getAttribute("data-selected-day")).toBe("new-day");
+  });
+
   test("keeps 13+ days in a dedicated list and preserves its scroll position when selecting Day 13", async () => {
     render(<TripWorkspace tripId="trip-1" showItineraryPanel />);
 
