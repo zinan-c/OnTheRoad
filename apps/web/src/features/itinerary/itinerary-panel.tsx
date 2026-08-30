@@ -9,6 +9,7 @@ import {
   type ProductReorderInput,
 } from "./product-sortable-timeline";
 import type { TransportModeView } from "../trips/settings/transport-modes";
+import { formatTripDate } from "../trips/trip-date";
 import { LocationProductPicker } from "../locations/location-product-picker";
 import { useBodyScrollLock } from "../../components/use-body-scroll-lock";
 
@@ -213,15 +214,6 @@ function itemTimeLabel(item: ProductItem): string {
     return `${item.startTime}–${item.endTime}${item.endDayOffset === 1 ? " · next day" : ""}`;
   }
   return item.startTime || "Unscheduled";
-}
-
-function displayDate(value?: string): string {
-  if (!value) return "Date not set";
-  const date = new Date(`${value}T00:00:00+08:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  const monthDay = new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(date);
-  const weekday = new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(date);
-  return `${monthDay} · ${weekday}`;
 }
 
 function displayValue(value: unknown): string {
@@ -869,7 +861,7 @@ export function ItineraryPanel({
         <div>
           <p className="eyebrow">Itinerary</p>
           <h2>{selectedDay ? `Day ${selectedDay.dayNumber}` : "All days"}</h2>
-          <p>{selectedDay ? displayDate(selectedDay.date) : "Global itinerary overview"}</p>
+          <p>{selectedDay ? formatTripDate(selectedDay.date) : "Global itinerary overview"}</p>
         </div>
         <div className="workspaceItineraryActions">
           {selectedDayId ? workspaceEditing ? <>

@@ -7,6 +7,7 @@ import { TripGalleryWorkspace } from "../attachments/trip-gallery";
 import { ImportWorkspace } from "../imports/import-workspace";
 import { ItineraryPanel, type ProductItem } from "../itinerary/itinerary-panel";
 import { RouteMapWorkspace } from "../map/route-map-workspace";
+import { formatTripDate } from "./trip-date";
 import type { TransportModeView } from "./settings/transport-modes";
 
 type Item = {
@@ -46,15 +47,6 @@ function flattenDays(days: Day[]): Item[] {
   })));
 }
 
-function dayDateLabel(value?: string): string {
-  if (!value) return "Date not set";
-  const date = new Date(`${value}T00:00:00+08:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  const monthDay = new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(date);
-  const weekday = new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(date);
-  return `${monthDay} · ${weekday}`;
-}
-
 function TripDayRail({
   days,
   selectedDayId,
@@ -77,12 +69,12 @@ function TripDayRail({
         className="tripDayButton"
         key={day.id}
         type="button"
-        aria-label={`Day ${day.dayNumber}, ${dayDateLabel(day.date)}`}
+        aria-label={`Day ${day.dayNumber}, ${formatTripDate(day.date)}`}
         aria-pressed={day.id === selectedDayId}
         onClick={() => onSelect(day.id)}
       >
         <span>Day {day.dayNumber}</span>
-        <time dateTime={day.date}>{dayDateLabel(day.date)}</time>
+        <time dateTime={day.date}>{formatTripDate(day.date)}</time>
       </button>)}
     </nav>
   </aside>;
