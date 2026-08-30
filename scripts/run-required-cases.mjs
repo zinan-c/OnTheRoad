@@ -16,6 +16,15 @@ const reportPath = process.env.OTR_REQUIRED_CASE_REPORT
   : undefined;
 const schemaImmutabilityDatabaseUrl =
   process.env.OTR_SCHEMA_IMMUTABILITY_DATABASE_URL;
+const precollectedVitestResultPath = process.env.OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_RESULT
+  ? resolve(root, process.env.OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_RESULT)
+  : undefined;
+const precollectedVitestFiles = new Set(
+  (process.env.OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_FILES ?? "")
+    .split(/[\n,]/u)
+    .map((file) => file.trim().replaceAll("\\", "/"))
+    .filter(Boolean),
+);
 let temporaryDirectory;
 let vitestRuns = [];
 let nodeRun;
@@ -37,6 +46,25 @@ try {
     };
     process.exitCode = 1;
     throw new Error(report.error.message);
+  }
+
+  const unknownPrecollectedFiles = [...precollectedVitestFiles].filter(
+    (file) => !verification.vitestTestFiles.includes(file),
+  );
+  if (unknownPrecollectedFiles.length > 0) {
+    throw new Error(
+      `Precollected required-case files are not required Vitest files: ${unknownPrecollectedFiles.join(", ")}`,
+    );
+  }
+  if (precollectedVitestFiles.size > 0 && !precollectedVitestResultPath) {
+    throw new Error(
+      "OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_RESULT is required when precollected files are configured.",
+    );
+  }
+  if (precollectedVitestResultPath && precollectedVitestFiles.size === 0) {
+    throw new Error(
+      "OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_FILES is required when a precollected result is configured.",
+    );
   }
 
   const prerequisiteBuild = spawnSync(
@@ -62,10 +90,35 @@ try {
 
   temporaryDirectory = await mkdtemp(resolve(tmpdir(), "otr-required-cases-"));
   const vitestResult = { testResults: [] };
+  if (precollectedVitestResultPath) {
+    const precollectedResult = JSON.parse(
+      await readFile(precollectedVitestResultPath, "utf8"),
+    );
+    if (!Array.isArray(precollectedResult.testResults)) {
+      throw new Error("Precollected required-case Vitest result has no testResults array.");
+    }
+    const collectedFiles = new Set(
+      precollectedResult.testResults.map(({ name }) =>
+        relative(root, resolve(name)).replaceAll("\\", "/")),
+    );
+    const missingPrecollectedFiles = [...precollectedVitestFiles].filter(
+      (file) => !collectedFiles.has(file),
+    );
+    if (missingPrecollectedFiles.length > 0) {
+      throw new Error(
+        `Precollected required-case Vitest result is missing files: ${missingPrecollectedFiles.join(", ")}`,
+      );
+    }
+    vitestResult.testResults.push(...precollectedResult.testResults);
+    vitestRuns.push({ groupRoot: "precollected", status: 0 });
+  }
   const schemaBaseline = schemaImmutabilityDatabaseUrl
     ? schemaFingerprint(schemaImmutabilityDatabaseUrl)
     : undefined;
-  for (const [groupRoot, files] of groupVitestFiles(verification.vitestTestFiles)) {
+  const pendingVitestFiles = verification.vitestTestFiles.filter(
+    (file) => !precollectedVitestFiles.has(file),
+  );
+  for (const [groupRoot, files] of groupVitestFiles(pendingVitestFiles)) {
     const outputName = groupRoot === "."
       ? "root"
       : groupRoot.replaceAll("/", "-");

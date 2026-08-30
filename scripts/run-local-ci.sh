@@ -155,12 +155,27 @@ export OTR_RUN_CLAMAV_INTEGRATION="1"
 export OTR_REQUIRED_CASE_REPORT="${REPORT_PATH}"
 export OTR_COMMIT_SHA="$(git rev-parse HEAD)"
 
-echo "Starting M4 API, Worker, PDF Worker, and Web runtimes..."
+echo "Building M4 API, Worker, PDF Worker, and Web runtimes..."
 pnpm exec turbo run build \
   --filter=@on-the-road/api \
   --filter=@on-the-road/worker \
   --filter=@on-the-road/pdf-worker \
   --filter=@on-the-road/web
+
+echo "Running TC-C07-02 before the real Worker starts..."
+ISOLATED_C07_RESULT="${REPO_ROOT}/test-results/c07-route-generation-race.json"
+pnpm exec vitest run \
+  test/directions/route-generation-race.integration.spec.ts \
+  --config "${REPO_ROOT}/vitest.required.config.mjs" \
+  --root apps/worker \
+  --reporter=json \
+  --outputFile="${ISOLATED_C07_RESULT}" \
+  --no-file-parallelism \
+  --maxWorkers=1
+export OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_FILES="apps/worker/test/directions/route-generation-race.integration.spec.ts"
+export OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_RESULT="${ISOLATED_C07_RESULT}"
+
+echo "Starting M4 API, Worker, PDF Worker, and Web runtimes..."
 bash scripts/run-profile.sh dev -- node apps/api/dist/main.js \
   > test-results/m4-api.log 2>&1 &
 API_PID=$!

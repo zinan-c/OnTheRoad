@@ -298,6 +298,19 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(playwrightConfig, /MAP_PROFILE: "fixture"/);
   assert.match(playwrightConfig, /MAP_EXPLICIT_SEARCH_ENABLED: "false"/);
   assert.match(testWorkflow, /export OTR_C07_DATABASE_URL="\$DATABASE_URL"/);
+  assert.match(
+    testWorkflow,
+    /vitest run[\s\\]*test\/directions\/route-generation-race\.integration\.spec\.ts/,
+  );
+  assert.match(
+    testWorkflow,
+    /OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_FILES="apps\/worker\/test\/directions\/route-generation-race\.integration\.spec\.ts"/,
+  );
+  assert.ok(
+    testWorkflow.indexOf("test/directions/route-generation-race.integration.spec.ts")
+      < testWorkflow.indexOf("@on-the-road/worker start"),
+    "TC-C07-02 must finish before the real Worker starts",
+  );
   assert.match(testWorkflow, /export OTR_E04_DATABASE_URL="\$DATABASE_URL"/);
   assert.match(
     testWorkflow,
@@ -458,6 +471,19 @@ test("TC-A01-03 every push runs the development test gate", async () => {
   assert.match(localCi, /psql redis-cli magick/);
   assert.match(localCi, /export OTR_M1_REDIS_URL="\$\{REDIS_URL\}"/);
   assert.match(localCi, /export OTR_C07_DATABASE_URL="\$\{DATABASE_URL\}"/);
+  assert.match(
+    localCi,
+    /vitest run[\s\\]*test\/directions\/route-generation-race\.integration\.spec\.ts/,
+  );
+  assert.match(
+    localCi,
+    /OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_RESULT="\$\{ISOLATED_C07_RESULT\}"/,
+  );
+  assert.ok(
+    localCi.indexOf("test/directions/route-generation-race.integration.spec.ts")
+      < localCi.indexOf("node apps/worker/dist/main.js"),
+    "local TC-C07-02 must finish before the real Worker starts",
+  );
   assert.match(localCi, /export OTR_E04_DATABASE_URL="\$\{DATABASE_URL\}"/);
   assert.match(
     localCi,

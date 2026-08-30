@@ -108,6 +108,17 @@ jobs:
             --filter=@on-the-road/api \
             --filter=@on-the-road/worker \
             --filter=@on-the-road/pdf-worker
+          isolated_c07_result="$GITHUB_WORKSPACE/test-results/c07-route-generation-race.json"
+          pnpm exec vitest run \
+            test/directions/route-generation-race.integration.spec.ts \
+            --config "$GITHUB_WORKSPACE/vitest.required.config.mjs" \
+            --root apps/worker \
+            --reporter=json \
+            --outputFile="$isolated_c07_result" \
+            --no-file-parallelism \
+            --maxWorkers=1
+          export OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_FILES="apps/worker/test/directions/route-generation-race.integration.spec.ts"
+          export OTR_REQUIRED_CASE_PRECOLLECTED_VITEST_RESULT="$isolated_c07_result"
           pnpm run profile:dev -- pnpm --filter @on-the-road/api start \
             > test-results/m4-api.log 2>&1 &
           api_pid=$!
